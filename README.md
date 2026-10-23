@@ -13,7 +13,8 @@ Open `login.html` in a browser to start.
 | Home | `index.html` | Everyone (principals get the approvals dashboard) |
 | Schedule & calendar | `schedule.html` | Students, teachers |
 | Grades & submissions | `grades.html` | Students, teachers |
-| Learning path | `path.html` | Students, teachers |
+| My tasks (to do, awaiting grade, completed with feedback) | `tasks.html` | Students |
+| Learning path | `path.html` | Teachers |
 | Library | `library.html` | Students, teachers |
 | Weekly timetable editor | `timetable.html` | Principals |
 | Settings | `settings.html` | Everyone |
@@ -35,7 +36,8 @@ Password for all: `demo1234`
 - Teachers who register must be approved by a principal (the principal is notified)
 - Principals edit the weekly timetable for the whole school year; teachers and students are notified of changes
 - Teachers grade submissions and view student files; grade weights always total 100%
-- Students hand in work, build and share personal learning paths
+- Students see all their tasks in one place – what is still due, what is awaiting a grade, and completed work with the teacher's grade and feedback
+- Students hand in work, build and share personal learning paths in the library
 - Works on phones, tablets and desktops
 
 ## Note

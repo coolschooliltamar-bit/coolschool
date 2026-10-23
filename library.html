@@ -538,7 +538,7 @@ function teacherStudentCount() { return teacherClasses().reduce((sum, c) => sum 
 /* ================= Translations ================= */
 const translations = {
   he: {
-    home: 'בית', schedule: 'מערכת', timetable: 'עריכת מערכת', grades: 'ציונים', path: 'מסלול', library: 'ספרייה', settings: 'הגדרות',
+    home: 'בית', schedule: 'מערכת', timetable: 'עריכת מערכת', tasks: 'משימות', grades: 'ציונים', path: 'מסלול', library: 'ספרייה', settings: 'הגדרות',
     student: 'תלמיד', teacher: 'מורה', principal: 'מנהל/ת', notifications: 'התראות', markAllRead: 'סימון הכול כנקרא',
     joinClass: 'הצטרפות לכיתה עם QR', profile: 'פרופיל', help: 'עזרה', signOut: 'יציאה', grade: 'כיתה י״א',
     appSettings: 'הגדרות האפליקציה', settingsSubtitle: 'התאימו את CoolSchool לאופן שבו נוח לכם ללמוד.',
@@ -552,7 +552,7 @@ const translations = {
     teacherAverageExplanation: 'במצב מורה מוצג הממוצע הכיתתי של התלמידים בכיתה שנבחרה כעת.',
   },
   en: {
-    home: 'Home', schedule: 'Schedule', timetable: 'Timetable', grades: 'Grades', path: 'Path', library: 'Library', settings: 'Settings',
+    home: 'Home', schedule: 'Schedule', timetable: 'Timetable', tasks: 'Tasks', grades: 'Grades', path: 'Path', library: 'Library', settings: 'Settings',
     student: 'Student', teacher: 'Teacher', principal: 'Principal', notifications: 'Notifications', markAllRead: 'Mark all read',
     joinClass: 'Join Class with QR', profile: 'Profile', help: 'Help', signOut: 'Sign Out', grade: 'Grade 11',
     appSettings: 'App Settings', settingsSubtitle: 'Make CoolSchool work the way you like to learn.',
@@ -566,7 +566,7 @@ const translations = {
     teacherAverageExplanation: 'In teacher mode, this is the class average for the currently selected class.',
   },
   ar: {
-    home: 'الرئيسية', schedule: 'الجدول', timetable: 'تحرير الجدول', grades: 'العلامات', path: 'المسار', library: 'المكتبة', settings: 'الإعدادات',
+    home: 'الرئيسية', schedule: 'الجدول', timetable: 'تحرير الجدول', tasks: 'المهام', grades: 'العلامات', path: 'المسار', library: 'المكتبة', settings: 'الإعدادات',
     student: 'طالب', teacher: 'معلّم', principal: 'المدير', notifications: 'الإشعارات', markAllRead: 'تحديد الكل كمقروء',
     joinClass: 'الانضمام إلى صف عبر QR', profile: 'الملف الشخصي', help: 'المساعدة', signOut: 'تسجيل الخروج', grade: 'الصف الحادي عشر',
     appSettings: 'إعدادات التطبيق', settingsSubtitle: 'خصص CoolSchool بالطريقة التي تناسب تعلمك.',
@@ -740,6 +740,11 @@ function inboxNotifs() {
       return { ...base, type: 'timetable', link: 'schedule.html',
         text: L(`${name} עדכן/ה את מערכת השעות השבועית (${count} שינויים)`, `${name} updated the weekly timetable (${count} change${count === 1 ? '' : 's'})`) };
     }
+    if (m.kind === 'graded') {
+      const x = m.extra || {};
+      return { ...base, type: 'grade', link: 'tasks.html',
+        text: L(`${name} בדק/ה את "${x.title || ''}" · ציון ${x.grade}`, `${name} graded "${x.title || ''}" · ${x.grade}`) };
+    }
     if (m.kind === 'teacher-approved') {
       return { ...base, type: 'approved', text: L('המנהל/ת אישר/ה את החשבון שלך. ברוכים הבאים!', 'The principal approved your account. Welcome!') };
     }
@@ -821,6 +826,7 @@ const ICONS = {
   grades: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
   path: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>',
   timetable: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 10h18M8 2v4M16 2v4M10 14h1v4M14 14l-1.5 4"/><path d="M17 15l2-2 2 2-4 4h-2v-2z" fill="currentColor" stroke="none"/></svg>',
+  tasks: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 3v2h6V3M8 11l2 2 4-4M8 17h8"/></svg>',
   library: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>',
   settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0015 19.4a1.7 1.7 0 00-1 .6 1.7 1.7 0 00-.4 1.1V21H9.6v-.1A1.7 1.7 0 008.5 19.4a1.7 1.7 0 00-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 004.6 15a1.7 1.7 0 00-.6-1 1.7 1.7 0 00-1.1-.4H3V9.6h.1A1.7 1.7 0 004.6 8.5a1.7 1.7 0 00-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 009 4.6a1.7 1.7 0 001-.6 1.7 1.7 0 00.4-1.1V3h4v.1A1.7 1.7 0 0015.5 4.6a1.7 1.7 0 001.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0019.4 9c.14.38.36.72.65.99.3.27.68.42 1.08.42H21v4h-.1A1.7 1.7 0 0019.4 15z"/></svg>',
 };
@@ -829,6 +835,7 @@ const NAV = [
   { href: 'index.html', key: 'home' },
   { href: 'schedule.html', key: 'schedule' },
   { href: 'grades.html', key: 'grades' },
+  { href: 'tasks.html', key: 'tasks' },
   { href: 'path.html', key: 'path' },
   { href: 'library.html', key: 'library' },
   { href: 'timetable.html', key: 'timetable' },
@@ -853,7 +860,7 @@ function renderHeader() {
       <span class="logo-text sm-up">CoolSchool</span>
     </a>
 
-    ${isPrincipal() ? '' : `<div class="dd" data-dd>
+    ${state.role !== 'teacher' ? '' : `<div class="dd" data-dd>
       <button class="class-pill" onclick="toggleDd('classes')"
         style="background:${cls.color}22;color:${cls.color};border:1.5px solid ${cls.color}44">
         <span class="dot" style="background:${cls.color}"></span>
@@ -947,7 +954,7 @@ function renderHeader() {
 function renderSidebar(active) {
   return `
   <aside class="sidebar">
-    ${NAV.filter(item => (isPrincipal() ? PRINCIPAL_PAGES.includes(item.key) : item.key !== 'timetable')).map(item => `
+    ${NAV.filter(navAllowed).map(item => `
       <a href="${item.href}" class="nav-item ${active === item.key ? 'on' : ''}" title="${t(item.key)}">
         ${ICONS[item.key]}
         <span>${t(item.key)}</span>
@@ -956,6 +963,14 @@ function renderSidebar(active) {
 }
 
 const PRINCIPAL_PAGES = ['home', 'timetable', 'settings'];
+// Students get Tasks instead of the learning path; teachers keep the path
+function navAllowed(item) {
+  if (isPrincipal()) return PRINCIPAL_PAGES.includes(item.key);
+  if (item.key === 'timetable') return false;
+  if (item.key === 'tasks') return state.role === 'student';
+  if (item.key === 'path') return state.role === 'teacher';
+  return true;
+}
 
 /* Principal approves or declines a teacher who signed up */
 function reviewTeacher(id, approve) {
@@ -1008,6 +1023,78 @@ document.addEventListener('mousedown', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDropdowns(); });
 
+/* ---------- Student: hand in work ---------- */
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;   // browser storage is small, keep demo uploads light
+
+function mySubmission(assignmentId) {
+  return reviewQueue().find(q => q.assignmentId === assignmentId && q.student === currentUserName())
+    || load('cs-graded', []).find(g => g.assignmentId === assignmentId && g.student === currentUserName());
+}
+
+function submitControl(a) {
+  const sub = mySubmission(a.id);
+  const days = daysUntil(a.dueDate);
+  return `
+    <input type="file" id="up-${a.id}" multiple hidden onchange="uploadWork('${a.id}', this)">
+    ${sub
+      ? `<span class="xs w7" style="color:#10B981">✓ ${sub.grade !== undefined ? L(`נבדק · ${sub.grade}`, `Graded · ${sub.grade}`) : L('הוגש', 'Submitted')}</span>
+         ${sub.grade === undefined ? `<button class="xs w7 primary" onclick="document.getElementById('up-${a.id}').click()">${L('הגשה מחדש', 'Resubmit')}</button>` : ''}`
+      : `<button class="btn btn-primary btn-sm" onclick="document.getElementById('up-${a.id}').click()">⬆ ${L('הגשת עבודה', 'Upload work')}</button>
+         <span class="xs w6" style="color:${days <= 2 ? '#F43F5E' : 'var(--muted)'}">${days <= 0 ? L('להגשה היום', 'Due today') : L(`נותרו ${days} ימים`, `${days}d left`)}</span>`}`;
+}
+
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadWork(assignmentId, input) {
+  const picked = [...input.files];
+  input.value = '';
+  if (!picked.length) return;
+  const total = picked.reduce((sum, f) => sum + f.size, 0);
+  if (total > MAX_UPLOAD_BYTES) {
+    toast(L('הקבצים גדולים מדי (עד 2MB בגרסת ההדגמה)', 'Files are too large (2 MB max in this demo)'));
+    return;
+  }
+  let files;
+  try {
+    files = await Promise.all(picked.map(async f => ({ name: f.name, type: f.type, size: f.size, dataUrl: await readAsDataUrl(f) })));
+  } catch (e) {
+    toast(L('לא הצלחנו לקרוא את הקובץ', 'Could not read the file'));
+    return;
+  }
+  const queue = reviewQueue().filter(q => !(q.assignmentId === assignmentId && q.student === currentUserName()));
+  queue.push({ id: 's-' + Date.now(), assignmentId, student: currentUserName(), submittedAt: new Date().toISOString().slice(0, 10), files });
+  try {
+    localStorage.setItem('cs-review-queue', JSON.stringify(queue));
+  } catch (e) {
+    toast(L('אין מספיק מקום באחסון הדפדפן לקובץ הזה', 'Not enough browser storage for this file'));
+    return;
+  }
+  renderPage();
+  toast(L('העבודה הוגשה למורה', 'Your work was handed in'));
+}
+
+function allAssignments() { return load('cs-teacher-assignments', null) || assignments; }
+
+/* Where the signed-in student stands on an assignment:
+   'graded' (with grade + teacher feedback), 'submitted' (waiting for a grade) or 'todo'. */
+function myTaskStatus(a) {
+  const me = currentUserName();
+  const graded = load('cs-graded', []).filter(g => g.assignmentId === a.id && g.student === me).pop();
+  if (graded) return { state: 'graded', grade: graded.grade, feedback: graded.feedback, gradedAt: graded.gradedAt, gradedBy: graded.gradedBy, files: graded.fileNames || [] };
+  // the built-in sample grades belong to the demo student
+  if (isDemoUser() && a.submitted && typeof a.grade === 'number') return { state: 'graded', grade: a.grade, feedback: a.feedback || '', gradedBy: classTeachers(a.classId)[0], files: [] };
+  const sub = reviewQueue().find(q => q.assignmentId === a.id && q.student === me);
+  if (sub) return { state: 'submitted', submittedAt: sub.submittedAt, files: (sub.files || []).map(f => f.name) };
+  return { state: 'todo' };
+}
+
 /* ================= Render loop ================= */
 function renderHeaderOnly() {
   document.getElementById('header-slot').innerHTML = renderHeader();
@@ -1021,6 +1108,8 @@ function renderAll() {
   if (!CURRENT_USER) return;
   if (isPrincipal() && !PRINCIPAL_PAGES.includes(window.PAGE_KEY)) { location.replace('index.html'); return; }
   if (!isPrincipal() && window.PAGE_KEY === 'timetable') { location.replace('schedule.html'); return; }
+  if (state.role === 'student' && window.PAGE_KEY === 'path') { location.replace('tasks.html'); return; }
+  if (state.role === 'teacher' && window.PAGE_KEY === 'tasks') { location.replace('index.html'); return; }
   applyDocument();
   renderHeaderOnly();
   document.getElementById('sidebar-slot').innerHTML = renderSidebar(window.PAGE_KEY);
