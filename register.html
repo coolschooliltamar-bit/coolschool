@@ -1,0 +1,1337 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#7C3AED">
+<title>CoolSchool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Nunito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Heebo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ===================== Shared styles ===================== */
+/* ============ Theme tokens ============ */
+:root {
+  --bg: #F0EFFF;
+  --surface: #E8E6FF;
+  --card: #FFFFFF;
+  --border: #DDD9FF;
+  --primary: #7C3AED;
+  --primary-fg: #FFFFFF;
+  --accent: #10B981;
+  --accent-fg: #FFFFFF;
+  --text: #1E1B4B;
+  --muted: #6B6E9A;
+  --amber: #F59E0B;
+  --rose: #F43F5E;
+  --sky: #38BDF8;
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Nunito', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+html.dark {
+  --bg: #0D0D1A;
+  --surface: #13132A;
+  --card: #1A1A32;
+  --border: #2E2E50;
+  --primary: #8B5CF6;
+  --primary-fg: #FFFFFF;
+  --accent: #34D399;
+  --accent-fg: #0D0D1A;
+  --text: #EEECFF;
+  --muted: #8884B0;
+}
+
+/* ============ Base ============ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+html[data-font-size='small'] { font-size: 0.875rem; }
+html[data-font-size='medium'] { font-size: 1rem; }
+html[data-font-size='large'] { font-size: 1.125rem; }
+body {
+  font-family: var(--font-body);
+  color: var(--text);
+  background: var(--bg);
+  transition: background-color .2s ease, color .2s ease;
+  -webkit-font-smoothing: antialiased;
+}
+html[dir='rtl'] body { text-align: right; }
+html[lang='he'] body, html[lang='he'] body *:not(.mono),
+html[lang='ar'] body, html[lang='ar'] body *:not(.mono) {
+  font-family: 'Heebo', var(--font-body);
+}
+h1, h2, h3, h4, .display { font-family: var(--font-display); }
+.mono, code, pre { font-family: var(--font-mono); }
+html[dir='rtl'] .mono { direction: ltr; unicode-bidi: isolate; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+input, select, textarea { font: inherit; color: var(--text); }
+::placeholder { color: var(--muted); opacity: .8; }
+svg { display: block; }
+
+::-webkit-scrollbar { width: 0.375rem; height: 0.375rem; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 0.1875rem; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ============ App shell ============ */
+.app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.shell { display: flex; flex: 1; overflow: hidden; }
+.page {
+  flex: 1; overflow-y: auto; padding: 1rem;
+  display: flex; flex-direction: column; gap: 1.25rem;
+}
+@media (min-width: 768px) { .page { padding: 1.5rem; } }
+.page > * { flex-shrink: 0; }
+
+/* Header */
+.header {
+  height: 4rem; display: flex; align-items: center; gap: 1rem; padding: 0 1.5rem;
+  background: var(--card); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 50;
+}
+.logo { display: flex; align-items: center; gap: 0.5rem; }
+.logo-mark {
+  width: 2rem; height: 2rem; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-family: var(--font-display); font-weight: 900; font-size: 0.875rem;
+  background: linear-gradient(135deg, #7C3AED, #10B981);
+}
+.logo-text { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; color: var(--primary); }
+.dd { position: relative; }
+.dd-menu {
+  position: absolute; top: 100%; margin-top: 0.5rem; border-radius: 1rem; overflow: hidden; z-index: 60;
+  background: var(--card); border: 1px solid var(--border);
+  box-shadow: 0 1.25rem 1.5625rem -0.3125rem rgba(0,0,0,.12), 0 0.5rem 0.625rem -0.375rem rgba(0,0,0,.1);
+}
+.dd-menu.start { inset-inline-start: 0; }
+.dd-menu.end { inset-inline-end: 0; }
+.class-pill {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.75rem; border-radius: 0.75rem;
+  font-size: 0.875rem; font-weight: 600; transition: opacity .15s;
+}
+.class-pill:hover { opacity: .8; }
+.dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; flex-shrink: 0; }
+.menu-item {
+  width: 100%; display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem;
+  font-size: 0.875rem; text-align: start; transition: opacity .15s;
+}
+.menu-item:hover { opacity: .8; }
+.icon-btn {
+  width: 2.25rem; height: 2.25rem; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;
+  background: var(--surface); position: relative; transition: opacity .15s;
+}
+.icon-btn:hover { opacity: .7; }
+.icon-btn svg { width: 1.25rem; height: 1.25rem; }
+.count-badge {
+  position: absolute; top: -0.25rem; inset-inline-end: -0.25rem; width: 1.25rem; height: 1.25rem; border-radius: 50%;
+  background: var(--rose); color: #fff; font-size: 0.75rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.role-toggle { display: none; align-items: center; gap: 0.25rem; padding: 0.25rem; border-radius: 0.75rem; background: var(--surface); }
+.role-toggle button { padding: 0.25rem 0.75rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 700; color: var(--muted); transition: all .15s; }
+.role-toggle button.on { background: var(--primary); color: var(--primary-fg); }
+@media (min-width: 768px) { .role-toggle { display: flex; } }
+.avatar {
+  width: 1.75rem; height: 1.75rem; border-radius: 0.5rem; color: #fff; font-family: var(--font-display); font-weight: 700;
+  font-size: 0.875rem; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #7C3AED, #EC4899);
+}
+.profile-btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem; padding-inline-end: 0.75rem; border-radius: 0.75rem; background: var(--surface); }
+.notif { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+.notif.unread { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+
+/* Sidebar */
+.sidebar {
+  width: 4rem; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 1rem 0;
+  background: var(--card); border-inline-end: 1px solid var(--border);
+}
+.nav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 0.25rem; width: 3rem; padding: 0.625rem 0;
+  border-radius: 1rem; color: var(--muted); transition: all .15s;
+}
+.nav-item:hover { background: var(--surface); }
+.nav-item.on, .nav-item.on:hover { background: var(--primary); color: var(--primary-fg); }
+.nav-item svg { width: 1.25rem; height: 1.25rem; }
+.nav-item span { font-size: 0.625rem; font-weight: 700; display: none; }
+@media (min-width: 768px) { .sidebar { width: 5rem; } .nav-item span { display: block; } }
+
+/* ============ Building blocks ============ */
+.card { background: var(--card); border: 1.5px solid var(--border); }
+.surface { background: var(--surface); }
+.r-lg { border-radius: 0.5rem; } .r-xl { border-radius: 0.75rem; } .r-2xl { border-radius: 1rem; } .r-3xl { border-radius: 1.5rem; }
+.r-full { border-radius: 624.9375rem; }
+.p-3 { padding: 0.75rem; } .p-4 { padding: 1rem; } .p-5 { padding: 1.25rem; } .p-6 { padding: 1.5rem; } .p-8 { padding: 2rem; }
+.mt-1 { margin-top: 0.25rem; } .mt-2 { margin-top: 0.5rem; } .mt-3 { margin-top: 0.75rem; } .mt-4 { margin-top: 1rem; } .mt-5 { margin-top: 1.25rem; }
+.mb-1 { margin-bottom: 0.25rem; } .mb-2 { margin-bottom: 0.5rem; } .mb-3 { margin-bottom: 0.75rem; } .mb-4 { margin-bottom: 1rem; } .mb-5 { margin-bottom: 1.25rem; }
+.flex { display: flex; } .col { display: flex; flex-direction: column; } .wrap { flex-wrap: wrap; }
+.items-center { align-items: center; } .items-start { align-items: flex-start; } .items-end { align-items: flex-end; }
+.justify-between { justify-content: space-between; } .justify-center { justify-content: center; }
+.gap-1 { gap: 0.25rem; } .gap-2 { gap: 0.5rem; } .gap-3 { gap: 0.75rem; } .gap-4 { gap: 1rem; } .gap-5 { gap: 1.25rem; } .gap-6 { gap: 1.5rem; }
+.flex-1 { flex: 1; } .min-w-0 { min-width: 0; } .shrink-0 { flex-shrink: 0; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nowrap { white-space: nowrap; }
+.relative { position: relative; } .hidden { display: none !important; }
+.text-center { text-align: center; } .text-start { text-align: start; } .text-end { text-align: end; }
+.muted { color: var(--muted); } .primary { color: var(--primary); }
+.xs { font-size: 0.75rem; } .sm { font-size: 0.875rem; } .base { font-size: 1rem; } .lg { font-size: 1.125rem; }
+.xl { font-size: 1.25rem; } .x2 { font-size: 1.5rem; } .x3 { font-size: 1.875rem; } .x4 { font-size: 2.25rem; }
+.w5 { font-weight: 500; } .w6 { font-weight: 600; } .w7 { font-weight: 700; } .w8 { font-weight: 800; } .w9 { font-weight: 900; }
+.leading-tight { line-height: 1.25; } .leading-relaxed { line-height: 1.625; }
+
+.grid { display: grid; gap: 0.75rem; }
+.g-1 { grid-template-columns: 1fr; } .g-2 { grid-template-columns: repeat(2, 1fr); } .g-3 { grid-template-columns: repeat(3, 1fr); }
+.g-7 { grid-template-columns: repeat(7, 1fr); }
+@media (min-width: 640px) {
+  .sm-2 { grid-template-columns: repeat(2, 1fr); } .sm-3 { grid-template-columns: repeat(3, 1fr); }
+  .sm-only { display: block; } .sm-row { flex-direction: row !important; }
+}
+@media (min-width: 768px) {
+  .md-2 { grid-template-columns: repeat(2, 1fr); } .md-3 { grid-template-columns: repeat(3, 1fr); }
+  .md-only { display: block; }
+}
+@media (min-width: 1024px) {
+  .lg-2 { grid-template-columns: repeat(2, 1fr); } .lg-3 { grid-template-columns: repeat(3, 1fr); }
+  .lg-4 { grid-template-columns: repeat(4, 1fr); } .lg-span-2 { grid-column: span 2; }
+}
+@media (max-width: 639px) { .sm-up { display: none !important; } }
+@media (max-width: 767px) { .md-up { display: none !important; } }
+
+.icon-tile {
+  width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
+}
+.letter-tile {
+  border-radius: 0.75rem; flex-shrink: 0; color: #fff; font-family: var(--font-display); font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.badge { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; font-weight: 700; padding: 2px 0.5rem; border-radius: 624.9375rem; }
+.tag { font-size: 0.75rem; font-weight: 600; padding: 2px 0.375rem; border-radius: 0.375rem; }
+
+.bar { height: 0.5rem; border-radius: 624.9375rem; overflow: hidden; background: var(--surface); }
+.bar > span { display: block; height: 100%; border-radius: 624.9375rem; transition: width .6s ease; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.5rem 1rem; border-radius: 0.75rem; font-size: 0.875rem; font-weight: 700; transition: opacity .15s, transform .15s;
+}
+.btn:hover { opacity: .85; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--primary); color: var(--primary-fg); }
+.btn-soft { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+.btn-sm { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
+.link-btn { font-size: 0.875rem; font-weight: 700; color: var(--primary); }
+.link-btn:hover { opacity: .7; }
+.btn svg { width: 1rem; height: 1rem; }
+
+.input {
+  width: 100%; padding: 0.625rem 0.75rem; border-radius: 0.75rem; border: 1px solid var(--border);
+  background: var(--surface); outline: none; font-size: 0.875rem; transition: box-shadow .15s, border-color .15s;
+}
+.input:focus { border-color: var(--primary); box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--primary) 25%, transparent); }
+.input.on-card { background: var(--card); }
+.label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 0.375rem; color: var(--muted); }
+
+.seg { display: flex; padding: 0.25rem; border-radius: 1rem; background: var(--surface); gap: 0.25rem; }
+.seg button { flex: 1; padding: 0.625rem; border-radius: 0.75rem; font-size: 0.875rem; font-weight: 700; color: var(--muted); transition: all .15s; }
+.seg button.on { background: var(--card); color: var(--primary); box-shadow: 0 2px 0.5rem rgba(0,0,0,.08); }
+.seg.small button { padding: 0.375rem 0.75rem; font-size: 0.75rem; border-radius: 0.5rem; flex: none; }
+
+.hover-lift { transition: transform .15s, opacity .15s; cursor: pointer; }
+.hover-lift:hover { transform: scale(1.02); }
+.hover-fade { transition: opacity .15s; cursor: pointer; }
+.hover-fade:hover { opacity: .8; }
+.section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+
+/* ============ Animations ============ */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
+.spinner.violet { border-color: #C4B5FD; border-top-color: #6D28D9; }
+@keyframes pulse { 50% { opacity: .4; } }
+.pulse { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: .8; }
+  70% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+@keyframes fade-up { from { opacity: 0; transform: translateY(0.375rem); } to { opacity: 1; transform: none; } }
+.fade-up { animation: fade-up .3s ease both; }
+@keyframes xp-fill { from { width: 0%; } }
+.xp-fill { animation: xp-fill 1.2s ease-out both; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 100;
+  background: var(--text); color: var(--card); padding: 0.625rem 1.125rem; border-radius: 0.75rem;
+  font-size: 0.875rem; font-weight: 600; box-shadow: 0 0.625rem 1.875rem rgba(0,0,0,.2); animation: fade-up .25s ease both;
+}
+
+/* ============ Responsive: phones, tablets, desktops ============ */
+/* Keep content readable on very wide monitors (modals stay full-screen) */
+.page > :not(.modal-bg) { width: 100%; max-width: 90rem; margin-inline: auto; }
+
+/* Touch screens: no sticky hover effects, and 16px inputs so iOS doesn't zoom */
+@media (hover: none) {
+  .hover-lift:hover, .stat-link:hover, .slot:hover, .live-join:hover { transform: none; }
+}
+@media (pointer: coarse) {
+  .input, .score-input, .pct-input, select, textarea { font-size: max(1rem, 16px); }
+}
+
+/* Dialogs never taller than the visible screen (mobile address bars included) */
+.modal, .viewer { max-height: calc(100dvh - 2rem); overflow-y: auto; }
+.viewer { overflow-y: hidden; }
+@media (max-height: 520px) { .modal-bg { padding: 0.5rem; } .modal, .viewer { max-height: calc(100dvh - 1rem); } }
+
+/* Role switch inside the profile menu, for screens where the header toggle is hidden */
+.menu-role { display: none; padding: 0.625rem 1rem; border-bottom: 1px solid var(--border); }
+@media (max-width: 767px) { .menu-role { display: block; } }
+
+/* Phones: compact header and a bottom tab bar instead of the side rail */
+@media (max-width: 639px) {
+  .header { padding: 0 0.75rem; gap: 0.5rem; padding-top: env(safe-area-inset-top); height: calc(3.5rem + env(safe-area-inset-top)); }
+  .logo-mark { width: 2rem; height: 2rem; }
+  .icon-btn { width: 2.25rem; height: 2.25rem; }
+  .profile-btn { padding-inline-end: 4px; }
+  .sidebar {
+    position: fixed; inset-inline: 0; bottom: 0; z-index: 45; width: 100%; height: auto;
+    flex-direction: row; justify-content: space-around; gap: 0;
+    padding: 0.375rem 0.25rem calc(0.375rem + env(safe-area-inset-bottom));
+    border-inline-end: none; border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(0,0,0,.06);
+  }
+  .nav-item { flex: 1; width: auto; min-width: 0; padding: 0.375rem 0; border-radius: 0.75rem; }
+  .nav-item span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .page { padding: 0.875rem; padding-bottom: calc(5rem + env(safe-area-inset-bottom)); gap: 1rem; }
+  .toast { bottom: calc(5rem + env(safe-area-inset-bottom)); max-width: calc(100vw - 2rem); text-align: center; }
+  .dd-menu { max-width: calc(100vw - 1.5rem); }
+  .x2 { font-size: 1.3rem; } .x3 { font-size: 1.6rem; }
+}
+
+/* Short landscape phones: slimmer header so content gets the height */
+@media (max-height: 480px) and (orientation: landscape) {
+  .header { height: 3.25rem; }
+  .page { padding-top: 0.75rem; }
+}
+
+/* Grid children may shrink below their content width (prevents overflow on phones) */
+.grid > * { min-width: 0; }
+.btn { white-space: nowrap; }
+.section-head { flex-wrap: wrap; gap: 0.25rem 0.75rem; }
+
+/* Short landscape screens (phones on their side): compact side rail that never clips */
+@media (max-height: 480px) and (min-width: 640px) {
+  .sidebar { gap: 0.25rem; padding: 0.5rem 0; overflow-y: auto; }
+  .nav-item { padding: 0.5rem 0; }
+  .nav-item span { display: none; }
+}
+
+/* Phones: compact stat tiles */
+@media (max-width: 639px) {
+  .stat-wide { grid-column: 1 / -1; }
+  .stat-tile { padding: 0.75rem; gap: 0.5rem; }
+  .stat-tile .icon-tile { width: 2.25rem; height: 2.25rem; font-size: 1.1rem; }
+  .stat-tile .xl { font-size: 1.1rem; }
+}
+
+/* ===================== Sign-in pages ===================== */
+/* ============ Sign-in / sign-up layout ============ */
+.auth { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+@media (min-width: 960px) { .auth { flex-direction: row; } }
+
+.auth-brand {
+  position: relative; overflow: hidden; color: #fff; padding: 1.5rem 1.25rem;
+  background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 55%, #0EA5E9 100%);
+  display: flex; flex-direction: column; gap: 1rem;
+}
+.auth-brand * { color: #fff; }
+.auth-brand .blob { position: absolute; border-radius: 50%; background: #fff; pointer-events: none; }
+.auth-brand .b1 { width: 18rem; height: 18rem; top: -6rem; inset-inline-end: -6rem; opacity: .15; }
+.auth-brand .b2 { width: 12rem; height: 12rem; bottom: -5rem; inset-inline-start: -3rem; opacity: .1; }
+.auth-logo { display: flex; align-items: center; gap: 0.625rem; position: relative; }
+.auth-logo .logo-mark { background: rgba(255,255,255,.2); width: 2.5rem; height: 2.5rem; font-size: 1.1rem; }
+.auth-logo span { font-family: var(--font-display); font-weight: 800; font-size: 1.5rem; }
+.auth-tagline { position: relative; display: none; }
+@media (max-width: 959px) { .auth-copy { display: none; } }
+.auth-tagline h2 { font-size: 2.25rem; line-height: 1.15; font-weight: 800; }
+.auth-tagline p { margin-top: 0.75rem; opacity: .85; font-size: 1.05rem; line-height: 1.6; }
+.auth-points { position: relative; display: none; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }
+.auth-points div { display: flex; align-items: center; gap: 0.75rem; font-weight: 600; }
+.auth-points span.ic { width: 2.25rem; height: 2.25rem; border-radius: 0.75rem; background: rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center; }
+@media (min-width: 960px) {
+  .auth-brand { width: 44%; max-width: 40rem; padding: 3rem; justify-content: space-between; }
+  .auth-tagline, .auth-points { display: flex; flex-direction: column; }
+  .auth-tagline { display: block; }
+}
+
+.auth-main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 1rem 1rem 2rem; overflow-y: auto; }
+@media (min-width: 960px) { .auth-main { padding: 2rem; } }
+.auth-card { margin-block: auto; }   /* centred, but a tall form still scrolls from its top */
+.auth-tools { width: 100%; max-width: 30rem; display: flex; justify-content: flex-end; gap: 0.5rem; margin-bottom: 1rem; }
+@media (min-width: 960px) { .auth-tools { position: absolute; top: 1.25rem; inset-inline-end: 1.5rem; width: auto; margin: 0; } }
+.lang-select { width: auto; padding: 0.375rem 0.625rem; border-radius: 0.75rem; background: var(--card); border: 1px solid var(--border); font-size: 0.875rem; font-weight: 600; }
+
+.auth-card { width: 100%; max-width: 30rem; padding: 1.5rem; border-radius: 1.5rem; background: var(--card); border: 1.5px solid var(--border); box-shadow: 0 20px 50px -20px rgba(76,29,149,.25); }
+@media (min-width: 640px) { .auth-card { padding: 2rem; } }
+.auth-card.wide { max-width: 38rem; }
+.auth-card h1 { font-size: 1.75rem; font-weight: 800; }
+
+.field { display: flex; flex-direction: column; gap: 0.375rem; }
+.field .input { padding: 0.75rem 0.875rem; border-radius: 0.875rem; }
+.field.invalid .input { border-color: #F43F5E; box-shadow: 0 0 0 3px #F43F5E22; }
+.field-error { font-size: 0.75rem; color: #F43F5E; min-height: 0; }
+.pw-wrap { position: relative; }
+.pw-wrap .input { padding-inline-end: 3rem; }
+.pw-toggle { position: absolute; top: 50%; transform: translateY(-50%); inset-inline-end: 0.5rem; width: 2.25rem; height: 2.25rem; border-radius: 0.625rem; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.pw-toggle:hover { background: var(--surface); }
+
+.alert { display: flex; gap: 0.625rem; align-items: flex-start; padding: 0.75rem 0.875rem; border-radius: 0.875rem; font-size: 0.875rem; line-height: 1.5; }
+.alert.error { background: #F43F5E14; color: #E11D48; border: 1px solid #F43F5E33; }
+.alert.info { background: color-mix(in srgb, var(--primary) 9%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent); }
+.alert.warn { background: #F59E0B14; border: 1px solid #F59E0B40; }
+.alert.success { background: #10B98114; border: 1px solid #10B98140; }
+.alert.error * { color: #E11D48; }
+
+.btn-lg { padding: 0.875rem 1rem; border-radius: 0.875rem; font-size: 1rem; width: 100%; }
+.divider { display: flex; align-items: center; gap: 0.75rem; color: var(--muted); font-size: 0.75rem; font-weight: 700; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.demo-btn { display: flex; align-items: center; gap: 0.625rem; padding: 0.625rem 0.75rem; border-radius: 0.875rem; background: var(--surface); border: 1.5px solid transparent; text-align: start; transition: border-color .15s; }
+.demo-btn:hover { border-color: var(--primary); }
+.auth-link { color: var(--primary); font-weight: 700; }
+.auth-link:hover { text-decoration: underline; }
+
+/* ===================== Page styles ===================== */
+/* Role picker */
+.role-card {
+  display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.875rem 0.625rem; text-align: center;
+  border-radius: 1rem; border: 1.5px solid var(--border); background: var(--surface); transition: all .15s;
+}
+.role-card:hover { border-color: var(--primary); }
+.role-card.on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+@media (max-width: 639px) { .role-card { flex-direction: row; text-align: start; gap: 0.75rem; } .role-card .x2 { font-size: 1.5rem; } }
+
+/* Class picker for teachers */
+.class-pick { display: flex; align-items: center; gap: 0.625rem; padding: 0.625rem 0.75rem; border-radius: 0.875rem; border: 1.5px solid var(--border); background: var(--surface); transition: all .15s; }
+.class-pick:hover { border-color: var(--c); }
+.class-pick.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 10%, transparent); }
+.check-box { width: 1.25rem; height: 1.25rem; border-radius: 0.375rem; border: 2px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; }
+.class-pick.on .check-box { background: var(--c); border-color: var(--c); }
+.check-box svg { width: 0.75rem !important; height: 0.75rem !important; }
+#f-classIds.invalid .class-pick { border-color: #F43F5E66; }
+</style>
+</head>
+<body>
+<main id="main" class="auth"></main>
+<script>window.AUTH_PAGE = true;</script>
+
+<script>
+/* ===================== Shared app code (data, i18n, header, sidebar) ===================== */
+/* ================= Data ================= */
+const classes = [
+  { id: 'bio11a', name: 'Biology 11A', subject: 'Biology', color: '#10B981', teacher: 'Dr. Levi', students: 28, progress: 62 },
+  { id: 'math11', name: 'Mathematics 11', subject: 'Math', color: '#7C3AED', teacher: 'Mr. Cohen', students: 30, progress: 45 },
+  { id: 'hist11', name: 'History 11B', subject: 'History', color: '#F59E0B', teacher: 'Ms. Mizrahi', students: 26, progress: 78 },
+  { id: 'eng11', name: 'English Lit 11', subject: 'English', color: '#3B82F6', teacher: 'Ms. Shapiro', students: 24, progress: 55 },
+  { id: 'chem11', name: 'Chemistry 11A', subject: 'Chemistry', color: '#F43F5E', teacher: 'Dr. Ben-Dor', students: 22, progress: 33 },
+];
+
+const assignments = [
+  { id: 'a1', title: 'Cell Membrane Essay', classId: 'bio11a', dueDate: '2026-09-10', type: 'homework', weight: 0.6, submitted: false },
+  { id: 'a2', title: 'Photosynthesis Quiz', classId: 'bio11a', dueDate: '2026-09-12', type: 'quiz', weight: 0.2, submitted: false },
+  { id: 'a3', title: 'Bagrut Prep Exam', classId: 'bio11a', dueDate: '2026-09-18', type: 'bagrut', weight: 0.2, submitted: false },
+  { id: 'a4', title: 'Quadratic Equations HW', classId: 'math11', dueDate: '2026-09-11', type: 'homework', weight: 0.6, submitted: true, grade: 88, feedback: 'Good work, review Q4.' },
+  { id: 'a5', title: 'WWII Operations Essay', classId: 'hist11', dueDate: '2026-09-15', type: 'homework', weight: 0.6, submitted: false },
+  { id: 'a6', title: 'Mid-Term Exam', classId: 'math11', dueDate: '2026-09-22', type: 'exam', weight: 0.2, submitted: false },
+  { id: 'a7', title: 'Shakespeare Analysis', classId: 'eng11', dueDate: '2026-09-13', type: 'homework', weight: 0.6, submitted: true, grade: 95, feedback: 'Excellent literary analysis!' },
+  { id: 'a8', title: 'Chemistry Lab Report', classId: 'chem11', dueDate: '2026-09-16', type: 'homework', weight: 0.6, submitted: false },
+];
+
+const DEFAULT_TIMETABLE = [
+  { id: 't1', day: 0, startHour: 8, duration: 1, classId: 'bio11a', room: 'Lab 3' },
+  { id: 't2', day: 0, startHour: 10, duration: 1, classId: 'math11', room: 'Room 12' },
+  { id: 't3', day: 0, startHour: 13, duration: 1, classId: 'eng11', room: 'Room 5' },
+  { id: 't4', day: 1, startHour: 9, duration: 2, classId: 'chem11', room: 'Lab 1' },
+  { id: 't5', day: 1, startHour: 12, duration: 1, classId: 'hist11', room: 'Room 8' },
+  { id: 't6', day: 2, startHour: 8, duration: 1, classId: 'math11', room: 'Room 12' },
+  { id: 't7', day: 2, startHour: 11, duration: 1, classId: 'bio11a', room: 'Lab 3' },
+  { id: 't8', day: 2, startHour: 14, duration: 1, classId: 'eng11', room: 'Room 5' },
+  { id: 't9', day: 3, startHour: 9, duration: 1, classId: 'hist11', room: 'Room 8' },
+  { id: 't10', day: 3, startHour: 11, duration: 2, classId: 'chem11', room: 'Lab 1' },
+  { id: 't11', day: 3, startHour: 13, duration: 1, classId: 'math11', room: 'Room 12' },
+  { id: 't12', day: 4, startHour: 8, duration: 1, classId: 'bio11a', room: 'Lab 3' },
+  { id: 't13', day: 4, startHour: 10, duration: 1, classId: 'eng11', room: 'Room 5' },
+];
+
+/* Weekly timetable for the whole school year, edited by the principal.
+   Everyone reads the published version, so changes reach teachers and students. */
+const TIMETABLE_KEY = 'cs-timetable';
+const TIMETABLE_META_KEY = 'cs-timetable-meta';
+const SCHOOL_YEAR_KEY = 'cs-school-year';
+const DEFAULT_SCHOOL_YEAR = { start: '2026-09-01', end: '2027-06-20' };
+const DAY_NAMES = { en: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'], he: ['יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי'] };
+const SCHOOL_HOURS = [8, 9, 10, 11, 12, 13, 14, 15];
+const SCHOOL_DAY_END = 16;
+let timetable = load(TIMETABLE_KEY, null) || DEFAULT_TIMETABLE.map(s => ({ ...s }));
+function schoolYear() { return load(SCHOOL_YEAR_KEY, DEFAULT_SCHOOL_YEAR); }
+function timetableMeta() { return load(TIMETABLE_META_KEY, null); }
+
+const bioPathNodes = [
+  { id: 'n1', title: 'Cell Theory', type: 'lesson', status: 'completed', xp: 50, x: 50, y: 85 },
+  { id: 'n2', title: 'Cell Types', type: 'lesson', status: 'completed', xp: 50, x: 25, y: 72 },
+  { id: 'n3', title: 'Cell Quiz', type: 'quiz', status: 'completed', xp: 100, x: 50, y: 60 },
+  { id: 'n4', title: 'Membrane Structure', type: 'lesson', status: 'current', xp: 75, x: 75, y: 48 },
+  { id: 'n5', title: 'Transport', type: 'lesson', status: 'locked', xp: 75, x: 50, y: 36 },
+  { id: 'n6', title: 'Checkpoint', type: 'checkpoint', status: 'locked', xp: 150, x: 25, y: 24 },
+  { id: 'n7', title: 'Photosynthesis', type: 'lesson', status: 'locked', xp: 75, x: 50, y: 12 },
+  { id: 'n8', title: 'Unit Boss', type: 'boss', status: 'locked', xp: 300, x: 75, y: 0 },
+];
+
+const studentGrades = {
+  bio11a: { exam: 82, participation: 90, assignments: 88, feedback: 'Excellent engagement in class discussions. Keep up the strong essay work!' },
+  math11: { exam: 76, participation: 85, assignments: 88, feedback: 'Good homework completion. Focus on exam preparation for the mid-term.' },
+  hist11: { exam: 91, participation: 80, assignments: 94, feedback: 'Outstanding historical analysis in your WWII essay.' },
+  eng11: { exam: 88, participation: 92, assignments: 95, feedback: 'Your Shakespeare analysis showed real depth of understanding.' },
+  chem11: { exam: 70, participation: 75, assignments: 0, feedback: 'Lab report still pending. Please submit by Friday.' },
+};
+
+const gradeWeights = { exam: 0.2, participation: 0.2, assignments: 0.6 };
+
+const notificationsData = [
+  { id: 1, text: 'New assignment posted in Biology 11A', time: '5m ago', read: false, type: 'assignment' },
+  { id: 2, text: 'Live class starting in 10 minutes — Math 11', time: '10m ago', read: false, type: 'live' },
+  { id: 3, text: 'Dr. Levi graded your Cell Essay', time: '1h ago', read: false, type: 'grade' },
+  { id: 4, text: 'Bagrut prep exam scheduled for Sep 18', time: '2h ago', read: true, type: 'exam' },
+  { id: 5, text: 'You earned 150 XP on the Biology path!', time: '3h ago', read: true, type: 'xp' },
+];
+
+// Teachers get notifications about their own classes only
+const teacherNotificationsData = [
+  { id: 101, text: '3 new submissions in Biology 11A', time: '5m ago', read: false, type: 'assignment' },
+  { id: 102, text: 'Your live class with Biology 11A starts in 10 minutes', time: '10m ago', read: false, type: 'live' },
+  { id: 103, text: 'Bagrut prep exam scheduled for Sep 18', time: '2h ago', read: true, type: 'exam' },
+  { id: 104, text: 'Parent-teacher meeting next week — Biology 11A', time: '1d ago', read: true, type: 'exam' },
+];
+function defaultNotifs() {
+  return { student: notificationsData.map(n => ({ ...n })), teacher: teacherNotificationsData.map(n => ({ ...n })) };
+}
+
+const TYPE_COLORS = { homework: '#7C3AED', exam: '#F43F5E', bagrut: '#F59E0B', quiz: '#3B82F6' };
+const TEACHER_NAME = 'Dr. Levi';
+const STUDENT_ROSTER = ['Noa Ben-David', 'Yosef Avraham', 'Maya Goldstein', 'Lior Cohen', 'Tamar Levy', 'Eitan Mizrahi'];
+
+/* Submissions the teacher still has to grade (shared by Home, Grades and Library) */
+function defaultReviewQueue() {
+  const plan = [['a1', 6, '2026-09-09'], ['a2', 5, '2026-09-11'], ['a3', 3, '2026-09-12']];
+  const queue = [];
+  plan.forEach(([assignmentId, count, submittedAt]) => {
+    STUDENT_ROSTER.slice(0, count).forEach((student, i) => {
+      queue.push({ id: `${assignmentId}-${i}`, assignmentId, student, submittedAt });
+    });
+  });
+  return queue;
+}
+function reviewQueue() { return load('cs-review-queue', null) || defaultReviewQueue(); }
+function saveReviewQueue(queue) { save('cs-review-queue', queue); }
+function findAssignment(id) {
+  return (load('cs-teacher-assignments', null) || assignments).find(a => a.id === id)
+    || assignments.find(a => a.id === id);
+}
+// Submissions in the signed-in teacher's own classes
+function isMySubmission(q) {
+  const a = findAssignment(q.assignmentId);
+  return !!a && teacherClasses().some(c => c.id === a.classId);
+}
+/* Who teaches a class: approved teacher accounts first, otherwise the class's listed teacher */
+function classTeachers(classId) {
+  const fromAccounts = loadUsers().filter(u => u.role === 'teacher' && u.status === 'active' && (u.classIds || []).includes(classId)).map(fullName);
+  if (fromAccounts.length) return fromAccounts;
+  const cls = classes.find(c => c.id === classId);
+  return cls ? [cls.teacher] : [];
+}
+// Time ranges stay left-to-right inside Hebrew/Arabic text (otherwise "9:00–11:00" flips)
+function timeRange(start, end) { return `\u2066${start}:00–${end}:00\u2069`; }
+function dayName(day) { return (isHe() ? DAY_NAMES.he : DAY_NAMES.en)[day]; }
+function lessonLabel(s) {
+  const cls = classes.find(c => c.id === s.classId);
+  return `${cls ? localize(cls.name) : ''} · ${dayName(s.day)} ${timeRange(s.startHour, s.startHour + s.duration)}${s.room ? ' · ' + localize(s.room) : ''}`;
+}
+// What changed between two versions of the timetable (matched by lesson id)
+function diffTimetables(before, after) {
+  const changes = [];
+  const prev = new Map(before.map(s => [s.id, s]));
+  const next = new Map(after.map(s => [s.id, s]));
+  after.forEach(s => {
+    const old = prev.get(s.id);
+    if (!old) changes.push({ type: 'added', after: s });
+    else if (['day', 'startHour', 'duration', 'classId', 'room'].some(k => old[k] !== s[k])) changes.push({ type: 'changed', before: old, after: s });
+  });
+  before.forEach(s => { if (!next.has(s.id)) changes.push({ type: 'removed', before: s }); });
+  return changes;
+}
+function changeClassIds(c) { return [...new Set([c.before && c.before.classId, c.after && c.after.classId].filter(Boolean))]; }
+
+function myReviewQueue() { return reviewQueue().filter(isMySubmission); }
+function teacherStudentCount() { return teacherClasses().reduce((sum, c) => sum + c.students, 0); }
+
+/* ================= Translations ================= */
+const translations = {
+  he: {
+    home: 'בית', schedule: 'מערכת', timetable: 'עריכת מערכת', grades: 'ציונים', path: 'מסלול', library: 'ספרייה', settings: 'הגדרות',
+    student: 'תלמיד', teacher: 'מורה', principal: 'מנהל/ת', notifications: 'התראות', markAllRead: 'סימון הכול כנקרא',
+    joinClass: 'הצטרפות לכיתה עם QR', profile: 'פרופיל', help: 'עזרה', signOut: 'יציאה', grade: 'כיתה י״א',
+    appSettings: 'הגדרות האפליקציה', settingsSubtitle: 'התאימו את CoolSchool לאופן שבו נוח לכם ללמוד.',
+    language: 'שפה', languageDescription: 'בחרו את שפת הממשק. השינוי נשמר אוטומטית.',
+    hebrew: 'עברית', english: 'English', arabic: 'العربية',
+    appearance: 'תצוגה', appearanceDescription: 'בחרו את ערכת הנושא שמתאימה לכם.', light: 'בהיר', dark: 'כהה',
+    account: 'חשבון', accountDescription: 'הפרטים האישיים והעדפות החשבון שלכם.', role: 'תפקיד נוכחי',
+    saved: 'השינויים נשמרים אוטומטית', fontSize: 'גודל גופן', fontSizeDescription: 'בחרו את גודל הטקסט הנוח לכם.',
+    small: 'קטן', medium: 'רגיל', large: 'גדול', gradeAverage: 'מה מציג ממוצע הציונים?',
+    studentAverageExplanation: 'במצב תלמיד מוצג הממוצע האישי שלך, המחושב מכל רכיבי הציון והמשקלים בכל הכיתות שלך.',
+    teacherAverageExplanation: 'במצב מורה מוצג הממוצע הכיתתי של התלמידים בכיתה שנבחרה כעת.',
+  },
+  en: {
+    home: 'Home', schedule: 'Schedule', timetable: 'Timetable', grades: 'Grades', path: 'Path', library: 'Library', settings: 'Settings',
+    student: 'Student', teacher: 'Teacher', principal: 'Principal', notifications: 'Notifications', markAllRead: 'Mark all read',
+    joinClass: 'Join Class with QR', profile: 'Profile', help: 'Help', signOut: 'Sign Out', grade: 'Grade 11',
+    appSettings: 'App Settings', settingsSubtitle: 'Make CoolSchool work the way you like to learn.',
+    language: 'Language', languageDescription: 'Choose the interface language. Your choice is saved automatically.',
+    hebrew: 'עברית', english: 'English', arabic: 'العربية',
+    appearance: 'Appearance', appearanceDescription: 'Choose the theme that feels best for you.', light: 'Light', dark: 'Dark',
+    account: 'Account', accountDescription: 'Your personal details and account preferences.', role: 'Current role',
+    saved: 'Changes are saved automatically', fontSize: 'Font size', fontSizeDescription: 'Choose the text size that is most comfortable for you.',
+    small: 'Small', medium: 'Default', large: 'Large', gradeAverage: 'Whose grade average is shown?',
+    studentAverageExplanation: 'In student mode, this is your personal weighted average across your classes.',
+    teacherAverageExplanation: 'In teacher mode, this is the class average for the currently selected class.',
+  },
+  ar: {
+    home: 'الرئيسية', schedule: 'الجدول', timetable: 'تحرير الجدول', grades: 'العلامات', path: 'المسار', library: 'المكتبة', settings: 'الإعدادات',
+    student: 'طالب', teacher: 'معلّم', principal: 'المدير', notifications: 'الإشعارات', markAllRead: 'تحديد الكل كمقروء',
+    joinClass: 'الانضمام إلى صف عبر QR', profile: 'الملف الشخصي', help: 'المساعدة', signOut: 'تسجيل الخروج', grade: 'الصف الحادي عشر',
+    appSettings: 'إعدادات التطبيق', settingsSubtitle: 'خصص CoolSchool بالطريقة التي تناسب تعلمك.',
+    language: 'اللغة', languageDescription: 'اختر لغة الواجهة. يتم حفظ اختيارك تلقائياً.',
+    hebrew: 'עברית', english: 'English', arabic: 'العربية',
+    appearance: 'المظهر', appearanceDescription: 'اختر المظهر الذي يناسبك.', light: 'فاتح', dark: 'داكن',
+    account: 'الحساب', accountDescription: 'بياناتك الشخصية وتفضيلات حسابك.', role: 'الدور الحالي',
+    saved: 'يتم حفظ التغييرات تلقائياً', fontSize: 'حجم الخط', fontSizeDescription: 'اختر حجم النص الأكثر راحة لك.',
+    small: 'صغير', medium: 'عادي', large: 'كبير', gradeAverage: 'لمن يعود معدل العلامات؟',
+    studentAverageExplanation: 'في وضع الطالب، يظهر معدلك الشخصي الموزون في جميع صفوفك.',
+    teacherAverageExplanation: 'في وضع المعلّم، يظهر معدل طلاب الصف المحدد حالياً.',
+  },
+};
+
+const hebrewContent = {
+  'Biology 11A': 'ביולוגיה י״א 1', 'Mathematics 11': 'מתמטיקה י״א', 'History 11B': 'היסטוריה י״א 2',
+  'English Lit 11': 'ספרות אנגלית י״א', 'Chemistry 11A': 'כימיה י״א 1',
+  Biology: 'ביולוגיה', Math: 'מתמטיקה', History: 'היסטוריה', English: 'אנגלית', Chemistry: 'כימיה',
+  Physics: 'פיזיקה', Geography: 'גאוגרפיה', Art: 'אמנות',
+  'Dr. Levi': 'ד״ר לוי', 'Mr. Cohen': 'מר כהן', 'Ms. Mizrahi': 'גב׳ מזרחי', 'Ms. Shapiro': 'גב׳ שפירא', 'Dr. Ben-Dor': 'ד״ר בן־דור',
+  'Noa Ben-David': 'נועה בן־דוד', 'Yosef Avraham': 'יוסף אברהם', 'Maya Goldstein': 'מאיה גולדשטיין',
+  'Lior Cohen': 'ליאור כהן', 'Tamar Levy': 'תמר לוי', 'Eitan Mizrahi': 'איתן מזרחי',
+  'Cell Membrane Essay': 'עבודה על קרום התא', 'Photosynthesis Quiz': 'בוחן פוטוסינתזה', 'Bagrut Prep Exam': 'מבחן הכנה לבגרות',
+  'Quadratic Equations HW': 'שיעורי בית במשוואות ריבועיות', 'WWII Operations Essay': 'עבודה על מבצעי מלחמת העולם השנייה',
+  'Mid-Term Exam': 'מבחן אמצע', 'Shakespeare Analysis': 'ניתוח יצירה של שייקספיר', 'Chemistry Lab Report': 'דוח מעבדה בכימיה',
+  'Lab 3': 'מעבדה 3', 'Lab 1': 'מעבדה 1', 'Room 12': 'חדר 12', 'Room 8': 'חדר 8', 'Room 5': 'חדר 5',
+  'Cell Theory': 'תאוריית התא', 'Cell Types': 'סוגי תאים', 'Cell Quiz': 'בוחן התא', 'Membrane Structure': 'מבנה קרום התא',
+  Transport: 'מעבר חומרים', Checkpoint: 'נקודת ביקורת', Photosynthesis: 'פוטוסינתזה', 'Unit Boss': 'אתגר סיום היחידה',
+  'Excellent engagement in class discussions. Keep up the strong essay work!': 'מעורבות מצוינת בדיונים בכיתה. המשיכי בעבודה הטובה בכתיבת העבודות!',
+  'Good homework completion. Focus on exam preparation for the mid-term.': 'השלמה טובה של שיעורי הבית. כדאי להתמקד בהכנה למבחן האמצע.',
+  'Outstanding historical analysis in your WWII essay.': 'ניתוח היסטורי יוצא מן הכלל בעבודה על מלחמת העולם השנייה.',
+  'Your Shakespeare analysis showed real depth of understanding.': 'הניתוח שלך ליצירת שייקספיר הראה עומק והבנה.',
+  'Lab report still pending. Please submit by Friday.': 'דוח המעבדה עדיין ממתין להגשה. יש להגיש עד יום שישי.',
+  'New assignment posted in Biology 11A': 'מטלה חדשה פורסמה בביולוגיה י״א 1',
+  'Live class starting in 10 minutes — Math 11': 'שיעור חי במתמטיקה י״א מתחיל בעוד 10 דקות',
+  'Dr. Levi graded your Cell Essay': 'ד״ר לוי בדק את העבודה שלך על התא',
+  'Bagrut prep exam scheduled for Sep 18': 'מבחן ההכנה לבגרות נקבע ל־18 בספטמבר',
+  'You earned 150 XP on the Biology path!': 'הרווחת 150 נקודות XP במסלול הביולוגיה!',
+  '3 new submissions in Biology 11A': '3 הגשות חדשות בביולוגיה י״א 1',
+  'Your live class with Biology 11A starts in 10 minutes': 'השיעור החי שלך עם ביולוגיה י״א 1 מתחיל בעוד 10 דקות',
+  'Parent-teacher meeting next week — Biology 11A': 'אסיפת הורים בשבוע הבא – ביולוגיה י״א 1',
+  '1d ago': 'אתמול',
+  'Ruth Amir': 'רות אמיר',
+  '5m ago': 'לפני 5 דקות', '10m ago': 'לפני 10 דקות', '1h ago': 'לפני שעה', '2h ago': 'לפני שעתיים', '3h ago': 'לפני 3 שעות',
+  'WWII Operations': 'מבצעי מלחמת העולם השנייה', 'Quadratic Equations': 'משוואות ריבועיות', 'Cell Membrane Biology': 'ביולוגיה של קרום התא',
+  'Oct 1': '1 באוקטובר', 'Sep 25': '25 בספטמבר', 'Sep 20': '20 בספטמבר', 'Open-ended': 'ללא תאריך יעד', Today: 'היום',
+};
+
+/* ================= Persistent state ================= */
+function load(key, fallback) {
+  try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; }
+}
+function save(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ }
+}
+
+/* ================= Accounts ================= */
+// Demo only: accounts live in this browser's storage. A real deployment needs a
+// server that stores users, checks passwords and keeps the approval queue.
+const USERS_KEY = 'cs-users';
+const SESSION_KEY = 'cs-session';
+const INBOX_KEY = 'cs-inbox';
+const DEMO_PASSWORD = 'demo1234';
+const SEED_USERS = [
+  { id: 'u-principal', role: 'principal', firstName: 'Ruth', lastName: 'Amir', email: 'principal@coolschool.demo', status: 'active' },
+  { id: 'u-levi', role: 'teacher', firstName: 'Dr.', lastName: 'Levi', email: 'levi@coolschool.demo', status: 'active', classIds: ['bio11a'] },
+  { id: 'u-noa', role: 'student', firstName: 'Noa', lastName: 'Ben-David', email: 'noa@coolschool.demo', status: 'active', grade: '11' },
+  { id: 'u-shapiro', role: 'teacher', firstName: 'Ms.', lastName: 'Shapiro', email: 'shapiro@coolschool.demo', status: 'pending', classIds: ['eng11'] },
+];
+const DEMO_USER_IDS = ['u-levi', 'u-noa'];   // the built-in sample data belongs to these two
+
+function loadUsers() { return load(USERS_KEY, null) || []; }
+function saveUsers(users) { save(USERS_KEY, users); }
+function fullName(u) { return `${u.firstName} ${u.lastName}`.trim(); }
+function findUserByEmail(email) {
+  const e = String(email).trim().toLowerCase();
+  return loadUsers().find(u => u.email.toLowerCase() === e);
+}
+
+function newSalt() {
+  const bytes = new Uint8Array(16);
+  (window.crypto || {}).getRandomValues ? crypto.getRandomValues(bytes) : bytes.forEach((_, i) => { bytes[i] = Math.random() * 256; });
+  return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+// SHA-256 when the browser allows it; a simple fallback hash otherwise (e.g. plain http)
+async function hashPassword(password, salt) {
+  const text = salt + ':' + password;
+  if (window.crypto && crypto.subtle) {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return 'sha256:' + [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  return 'fnv:' + (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16);
+}
+
+async function ensureSeedUsers() {
+  if (load(USERS_KEY, null)) return;
+  const users = [];
+  for (const u of SEED_USERS) {
+    const salt = newSalt();
+    users.push({ ...u, salt, passwordHash: await hashPassword(DEMO_PASSWORD, salt), createdAt: '2026-09-01' });
+  }
+  saveUsers(users);
+  save(INBOX_KEY, [{ id: 'm-seed', to: 'u-principal', kind: 'teacher-pending', about: 'u-shapiro', date: '2026-10-20', read: false }]);
+}
+
+function loadInbox() { return load(INBOX_KEY, []); }
+function saveInbox(items) { save(INBOX_KEY, items); }
+function sendInbox(to, kind, about, extra) {
+  const inbox = loadInbox();
+  inbox.unshift({ id: 'm-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), to, kind, about, date: new Date().toISOString(), read: false, ...(extra ? { extra } : {}) });
+  saveInbox(inbox);
+}
+// Every active principal is told when a teacher signs up
+function notifyPrincipals(kind, about) {
+  loadUsers().filter(u => u.role === 'principal' && u.status === 'active').forEach(p => sendInbox(p.id, kind, about));
+}
+
+function startSession(user) { save(SESSION_KEY, { userId: user.id, at: Date.now() }); }
+function signOut() {
+  try { localStorage.removeItem(SESSION_KEY); } catch (e) { /* ignore */ }
+  location.href = 'login.html';
+}
+
+const CURRENT_USER = (() => {
+  const session = load(SESSION_KEY, null);
+  if (!session) return null;
+  return loadUsers().find(u => u.id === session.userId && u.status === 'active') || null;
+})();
+// App pages need a signed-in, approved account; the login pages send signed-in users onward
+if (!window.AUTH_PAGE && !CURRENT_USER) location.replace('login.html');
+if (window.AUTH_PAGE && CURRENT_USER) location.replace('index.html');
+
+function currentUserName() { return CURRENT_USER ? fullName(CURRENT_USER) : ''; }
+function isDemoUser() { return !!CURRENT_USER && DEMO_USER_IDS.includes(CURRENT_USER.id); }
+function isPrincipal() { return !!CURRENT_USER && CURRENT_USER.role === 'principal'; }
+
+const state = {
+  language: load('cs-language', 'he'),
+  dark: load('cs-dark', false),
+  role: CURRENT_USER ? CURRENT_USER.role : 'student',
+  classId: load('cs-class', 'bio11a'),
+  fontSize: load('cs-font-size', 'medium'),
+  notifs: load('cs-notifs', null),
+};
+if (!['he', 'en', 'ar'].includes(state.language)) state.language = 'he';
+if (!classes.some(c => c.id === state.classId)) state.classId = 'bio11a';
+
+// Older saves stored one flat list; notifications are now kept per role
+if (!state.notifs || Array.isArray(state.notifs)) {
+  state.notifs = { ...defaultNotifs(), ...(Array.isArray(state.notifs) ? { student: state.notifs } : {}) };
+}
+// Built-in sample notifications (demo accounts only) plus the user's own inbox
+function inboxNotifs() {
+  if (!CURRENT_USER) return [];
+  const users = loadUsers();
+  return loadInbox().filter(m => m.to === CURRENT_USER.id).map(m => {
+    const about = users.find(u => u.id === m.about);
+    const name = about ? localize(fullName(about)) : '';
+    const base = { id: m.id, inbox: true, read: m.read, time: fmtDate(m.date, { day: 'numeric', month: 'short' }) };
+    if (m.kind === 'teacher-pending') {
+      return { ...base, type: 'approval', pendingUser: about && about.status === 'pending' ? about.id : null,
+        text: L(`${name} נרשם/ה כמורה וממתין/ה לאישורך`, `${name} registered as a teacher and is waiting for your approval`) };
+    }
+    if (m.kind === 'timetable-updated') {
+      const count = (m.extra && m.extra.count) || 0;
+      return { ...base, type: 'timetable', link: 'schedule.html',
+        text: L(`${name} עדכן/ה את מערכת השעות השבועית (${count} שינויים)`, `${name} updated the weekly timetable (${count} change${count === 1 ? '' : 's'})`) };
+    }
+    if (m.kind === 'teacher-approved') {
+      return { ...base, type: 'approved', text: L('המנהל/ת אישר/ה את החשבון שלך. ברוכים הבאים!', 'The principal approved your account. Welcome!') };
+    }
+    return { ...base, type: 'info', text: L('ברוכים הבאים ל־CoolSchool!', 'Welcome to CoolSchool!') };
+  });
+}
+function myNotifs() {
+  const demo = isDemoUser() ? (state.notifs[state.role] || []) : [];
+  return inboxNotifs().concat(demo);
+}
+
+// A teacher only ever works inside the classes they teach
+function enforceTeacherClass() {
+  if (state.role === 'teacher' && teacherClasses().length && !teacherClasses().some(c => c.id === state.classId)) {
+    state.classId = teacherClasses()[0].id;
+  }
+}
+
+const ui = { classes: false, notifs: false, profile: false };
+
+function t(key) { return translations[state.language][key]; }
+function localize(value) { return state.language === 'he' ? (hebrewContent[value] ?? value) : value; }
+function isHe() { return state.language === 'he'; }
+function L(he, en) { return isHe() ? he : en; }
+function currentClass() { return classes.find(c => c.id === state.classId); }
+function teacherClasses() {
+  if (CURRENT_USER && CURRENT_USER.role === 'teacher') return classes.filter(c => (CURRENT_USER.classIds || []).includes(c.id));
+  return classes.filter(c => c.teacher === TEACHER_NAME);
+}
+enforceTeacherClass();
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+function initials(name) { return localize(name).split(/[\s־-]/).map(n => n[0]).join('').slice(0, 2); }
+function gradeColor(v) { return v >= 90 ? '#10B981' : v >= 75 ? '#3B82F6' : v >= 60 ? '#F59E0B' : '#F43F5E'; }
+function daysUntil(date) { return Math.ceil((new Date(date).getTime() - Date.now()) / 86400000); }
+function fmtDate(date, opts) { return new Date(date).toLocaleDateString(isHe() ? 'he-IL' : 'en-GB', opts); }
+
+function setState(patch) {
+  Object.assign(state, patch);
+  enforceTeacherClass();
+  save('cs-language', state.language);
+  save('cs-dark', state.dark);
+  save('cs-role', state.role);
+  save('cs-class', state.classId);
+  save('cs-font-size', state.fontSize);
+  save('cs-notifs', state.notifs);
+  renderAll();
+}
+
+function applyDocument() {
+  const root = document.documentElement;
+  root.lang = state.language;
+  root.dir = state.language === 'en' ? 'ltr' : 'rtl';
+  root.dataset.fontSize = state.fontSize;
+  root.classList.toggle('dark', !!state.dark);
+}
+
+function toast(message) {
+  document.querySelectorAll('.toast').forEach(el => el.remove());
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2400);
+}
+
+/* ================= Icons ================= */
+const ICONS = {
+  chevron: '<svg style="width:0.875rem;height:0.875rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>',
+  check: '<svg style="width:1rem;height:1rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>',
+  plus: '<svg style="width:1rem;height:1rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>',
+  close: '<svg style="width:1rem;height:1rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>',
+  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>',
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+  schedule: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  grades: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
+  path: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>',
+  timetable: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 10h18M8 2v4M16 2v4M10 14h1v4M14 14l-1.5 4"/><path d="M17 15l2-2 2 2-4 4h-2v-2z" fill="currentColor" stroke="none"/></svg>',
+  library: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0015 19.4a1.7 1.7 0 00-1 .6 1.7 1.7 0 00-.4 1.1V21H9.6v-.1A1.7 1.7 0 008.5 19.4a1.7 1.7 0 00-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 004.6 15a1.7 1.7 0 00-.6-1 1.7 1.7 0 00-1.1-.4H3V9.6h.1A1.7 1.7 0 004.6 8.5a1.7 1.7 0 00-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 009 4.6a1.7 1.7 0 001-.6 1.7 1.7 0 00.4-1.1V3h4v.1A1.7 1.7 0 0015.5 4.6a1.7 1.7 0 001.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0019.4 9c.14.38.36.72.65.99.3.27.68.42 1.08.42H21v4h-.1A1.7 1.7 0 0019.4 15z"/></svg>',
+};
+
+const NAV = [
+  { href: 'index.html', key: 'home' },
+  { href: 'schedule.html', key: 'schedule' },
+  { href: 'grades.html', key: 'grades' },
+  { href: 'path.html', key: 'path' },
+  { href: 'library.html', key: 'library' },
+  { href: 'timetable.html', key: 'timetable' },
+  { href: 'settings.html', key: 'settings' },
+];
+
+/* ================= Header ================= */
+function notifIcon(type) {
+  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅' }[type] || '📌';
+}
+
+function renderHeader() {
+  const cls = currentClass();
+  const available = state.role === 'teacher' ? teacherClasses() : classes;
+  const unread = myNotifs().filter(n => !n.read).length;
+  const userName = localize(currentUserName());
+
+  return `
+  <header class="header">
+    <a href="index.html" class="logo">
+      <div class="logo-mark">C</div>
+      <span class="logo-text sm-up">CoolSchool</span>
+    </a>
+
+    ${isPrincipal() ? '' : `<div class="dd" data-dd>
+      <button class="class-pill" onclick="toggleDd('classes')"
+        style="background:${cls.color}22;color:${cls.color};border:1.5px solid ${cls.color}44">
+        <span class="dot" style="background:${cls.color}"></span>
+        <span class="sm-up">${localize(cls.name)}</span>
+        ${ICONS.chevron}
+      </button>
+      ${ui.classes ? `
+      <div class="dd-menu start" style="width:14rem">
+        ${available.map(c => `
+          <button class="menu-item" onclick="pickClass('${c.id}')"
+            style="background:${state.classId === c.id ? c.color + '18' : 'transparent'}">
+            <span class="dot" style="width:0.75rem;height:0.75rem;background:${c.color}"></span>
+            <div class="flex-1">
+              <div class="w6">${localize(c.name)}</div>
+              <div class="xs muted">${localize(c.teacher)}</div>
+            </div>
+            ${state.classId === c.id ? `<span style="color:${c.color}">${ICONS.check}</span>` : ''}
+          </button>`).join('')}
+        <div class="p-3" style="border-top:1px solid var(--border)">
+          <button class="btn btn-primary" style="width:100%;justify-content:flex-start" onclick="toast(t('joinClass'))">
+            ${ICONS.plus} ${t('joinClass')}
+          </button>
+        </div>
+      </div>` : ''}
+    </div>`}
+
+    <div class="flex-1"></div>
+
+    <button class="icon-btn" onclick="setState({ dark: !state.dark })" aria-label="Theme">
+      ${state.dark ? ICONS.sun : ICONS.moon}
+    </button>
+
+    <div class="dd" data-dd>
+      <button class="icon-btn" onclick="toggleDd('notifs')" aria-label="${t('notifications')}">
+        ${ICONS.bell}
+        ${unread > 0 ? `<span class="count-badge">${unread}</span>` : ''}
+      </button>
+      ${ui.notifs ? `
+      <div class="dd-menu end" style="width:20rem">
+        <div class="flex items-center justify-between" style="padding:0.75rem 1rem;border-bottom:1px solid var(--border)">
+          <span class="display w7 base">${t('notifications')}</span>
+          <button class="xs w6 primary" onclick="markAllRead()">${t('markAllRead')}</button>
+        </div>
+        <div style="max-height:18rem;overflow-y:auto">
+          ${myNotifs().length ? myNotifs().map(n => `
+            <div class="notif ${n.read ? '' : 'unread'}">
+              <span class="base">${notifIcon(n.type)}</span>
+              <div class="flex-1 min-w-0">
+                ${n.link ? `<a href="${n.link}" class="sm w5 leading-tight primary" style="display:block">${esc(n.text)}</a>` : `<p class="sm w5 leading-tight">${n.inbox ? esc(n.text) : localize(n.text)}</p>`}
+                <p class="xs muted mt-1">${n.inbox ? n.time : localize(n.time)}</p>
+                ${n.pendingUser ? `
+                <div class="flex gap-2 mt-2">
+                  <button class="btn btn-sm" style="background:#10B981;color:#fff" onclick="approveTeacher('${n.pendingUser}')">✓ ${L('אישור', 'Approve')}</button>
+                  <button class="btn btn-sm" style="background:#F43F5E1f;color:#F43F5E" onclick="declineTeacher('${n.pendingUser}')">${L('דחייה', 'Decline')}</button>
+                </div>` : ''}
+              </div>
+              ${n.read ? '' : '<span class="dot mt-1" style="background:var(--primary)"></span>'}
+            </div>`).join('') : `<p class="sm muted p-4">${L('אין התראות חדשות', 'No notifications yet')}</p>`}
+        </div>
+      </div>` : ''}
+    </div>
+
+    <div class="dd" data-dd>
+      <button class="profile-btn" onclick="toggleDd('profile')">
+        <div class="avatar">${esc(userName.replace(/^(Dr\.|Mr\.|Ms\.|ד״ר|מר|גב׳)\s*/, '').charAt(0).toUpperCase())}</div>
+        <span class="sm w6 sm-up">${userName}</span>
+      </button>
+      ${ui.profile ? `
+      <div class="dd-menu end" style="width:13rem">
+        <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--border)">
+          <div class="w7">${esc(userName)}</div>
+          <div class="xs muted">${t(state.role)}${CURRENT_USER && CURRENT_USER.grade ? ' · ' + L('שכבה ', 'Grade ') + esc(CURRENT_USER.grade) : ''}</div>
+          <div class="xs muted truncate">${CURRENT_USER ? esc(CURRENT_USER.email) : ''}</div>
+        </div>
+        <div style="padding:0.625rem 1rem;border-bottom:1px solid var(--border)">
+          <div class="xs w7 muted mb-2">${t('fontSize')}</div>
+          <div class="seg small" style="border-radius:0.75rem">
+            ${['small', 'medium', 'large'].map((s, i) => `
+              <button class="${state.fontSize === s ? 'on' : ''}" style="flex:1;font-size:${0.75 + i * 0.125}rem"
+                title="${t(s)}" onclick="setState({ fontSize: '${s}' })">A</button>`).join('')}
+          </div>
+        </div>
+        ${['profile', 'settings', 'help', 'signOut'].map(item => `
+          <button class="menu-item" style="padding:0.625rem 1rem;font-weight:500;color:${item === 'signOut' ? '#F43F5E' : 'var(--text)'}"
+            onclick="profileAction('${item}')">${t(item)}</button>`).join('')}
+      </div>` : ''}
+    </div>
+  </header>`;
+}
+
+function renderSidebar(active) {
+  return `
+  <aside class="sidebar">
+    ${NAV.filter(item => (isPrincipal() ? PRINCIPAL_PAGES.includes(item.key) : item.key !== 'timetable')).map(item => `
+      <a href="${item.href}" class="nav-item ${active === item.key ? 'on' : ''}" title="${t(item.key)}">
+        ${ICONS[item.key]}
+        <span>${t(item.key)}</span>
+      </a>`).join('')}
+  </aside>`;
+}
+
+const PRINCIPAL_PAGES = ['home', 'timetable', 'settings'];
+
+/* Principal approves or declines a teacher who signed up */
+function reviewTeacher(id, approve) {
+  if (!isPrincipal()) return;
+  const users = loadUsers();
+  const teacher = users.find(u => u.id === id && u.role === 'teacher');
+  if (!teacher || teacher.status !== 'pending') return;
+  teacher.status = approve ? 'active' : 'rejected';
+  teacher.reviewedBy = CURRENT_USER.id;
+  teacher.reviewedAt = new Date().toISOString();
+  saveUsers(users);
+  // the request is handled for every principal, not only the one who clicked
+  saveInbox(loadInbox().map(m => (m.kind === 'teacher-pending' && m.about === id ? { ...m, read: true } : m)));
+  if (approve) sendInbox(id, 'teacher-approved', CURRENT_USER.id);
+  renderAll();
+  toast(approve
+    ? L(`${localize(fullName(teacher))} אושר/ה כמורה`, `${fullName(teacher)} was approved as a teacher`)
+    : L(`הבקשה של ${localize(fullName(teacher))} נדחתה`, `${fullName(teacher)}'s request was declined`));
+}
+function approveTeacher(id) { reviewTeacher(id, true); }
+function declineTeacher(id) { reviewTeacher(id, false); }
+
+function toggleDd(name) {
+  const open = !ui[name];
+  ui.classes = ui.notifs = ui.profile = false;
+  ui[name] = open;
+  renderHeaderOnly();
+}
+function closeDropdowns() {
+  if (ui.classes || ui.notifs || ui.profile) {
+    ui.classes = ui.notifs = ui.profile = false;
+    renderHeaderOnly();
+  }
+}
+function pickClass(id) { ui.classes = false; setState({ classId: id }); }
+function markAllRead() {
+  if (CURRENT_USER) saveInbox(loadInbox().map(m => (m.to === CURRENT_USER.id ? { ...m, read: true } : m)));
+  setState({ notifs: { ...state.notifs, [state.role]: (state.notifs[state.role] || []).map(n => ({ ...n, read: true })) } });
+}
+function profileAction(item) {
+  ui.profile = false;
+  if (item === 'settings') { location.href = 'settings.html'; return; }
+  if (item === 'signOut') { signOut(); return; }
+  renderHeaderOnly();
+  toast(t(item));
+}
+
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('[data-dd]')) closeDropdowns();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDropdowns(); });
+
+/* ================= Render loop ================= */
+function renderHeaderOnly() {
+  document.getElementById('header-slot').innerHTML = renderHeader();
+}
+function renderAll() {
+  if (window.AUTH_PAGE) {
+    applyDocument();
+    window.renderPage();
+    return;
+  }
+  if (!CURRENT_USER) return;
+  if (isPrincipal() && !PRINCIPAL_PAGES.includes(window.PAGE_KEY)) { location.replace('index.html'); return; }
+  if (!isPrincipal() && window.PAGE_KEY === 'timetable') { location.replace('schedule.html'); return; }
+  applyDocument();
+  renderHeaderOnly();
+  document.getElementById('sidebar-slot').innerHTML = renderSidebar(window.PAGE_KEY);
+  document.title = 'CoolSchool · ' + t(window.PAGE_KEY);
+  const sessionCheck = load(SESSION_KEY, null);
+  if (!sessionCheck || sessionCheck.userId !== CURRENT_USER.id) { location.replace('login.html'); return; }
+  window.renderPage();
+}
+document.addEventListener('DOMContentLoaded', renderAll);
+</script>
+<script>
+/* ===================== Sign-in pages: shared pieces ===================== */
+/* ---------- Shared pieces for both auth pages ---------- */
+// Animate the card in on first paint only, not on every re-render
+let authFirstPaint = true;
+function fadeOnce() {
+  const cls = authFirstPaint ? 'fade-up' : '';
+  authFirstPaint = false;
+  return cls;
+}
+function authTools() {
+  return `
+  <div class="auth-tools">
+    <select class="input lang-select" aria-label="${t('language')}" onchange="setState({ language: this.value })">
+      <option value="he" ${state.language === 'he' ? 'selected' : ''}>עברית</option>
+      <option value="en" ${state.language === 'en' ? 'selected' : ''}>English</option>
+      <option value="ar" ${state.language === 'ar' ? 'selected' : ''}>العربية</option>
+    </select>
+    <button class="icon-btn" onclick="setState({ dark: !state.dark })" aria-label="Theme">${state.dark ? ICONS.sun : ICONS.moon}</button>
+  </div>`;
+}
+function authBrand() {
+  return `
+  <aside class="auth-brand">
+    <div class="blob b1"></div><div class="blob b2"></div>
+    <div class="auth-logo"><div class="logo-mark">C</div><span>CoolSchool</span></div>
+    <div class="auth-tagline">
+      <h2>${L('המקום שבו כל בית הספר לומד יחד', 'Where the whole school learns together')}</h2>
+      <p>${L('שיעורים חיים, מערכת שעות, ציונים ומסלולי למידה – לתלמידים, למורים ולהנהלה.', 'Live classes, schedules, grades and learning paths – for students, teachers and school leaders.')}</p>
+      <div class="auth-points">
+        <div><span class="ic">🎥</span>${L('שיעורים חיים בלחיצה', 'Live classes in one click')}</div>
+        <div><span class="ic">📈</span>${L('ציונים ומשוב במקום אחד', 'Grades and feedback in one place')}</div>
+        <div><span class="ic">🛡️</span>${L('מורים מאושרים על ידי ההנהלה', 'Teachers approved by the principal')}</div>
+      </div>
+    </div>
+    <p class="xs auth-copy" style="position:relative;opacity:.7">© 2026 CoolSchool</p>
+  </aside>`;
+}
+const EYE = '<svg style="width:1.125rem;height:1.125rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg style="width:1.125rem;height:1.125rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M1 1l22 22"/></svg>';
+
+/* ===================== Page code ===================== */
+window.PAGE_KEY = 'register';
+
+const reg = {
+  role: new URLSearchParams(location.search).get('role') || 'student',
+  firstName: '', lastName: '', email: '', password: '', confirm: '',
+  grade: '', classIds: [],
+  showPassword: false,
+  tried: false,
+  busy: false,
+};
+if (!['student', 'teacher', 'principal'].includes(reg.role)) reg.role = 'student';
+
+const ROLE_CARDS = [
+  { role: 'student', icon: '🎒', he: 'הצטרפות לכיתות, הגשת עבודות ומעקב אחרי ציונים', en: 'Join classes, hand in work and follow your grades' },
+  { role: 'teacher', icon: '🧑‍🏫', he: 'ניהול כיתות וציונים · דורש אישור של המנהל/ת', en: 'Manage classes and grades · needs principal approval' },
+  { role: 'principal', icon: '🏫', he: 'אישור מורים וניהול בית הספר', en: 'Approve teachers and run the school' },
+];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/* ---------- Validation ---------- */
+function validate() {
+  const e = {};
+  if (reg.firstName.trim().length < 2) e.firstName = L('יש להזין שם פרטי', 'Please enter your first name');
+  if (reg.lastName.trim().length < 2) e.lastName = L('יש להזין שם משפחה', 'Please enter your last name');
+  if (!EMAIL_RE.test(reg.email.trim())) e.email = L('כתובת אימייל לא תקינה', 'Please enter a valid email');
+  else if (findUserByEmail(reg.email)) e.email = L('כבר קיים חשבון עם האימייל הזה', 'An account with this email already exists');
+  if (reg.password.length < 8 || !/[A-Za-z֐-׿]/.test(reg.password) || !/\d/.test(reg.password)) {
+    e.password = L('לפחות 8 תווים, כולל אות ומספר', 'At least 8 characters, with a letter and a number');
+  }
+  if (reg.confirm !== reg.password || !reg.confirm) e.confirm = L('הסיסמאות אינן תואמות', 'Passwords do not match');
+  if (reg.role === 'student' && !reg.grade) e.grade = L('יש לבחור שכבה', 'Please choose your grade');
+  if (reg.role === 'teacher' && !reg.classIds.length) e.classIds = L('יש לבחור לפחות כיתה אחת', 'Choose at least one class');
+  return e;
+}
+
+function strength(pw) {
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw) || pw.length >= 12) score++;
+  return score;
+}
+function strengthBar() {
+  const s = strength(reg.password);
+  const colors = ['var(--border)', '#F43F5E', '#F59E0B', '#3B82F6', '#10B981'];
+  const labels = ['', L('חלשה', 'Weak'), L('בינונית', 'Fair'), L('טובה', 'Good'), L('חזקה', 'Strong')];
+  return `
+    <div class="flex gap-1 mt-1">${[1, 2, 3, 4].map(i => `<span style="flex:1;height:0.3rem;border-radius:9999px;background:${i <= s ? colors[s] : 'var(--border)'}"></span>`).join('')}</div>
+    <span class="xs w6" style="color:${colors[s]}">${reg.password ? labels[s] : ''}</span>`;
+}
+
+/* ---------- Form pieces ---------- */
+function field(key, label, type, attrs = '') {
+  const errs = reg.tried ? validate() : {};
+  return `
+  <div class="field ${errs[key] ? 'invalid' : ''}" id="f-${key}">
+    <label class="label" for="${key}">${label}</label>
+    <input id="${key}" class="input" type="${type}" value="${esc(reg[key])}" ${attrs} oninput="setField('${key}', this.value)">
+    <span class="field-error">${errs[key] || ''}</span>
+  </div>`;
+}
+function passwordField(key, label, autocomplete) {
+  const errs = reg.tried ? validate() : {};
+  return `
+  <div class="field ${errs[key] ? 'invalid' : ''}" id="f-${key}">
+    <label class="label" for="${key}">${label}</label>
+    <div class="pw-wrap">
+      <input id="${key}" class="input" dir="ltr" type="${reg.showPassword ? 'text' : 'password'}" autocomplete="${autocomplete}"
+        value="${esc(reg[key])}" oninput="setField('${key}', this.value)">
+      ${key === 'password' ? `<button type="button" class="pw-toggle" onclick="togglePassword()" aria-label="${L('הצגת סיסמה', 'Show password')}">${reg.showPassword ? EYE_OFF : EYE}</button>` : ''}
+    </div>
+    ${key === 'password' ? `<div id="pw-strength">${strengthBar()}</div>` : ''}
+    <span class="field-error">${errs[key] || ''}</span>
+  </div>`;
+}
+
+function roleExtras() {
+  const errs = reg.tried ? validate() : {};
+  if (reg.role === 'student') {
+    return `
+    <div class="field ${errs.grade ? 'invalid' : ''}" id="f-grade">
+      <label class="label" for="grade">${L('שכבה', 'Grade')}</label>
+      <select id="grade" class="input" onchange="setField('grade', this.value)">
+        <option value="">${L('בחירת שכבה', 'Choose grade')}</option>
+        ${['9', '10', '11', '12'].map(g => `<option value="${g}" ${reg.grade === g ? 'selected' : ''}>${L(`שכבה ${g}`, `Grade ${g}`)}</option>`).join('')}
+      </select>
+      <span class="field-error">${errs.grade || ''}</span>
+    </div>`;
+  }
+  if (reg.role === 'teacher') {
+    return `
+    <div class="field ${errs.classIds ? 'invalid' : ''}" id="f-classIds">
+      <span class="label">${L('אילו כיתות את/ה מלמד/ת?', 'Which classes do you teach?')}</span>
+      <div class="grid g-1 sm-2" style="gap:0.5rem">
+        ${classes.map(c => {
+          const on = reg.classIds.includes(c.id);
+          return `
+          <button type="button" class="class-pick ${on ? 'on' : ''}" style="--c:${c.color}" onclick="toggleClass('${c.id}')">
+            <span class="check-box">${on ? ICONS.check : ''}</span>
+            <span class="min-w-0 text-start"><span class="sm w7" style="display:block">${localize(c.name)}</span>
+            <span class="xs muted">${localize(c.subject)}</span></span>
+          </button>`;
+        }).join('')}
+      </div>
+      <span class="field-error">${errs.classIds || ''}</span>
+    </div>
+    <div class="alert warn"><span>🛡️</span><div>${L('חשבון מורה נפתח רק אחרי שהמנהל/ת מאשר/ת אותו. נשלח למנהל/ת התראה ברגע שתירשמו.', 'Teacher accounts open only after the principal approves them. The principal is notified as soon as you register.')}</div></div>`;
+  }
+  return `<div class="alert info"><span>🏫</span><div>${L('כמנהל/ת תקבלו התראה על כל מורה שנרשם/ה, ותוכלו לאשר או לדחות את הבקשה.', 'As principal you will be notified about every teacher who registers, and can approve or decline each request.')}</div></div>`;
+}
+
+function renderPage() {
+  document.title = 'CoolSchool · ' + L('הרשמה', 'Register');
+  document.getElementById('main').innerHTML = `
+    ${authBrand()}
+    <section class="auth-main">
+      ${authTools()}
+      <div class="auth-card wide ${fadeOnce()} col gap-4">
+        <div>
+          <h1 class="display">${L('יצירת חשבון', 'Create your account')}</h1>
+          <p class="sm muted mt-1">${L('בחרו את התפקיד שלכם בבית הספר', 'Choose your role at school')}</p>
+        </div>
+        <div class="grid g-1 sm-3" style="gap:0.5rem" role="radiogroup" aria-label="${t('role')}">
+          ${ROLE_CARDS.map(r => `
+            <button type="button" role="radio" aria-checked="${reg.role === r.role}" class="role-card ${reg.role === r.role ? 'on' : ''}" onclick="pickRole('${r.role}')">
+              <span class="x2">${r.icon}</span>
+              <span class="w8">${t(r.role)}</span>
+              <span class="xs muted leading-tight">${L(r.he, r.en)}</span>
+            </button>`).join('')}
+        </div>
+        <form class="col gap-3" onsubmit="event.preventDefault(); register()" novalidate>
+          <div class="grid g-1 sm-2" style="gap:0.75rem">
+            ${field('firstName', L('שם פרטי', 'First name'), 'text', 'autocomplete="given-name" maxlength="40"')}
+            ${field('lastName', L('שם משפחה', 'Last name'), 'text', 'autocomplete="family-name" maxlength="40"')}
+          </div>
+          ${field('email', L('אימייל', 'Email'), 'email', 'autocomplete="email" dir="ltr" placeholder="name@school.org" maxlength="80"')}
+          <div class="grid g-1 sm-2" style="gap:0.75rem">
+            ${passwordField('password', L('סיסמה', 'Password'), 'new-password')}
+            ${passwordField('confirm', L('אימות סיסמה', 'Confirm password'), 'new-password')}
+          </div>
+          ${roleExtras()}
+          <button class="btn btn-primary btn-lg display mt-2" type="submit" ${reg.busy ? 'disabled' : ''}>
+            ${reg.busy ? '<span class="spinner"></span>' : ''}
+            ${reg.role === 'teacher' ? L('שליחת בקשה למנהל/ת', 'Send request to the principal') : L('יצירת חשבון', 'Create account')}
+          </button>
+        </form>
+        <p class="sm text-center">${L('כבר יש לך חשבון?', 'Already have an account?')} <a class="auth-link" href="login.html">${L('להתחברות', 'Sign in')}</a></p>
+      </div>
+    </section>`;
+}
+
+/* ---------- Interaction ---------- */
+function setField(key, value) {
+  reg[key] = value;
+  if (key === 'password') document.getElementById('pw-strength').innerHTML = strengthBar();
+  // once the user has tried to submit, clear each error as soon as it's fixed
+  if (reg.tried) {
+    const errs = validate();
+    ['firstName', 'lastName', 'email', 'password', 'confirm', 'grade'].forEach(k => {
+      const box = document.getElementById('f-' + k);
+      if (!box) return;
+      box.classList.toggle('invalid', !!errs[k]);
+      box.querySelector('.field-error').textContent = errs[k] || '';
+    });
+  }
+}
+function pickRole(role) { reg.role = role; renderPage(); }
+function toggleClass(id) {
+  reg.classIds = reg.classIds.includes(id) ? reg.classIds.filter(x => x !== id) : reg.classIds.concat(id);
+  renderPage();
+}
+function togglePassword() { reg.showPassword = !reg.showPassword; renderPage(); document.getElementById('password').focus(); }
+
+async function register() {
+  if (reg.busy) return;
+  await ensureSeedUsers();
+  reg.tried = true;
+  const errs = validate();
+  if (Object.keys(errs).length) {
+    renderPage();
+    const first = document.querySelector('.field.invalid input, .field.invalid select, .field.invalid button');
+    if (first) first.focus();
+    return;
+  }
+  reg.busy = true;
+  renderPage();
+
+  const salt = newSalt();
+  const user = {
+    id: 'u-' + Date.now(),
+    role: reg.role,
+    firstName: reg.firstName.trim(),
+    lastName: reg.lastName.trim(),
+    email: reg.email.trim(),
+    salt,
+    passwordHash: await hashPassword(reg.password, salt),
+    status: reg.role === 'teacher' ? 'pending' : 'active',
+    createdAt: new Date().toISOString(),
+  };
+  if (reg.role === 'student') user.grade = reg.grade;
+  if (reg.role === 'teacher') user.classIds = reg.classIds.slice();
+
+  const users = loadUsers();
+  users.push(user);
+  saveUsers(users);
+
+  if (user.role === 'teacher') {
+    // the teacher waits; every principal gets a notification to approve
+    notifyPrincipals('teacher-pending', user.id);
+    location.href = 'login.html?registered=teacher';
+    return;
+  }
+  if (user.role === 'principal') {
+    users.filter(u => u.role === 'teacher' && u.status === 'pending').forEach(p => sendInbox(user.id, 'teacher-pending', p.id));
+  }
+  sendInbox(user.id, 'welcome', user.id);
+  startSession(user);
+  location.href = 'index.html';
+}
+
+ensureSeedUsers();
+</script>
+</body>
+</html>
