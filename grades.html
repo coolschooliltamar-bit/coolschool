@@ -333,6 +333,12 @@ svg { display: block; }
   .stat-tile .xl { font-size: 1.1rem; }
 }
 
+/* Mashov status chips */
+.mchip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700;
+  color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); white-space: nowrap; }
+.mchip.zero { opacity: .45; }
+.mchip.tally .tally-label { font-weight: 600; }
+
 /* ===================== Page styles ===================== */
 /* Weight sliders */
 .range {
@@ -444,14 +450,18 @@ html[dir='rtl'] .nav-arrow { transform: scaleX(-1); }
 .cell-score { font-family: var(--font-mono); font-weight: 800; font-size: 1rem; }
 .list-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; }
 .list-row + .list-row { border-top: 1px solid var(--border); }
-.mchip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700;
-  color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); }
 .att-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; }
 .att-row + .att-row { border-top: 1px solid var(--border); }
 .att-date { display: flex; flex-direction: column; width: 6.5rem; flex-shrink: 0; }
 .rules { padding: 0.75rem 0.875rem; border-radius: 0.875rem; background: var(--surface); }
 .rules summary { cursor: pointer; }
 .rules ul { padding-inline-start: 1.1rem; }
+
+/* Participation: teacher-entered grade + Mashov tally */
+.part-cell { min-width: 15rem; }
+.tally-row { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.375rem; }
+.tally-row .tally-label { display: none; }
+@media (min-width: 1280px) { .part-cell { min-width: 22rem; } .tally-row .tally-label { display: inline; } }
 </style>
 </head>
 <body>
@@ -1208,13 +1218,14 @@ function classRoster() {
    Final grade = weighted mix of three categories (weights set per class by the teacher):
    - Exams:         average of the student's exam scores in the class
    - Assignments:   average of the student's graded submissions in the class
-   - Participation: built from Mashov records (see PARTICIPATION_RULES)
-   A category with no data yet is left out and the other weights are scaled up. */
+   - Participation: a grade the teacher enters, guided by the student's Mashov tally
+     (the system only counts the entries – it never turns them into a grade)
+   A category with no grade yet is left out and the other weights are scaled up. */
 const EXAMS_KEY = 'cs-exams';
 const WEIGHTS_KEY = 'cs-class-weights';
 const FEEDBACK_KEY = 'cs-student-feedback';
 const DEFAULT_WEIGHTS = { exam: 20, participation: 20, assignments: 60 };
-const PARTICIPATION_RULES = { late: 30, noEquip: 15, disrupt: 20, praiseBonus: 5 };
+const PARTICIPATION_KEY = 'cs-participation-grades';
 const GRADE_KEYS = ['exam', 'participation', 'assignments'];
 
 function classWeights(classId) {
@@ -1265,16 +1276,39 @@ function attendanceRecords(classId, name) {
     return { key, date: rec.date, slot, marks, by: rec.by };
   }).filter(Boolean).sort((a, b) => (a.date < b.date ? 1 : -1));
 }
-function lessonScore(m) {
-  if (m.absent) return 0;
-  return Math.max(0, 100 - (m.late ? PARTICIPATION_RULES.late : 0) - (m.noEquip ? PARTICIPATION_RULES.noEquip : 0) - (m.disrupt ? PARTICIPATION_RULES.disrupt : 0));
-}
+// How many times each Mashov entry was recorded – a tally for the teacher, not a grade
 function participationSummary(records) {
   const count = key => records.filter(r => r.marks[key]).length;
   const onTime = records.filter(r => !r.marks.absent && !r.marks.late).length;
-  const base = average(records.map(r => lessonScore(r.marks)));
-  const score = base === null ? null : Math.min(100, base + count('praise') * PARTICIPATION_RULES.praiseBonus);
-  return { score, lessons: records.length, onTime, late: count('late'), absent: count('absent'), noEquip: count('noEquip'), disrupt: count('disrupt'), praise: count('praise') };
+  return { lessons: records.length, onTime, late: count('late'), absent: count('absent'), noEquip: count('noEquip'), disrupt: count('disrupt'), praise: count('praise') };
+}
+function participationGrade(classId, name) {
+  const v = load(PARTICIPATION_KEY, {})[classId + '|' + name];
+  return typeof v === 'number' ? v : null;
+}
+function setParticipationGrade(classId, name, value) {
+  const all = load(PARTICIPATION_KEY, {});
+  if (value === null) delete all[classId + '|' + name]; else all[classId + '|' + name] = value;
+  save(PARTICIPATION_KEY, all);
+}
+
+/* Status of one lesson for a student, as small coloured chips (on time / late / absent / …) */
+function statusChips(m) {
+  const keys = m.absent ? ['absent'] : [m.late ? 'late' : 'onTime'].concat(['noEquip', 'disrupt', 'praise'].filter(k => m[k]));
+  return keys.map(k => {
+    if (k === 'onTime') return `<span class="mchip" style="--c:#10B981">✅ ${L('בזמן', 'On time')}</span>`;
+    const c = MASHOV_CATS.find(x => x.key === k);
+    return `<span class="mchip" style="--c:${c.color}">${c.icon} ${L(c.he, c.en)}</span>`;
+  }).join('');
+}
+// Tally chips for the teacher (e.g. ✅ 14 · ⏰ 5 …)
+function tallyChips(p) {
+  const items = [
+    ['#10B981', '✅', L('בזמן', 'On time'), p.onTime], ['#F59E0B', '⏰', L('איחורים', 'Late'), p.late],
+    ['#F43F5E', '🚫', L('חיסורים', 'Absent'), p.absent], ['#8B5CF6', '🎒', L('אי הבאת ציוד', 'Missing equipment'), p.noEquip],
+    ['#F97316', '📢', L('הפרעות', 'Disruptions'), p.disrupt], ['#10B981', '🌟', L('לשבח', 'Commendations'), p.praise],
+  ];
+  return items.map(([color, icon, label, n]) => `<span class="mchip tally ${n ? '' : 'zero'}" style="--c:${color}" title="${label}">${icon} ${n} <span class="tally-label">${label}</span></span>`).join('');
 }
 function finalFrom(parts, pct) {
   const have = GRADE_KEYS.filter(k => typeof parts[k] === 'number');
@@ -1287,7 +1321,7 @@ function computeGrade(classId, name, pct) {
   const work = assignmentScores(classId, name);
   const records = attendanceRecords(classId, name);
   const part = participationSummary(records);
-  const parts = { exam: average(exams.map(e => e.score)), assignments: average(work.map(w => w.grade)), participation: part.score };
+  const parts = { exam: average(exams.map(e => e.score)), assignments: average(work.map(w => w.grade)), participation: participationGrade(classId, name) };
   const weights = pct || classWeights(classId);
   return { ...parts, final: finalFrom(parts, weights), weights, exams, work, records, part };
 }
@@ -1476,6 +1510,26 @@ function saveWeights() {
   toast(L('המשקלים נשמרו – הציונים הסופיים עודכנו', 'Weights saved – final grades updated'));
 }
 
+/* ---------- Participation grade: decided by the teacher ---------- */
+function setParticipation(i, name, el) {
+  const raw = el.value.trim();
+  const n = Number(raw);
+  if (raw !== '' && (!Number.isInteger(n) || n < 0 || n > 100)) {
+    el.classList.add('invalid');
+    toast(L('ציון השתתפות: מספר שלם בין 0 ל־100', 'Participation grade: a whole number from 0 to 100'));
+    return;
+  }
+  el.classList.remove('invalid');
+  const value = raw === '' ? null : n;
+  setParticipationGrade(state.classId, name, value);
+  gb.rowParts[i].participation = value;
+  const f = finalFrom(gb.rowParts[i], gb.pct);
+  const cell = document.getElementById('final-' + i);
+  cell.textContent = scoreText(f);
+  cell.style.color = scoreColor(f);
+  toast(value === null ? L('ציון ההשתתפות הוסר', 'Participation grade cleared') : L(`ציון השתתפות נשמר: ${localize(name)} · ${value}`, `Participation grade saved: ${name} · ${value}`));
+}
+
 /* ---------- Personal feedback from the teacher (per class) ---------- */
 function feedbackPanel() {
   if (gb.feedbackFor === null) return '';
@@ -1645,16 +1699,16 @@ function examModal() {
 }
 
 function rulesNote() {
-  const r = PARTICIPATION_RULES;
   return `
   <details class="rules">
     <summary class="sm w7">ℹ️ ${L('איך מחושב הציון?', 'How is the grade calculated?')}</summary>
     <ul class="sm muted leading-relaxed mt-2">
       <li><b>${L('מבחנים', 'Exams')}:</b> ${L('ממוצע ציוני המבחנים שהמורה הזין/ה.', 'average of the exam grades the teacher entered.')}</li>
       <li><b>${L('מטלות', 'Assignments')}:</b> ${L('ממוצע הציונים של כל עבודה שהוגשה ונבדקה.', 'average grade of every submitted assignment that was graded.')}</li>
-      <li><b>${L('השתתפות', 'Participation')}:</b> ${L(`כל שיעור במשוב מתחיל ב־100: איחור −${r.late}, אי הבאת ציוד −${r.noEquip}, הפרעה −${r.disrupt}, חיסור = 0. כל ציון לשבח מוסיף +${r.praiseBonus} (עד 100).`,
-        `every lesson in Mashov starts at 100: late −${r.late}, missing equipment −${r.noEquip}, disruption −${r.disrupt}, absent = 0. Each commendation adds +${r.praiseBonus} (up to 100).`)}</li>
-      <li>${L('רכיב שאין בו עדיין נתונים לא נספר, והמשקל שלו מתחלק בין הרכיבים האחרים.', 'A category with no data yet is left out and its weight is shared by the others.')}</li>
+      <li><b>${L('השתתפות', 'Participation')}:</b> ${state.role === 'teacher'
+        ? L('ציון שאת/ה קובע/ת. המערכת רק סופרת את הרישומים במשוב (בזמן, איחורים, חיסורים, ציוד, הפרעות, לשבח) כדי לעזור לך להחליט.', 'a grade you decide. The system only counts the Mashov entries (on time, late, absent, equipment, disruptions, commendations) to help you decide.')
+        : L('נקבע על ידי המורה, על סמך הנוכחות וההתנהגות בשיעורים.', 'set by your teacher, based on your attendance and behaviour in lessons.')}</li>
+      <li>${L('רכיב שאין בו עדיין ציון לא נספר, והמשקל שלו מתחלק בין הרכיבים האחרים.', 'A category with no grade yet is left out and its weight is shared by the others.')}</li>
     </ul>
   </details>`;
 }
@@ -1994,7 +2048,7 @@ function teacherView() {
   <div class="card r-3xl" style="overflow:hidden">
     <div class="p-5" style="border-bottom:1px solid var(--border)">
       <h2 class="display w8 xl">${L('ציוני תלמידים', 'Student Grades')}</h2>
-      <p class="sm muted mt-1">${L('מחושב אוטומטית ממבחנים, ממטלות שנבדקו ומהמשוב בשיעורים', 'Calculated automatically from exams, graded assignments and lesson Mashov')}</p>
+      <p class="sm muted mt-1">${L('מבחנים ומטלות מחושבים אוטומטית. את ציון ההשתתפות את/ה קובע/ת – לפי סיכום הרישומים במשוב שמופיע ליד כל תלמיד/ה.', 'Exams and assignments are calculated automatically. You set the participation grade – using the Mashov tally shown for each student.')}</p>
     </div>
     <div style="overflow-x:auto">
       <table class="gtable">
@@ -2012,8 +2066,15 @@ function teacherView() {
               </td>
               <td><div class="cell-score" style="color:${scoreColor(g.exam, '#F43F5E')}">${scoreText(g.exam)}</div>
                 <div class="xs muted nowrap">${L(`${g.exams.length} מבחנים`, `${g.exams.length} exam${g.exams.length === 1 ? '' : 's'}`)}</div></td>
-              <td><div class="cell-score" style="color:${scoreColor(g.participation, '#3B82F6')}">${scoreText(g.participation)}</div>
-                <div class="xs muted nowrap" title="${L('שיעורים · איחורים · חיסורים · לשבח', 'lessons · late · absent · commendations')}">${p.lessons} ${L('שיעורים', 'lessons')} · ⏰${p.late} · 🚫${p.absent} · 🌟${p.praise}</div></td>
+              <td class="part-cell">
+                <div class="flex items-center gap-2">
+                  <input type="number" min="0" max="100" step="1" class="score-input mono" value="${typeof g.participation === 'number' ? g.participation : ''}" placeholder="—"
+                    aria-label="${L('ציון השתתפות עבור', 'Participation grade for')} ${esc(localize(name))}"
+                    onchange="setParticipation(${i}, ${JSON.stringify(name).replace(/"/g, '&quot;')}, this)" onkeydown="if(event.key==='Enter')this.blur()">
+                  <span class="xs muted nowrap">${L(`מתוך ${p.lessons} שיעורים`, `from ${p.lessons} lessons`)}</span>
+                </div>
+                <div class="tally-row">${tallyChips(p)}</div>
+              </td>
               <td><div class="cell-score" style="color:${scoreColor(g.assignments, '#7C3AED')}">${scoreText(g.assignments)}</div>
                 <div class="xs muted nowrap">${L(`${g.work.length} נבדקו`, `${g.work.length} graded`)}</div></td>
               <td class="nowrap">
@@ -2032,19 +2093,6 @@ function teacherView() {
 }
 
 /* ================= Student ================= */
-function markChips(m) {
-  const chips = [];
-  if (m.absent) chips.push(['absent']);
-  else {
-    chips.push(m.late ? ['late'] : ['onTime']);
-    ['noEquip', 'disrupt', 'praise'].forEach(k => { if (m[k]) chips.push([k]); });
-  }
-  return chips.map(([k]) => {
-    if (k === 'onTime') return `<span class="mchip" style="--c:#10B981">✅ ${L('הגיע/ה בזמן', 'On time')}</span>`;
-    const c = MASHOV_CATS.find(x => x.key === k);
-    return `<span class="mchip" style="--c:${c.color}">${c.icon} ${L(c.he, c.en)}</span>`;
-  }).join('');
-}
 
 function studentView() {
   const cls = currentClass();
@@ -2058,7 +2106,7 @@ function studentView() {
   const records = gb.showAllAttendance ? g.records : g.records.slice(0, 8);
   const details = {
     exam: L(`${g.exams.length} מבחנים`, `${g.exams.length} exam${g.exams.length === 1 ? '' : 's'}`),
-    participation: L(`${p.lessons} שיעורים במשוב`, `${p.lessons} lessons in Mashov`),
+    participation: L('נקבע על ידי המורה', 'set by your teacher'),
     assignments: L(`${g.work.length} מטלות נבדקו`, `${g.work.length} graded assignment${g.work.length === 1 ? '' : 's'}`),
   };
 
@@ -2095,6 +2143,20 @@ function studentView() {
 
   <div class="grid g-1 md-3" style="gap:1rem">
     ${COMPONENTS.map(c => {
+      if (c.key === 'participation') {
+        return `
+      <div class="card r-3xl p-5 col gap-3">
+        <div class="flex items-center gap-2">
+          <span class="xl">${c.icon}</span>
+          <div>
+            <div class="w7 sm">${L(c.he, c.en)}</div>
+            <div class="xs muted">${L('משקל', 'Weight')}: ${g.weights[c.key]}% · ${details[c.key]}</div>
+          </div>
+        </div>
+        <a href="#attendance" class="xs w7 primary" onclick="event.preventDefault();document.getElementById('attendance').scrollIntoView({ behavior: 'smooth' })">
+          ${L('לרישומי הנוכחות שלי בשיעורים ←', 'See my lesson attendance →')}</a>
+      </div>`;
+      }
       const score = g[c.key];
       return `
       <div class="card r-3xl p-5 col gap-3">
@@ -2138,7 +2200,7 @@ function studentView() {
   <div id="attendance" class="card r-3xl p-5">
     <div class="flex items-center justify-between wrap gap-2 mb-3">
       <h3 class="display w7 base">🙋 ${L('נוכחות והתנהגות (משוב)', 'Attendance & behaviour (Mashov)')}</h3>
-      <span class="mono w8" style="color:${scoreColor(g.participation, '#3B82F6')}">${L('השתתפות', 'Participation')}: ${scoreText(g.participation)}</span>
+      <span class="xs muted">${L(`${p.lessons} שיעורים שהמורה רשם/ה`, `${p.lessons} lessons recorded by your teacher`)}</span>
     </div>
     <div class="flex wrap gap-2 mb-3">
       <span class="mchip" style="--c:#10B981">✅ ${L('בזמן', 'On time')} · ${p.onTime}</span>
@@ -2156,8 +2218,7 @@ function studentView() {
               <span class="sm w7">${fmtDate(r.date, { weekday: 'short', day: 'numeric', month: 'short' })}</span>
               <span class="xs muted">${r.slot ? timeRange(r.slot.startHour, r.slot.startHour + r.slot.duration) : ''}</span>
             </div>
-            <div class="flex wrap gap-1 flex-1">${markChips(r.marks)}</div>
-            <span class="mono xs w7" style="color:${gradeColor(lessonScore(r.marks))}" title="${L('ציון השיעור', 'Lesson score')}">${lessonScore(r.marks)}</span>
+            <div class="flex wrap gap-1 flex-1">${statusChips(r.marks)}</div>
           </div>`).join('')}
       </div>
       ${g.records.length > 8 ? `<button class="link-btn xs mt-3" onclick="gb.showAllAttendance=!gb.showAllAttendance;renderPage()">

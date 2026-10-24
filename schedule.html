@@ -333,6 +333,12 @@ svg { display: block; }
   .stat-tile .xl { font-size: 1.1rem; }
 }
 
+/* Mashov status chips */
+.mchip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700;
+  color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); white-space: nowrap; }
+.mchip.zero { opacity: .45; }
+.mchip.tally .tally-label { font-weight: 600; }
+
 /* ===================== Page styles ===================== */
 /* Weekly timetable grid */
 .week { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
@@ -437,6 +443,14 @@ html[dir='rtl'] .week-arrow { transform: scaleX(-1); }
   .mashov-table thead th { min-width: 4rem; font-size: 0.6875rem; }
   .mashov-date { min-width: 0; }
 }
+
+/* Student: Mashov status inside each lesson block */
+.slot-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem; margin-top: 0.3rem; font-size: 0.6875rem; }
+.slot-status.muted { color: var(--muted); font-weight: 600; }
+.slot-status .mchip { font-size: 0.625rem; padding: 0.05rem 0.375rem; }
+.slot-status-date { font-size: 0.625rem; color: var(--muted); font-weight: 600; }
+.att-line { display: flex; align-items: center; gap: 0.75rem; padding: 0.375rem 0; }
+.att-line + .att-line { border-top: 1px solid var(--border); }
 </style>
 </head>
 <body>
@@ -1193,13 +1207,14 @@ function classRoster() {
    Final grade = weighted mix of three categories (weights set per class by the teacher):
    - Exams:         average of the student's exam scores in the class
    - Assignments:   average of the student's graded submissions in the class
-   - Participation: built from Mashov records (see PARTICIPATION_RULES)
-   A category with no data yet is left out and the other weights are scaled up. */
+   - Participation: a grade the teacher enters, guided by the student's Mashov tally
+     (the system only counts the entries – it never turns them into a grade)
+   A category with no grade yet is left out and the other weights are scaled up. */
 const EXAMS_KEY = 'cs-exams';
 const WEIGHTS_KEY = 'cs-class-weights';
 const FEEDBACK_KEY = 'cs-student-feedback';
 const DEFAULT_WEIGHTS = { exam: 20, participation: 20, assignments: 60 };
-const PARTICIPATION_RULES = { late: 30, noEquip: 15, disrupt: 20, praiseBonus: 5 };
+const PARTICIPATION_KEY = 'cs-participation-grades';
 const GRADE_KEYS = ['exam', 'participation', 'assignments'];
 
 function classWeights(classId) {
@@ -1250,16 +1265,39 @@ function attendanceRecords(classId, name) {
     return { key, date: rec.date, slot, marks, by: rec.by };
   }).filter(Boolean).sort((a, b) => (a.date < b.date ? 1 : -1));
 }
-function lessonScore(m) {
-  if (m.absent) return 0;
-  return Math.max(0, 100 - (m.late ? PARTICIPATION_RULES.late : 0) - (m.noEquip ? PARTICIPATION_RULES.noEquip : 0) - (m.disrupt ? PARTICIPATION_RULES.disrupt : 0));
-}
+// How many times each Mashov entry was recorded – a tally for the teacher, not a grade
 function participationSummary(records) {
   const count = key => records.filter(r => r.marks[key]).length;
   const onTime = records.filter(r => !r.marks.absent && !r.marks.late).length;
-  const base = average(records.map(r => lessonScore(r.marks)));
-  const score = base === null ? null : Math.min(100, base + count('praise') * PARTICIPATION_RULES.praiseBonus);
-  return { score, lessons: records.length, onTime, late: count('late'), absent: count('absent'), noEquip: count('noEquip'), disrupt: count('disrupt'), praise: count('praise') };
+  return { lessons: records.length, onTime, late: count('late'), absent: count('absent'), noEquip: count('noEquip'), disrupt: count('disrupt'), praise: count('praise') };
+}
+function participationGrade(classId, name) {
+  const v = load(PARTICIPATION_KEY, {})[classId + '|' + name];
+  return typeof v === 'number' ? v : null;
+}
+function setParticipationGrade(classId, name, value) {
+  const all = load(PARTICIPATION_KEY, {});
+  if (value === null) delete all[classId + '|' + name]; else all[classId + '|' + name] = value;
+  save(PARTICIPATION_KEY, all);
+}
+
+/* Status of one lesson for a student, as small coloured chips (on time / late / absent / …) */
+function statusChips(m) {
+  const keys = m.absent ? ['absent'] : [m.late ? 'late' : 'onTime'].concat(['noEquip', 'disrupt', 'praise'].filter(k => m[k]));
+  return keys.map(k => {
+    if (k === 'onTime') return `<span class="mchip" style="--c:#10B981">✅ ${L('בזמן', 'On time')}</span>`;
+    const c = MASHOV_CATS.find(x => x.key === k);
+    return `<span class="mchip" style="--c:${c.color}">${c.icon} ${L(c.he, c.en)}</span>`;
+  }).join('');
+}
+// Tally chips for the teacher (e.g. ✅ 14 · ⏰ 5 …)
+function tallyChips(p) {
+  const items = [
+    ['#10B981', '✅', L('בזמן', 'On time'), p.onTime], ['#F59E0B', '⏰', L('איחורים', 'Late'), p.late],
+    ['#F43F5E', '🚫', L('חיסורים', 'Absent'), p.absent], ['#8B5CF6', '🎒', L('אי הבאת ציוד', 'Missing equipment'), p.noEquip],
+    ['#F97316', '📢', L('הפרעות', 'Disruptions'), p.disrupt], ['#10B981', '🌟', L('לשבח', 'Commendations'), p.praise],
+  ];
+  return items.map(([color, icon, label, n]) => `<span class="mchip tally ${n ? '' : 'zero'}" style="--c:${color}" title="${label}">${icon} ${n} <span class="tally-label">${label}</span></span>`).join('');
 }
 function finalFrom(parts, pct) {
   const have = GRADE_KEYS.filter(k => typeof parts[k] === 'number');
@@ -1272,7 +1310,7 @@ function computeGrade(classId, name, pct) {
   const work = assignmentScores(classId, name);
   const records = attendanceRecords(classId, name);
   const part = participationSummary(records);
-  const parts = { exam: average(exams.map(e => e.score)), assignments: average(work.map(w => w.grade)), participation: part.score };
+  const parts = { exam: average(exams.map(e => e.score)), assignments: average(work.map(w => w.grade)), participation: participationGrade(classId, name) };
   const weights = pct || classWeights(classId);
   return { ...parts, final: finalFrom(parts, weights), weights, exams, work, records, part };
 }
@@ -1677,6 +1715,7 @@ function weeklyGrid() {
             <div class="w7 xs leading-tight" style="color:${cls.color}">${localize(cls.subject)}</div>
             <div class="xs muted mt-1 md-up">${esc(localize(slot.room || ''))}</div>
             ${slot.duration > 1 ? `<div class="xs w6 mt-1" style="color:${cls.color}cc">${timeRange(hour, hour + slot.duration)}</div>` : ''}
+            ${state.role === 'student' ? lessonStatus(slot) : ''}
             ${state.role === 'teacher' && mashovRecord(slot.id, defaultLessonDate(slot)) ? `<span class="slot-done" title="${L('המשוב לשיעור הזה מולא', 'Mashov filled in for this lesson')}">✓</span>` : ''}
             ${flag ? `<span class="slot-flag ${flag}">${flag === 'added' ? L('חדש', 'New') : L('עודכן', 'Updated')}</span>` : ''}
           </button>`;
@@ -1728,6 +1767,17 @@ function dismissChanges() {
   renderPage();
 }
 
+/* ---------- Student: what the teacher recorded for this lesson ---------- */
+function myLessonRecords(slot) {
+  return attendanceRecords(slot.classId, currentUserName()).filter(r => r.key.split('|')[0] === slot.id);
+}
+// Shown inside the lesson block: the status from the latest recorded lesson
+function lessonStatus(slot) {
+  const latest = myLessonRecords(slot)[0];
+  if (!latest) return `<div class="slot-status muted">${L('טרם נרשם משוב', 'No Mashov yet')}</div>`;
+  return `<div class="slot-status">${statusChips(latest.marks)}<span class="slot-status-date">${fmtDate(latest.date, { day: 'numeric', month: 'numeric' })}</span></div>`;
+}
+
 function slotDetails() {
   if (!sched.selectedSlot) return '';
   const slot = timetable.find(s => s.id === sched.selectedSlot);
@@ -1751,8 +1801,20 @@ function slotDetails() {
           ? related.map(e => `<span class="badge" style="background:${e.color}20;color:${e.color}">${e.icon ? e.icon + ' ' : ''}${esc(e.title)}${e.endDate ? entryWhen(e) : ` · ${fmtDate(e.date, { day: 'numeric', month: 'short' })}${entryTime(e)}`}</span>`).join('')
           : `<span class="xs muted">${L('אין מטלות פתוחות לכיתה זו', 'No open assignments for this class')}</span>`}
       </div>
+      ${state.role === 'student' ? lessonHistory(slot) : ''}
     </div>
   </div>`;
+}
+function lessonHistory(slot) {
+  const records = myLessonRecords(slot);
+  return `
+    <h4 class="sm w7 mt-4 mb-2">🙋 ${L('הנוכחות שלי בשיעור הזה', 'My attendance in this lesson')}</h4>
+    ${records.length ? `<div class="col">${records.map(r => `
+      <div class="att-line">
+        <span class="sm w6" style="width:7.5rem;flex-shrink:0">${fmtDate(r.date, { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+        <span class="flex wrap gap-1">${statusChips(r.marks)}</span>
+      </div>`).join('')}</div>`
+      : `<p class="xs muted">${L('המורה עדיין לא רשם/ה משוב לשיעור הזה.', 'Your teacher has not recorded Mashov for this lesson yet.')}</p>`}`;
 }
 
 function selectSlot(key) {
