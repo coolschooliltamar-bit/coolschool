@@ -1138,7 +1138,7 @@ const SETTINGS_ICONS = {
 };
 
 function resetData() {
-  ['cs-teacher-assignments', 'cs-paths', 'cs-weights', 'cs-student-rows', 'cs-notifs', 'cs-events', 'cs-received', 'cs-review-queue', 'cs-graded', 'cs-teacher-notes', 'cs-hidden-notes', 'cs-timetable', 'cs-timetable-meta', 'cs-timetable-draft', 'cs-school-year'].forEach(k => {
+  ['cs-teacher-assignments', 'cs-paths', 'cs-weights', 'cs-student-rows', 'cs-notifs', 'cs-events', 'cs-received', 'cs-review-queue', 'cs-graded', 'cs-teacher-notes', 'cs-hidden-notes', 'cs-timetable', 'cs-timetable-meta', 'cs-timetable-draft', 'cs-school-year', 'cs-mashov'].forEach(k => {
     try { localStorage.removeItem(k); } catch (e) { /* ignore */ }
   });
   state.notifs = defaultNotifs();

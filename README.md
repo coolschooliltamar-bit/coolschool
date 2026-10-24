@@ -36,6 +36,7 @@ Password for all: `demo1234`
 - Teachers who register must be approved by a principal (the principal is notified)
 - Principals edit the weekly timetable for the whole school year; teachers and students are notified of changes
 - Teachers grade submissions and view student files; grade weights always total 100%
+- Mashov: teachers click a lesson in the schedule to mark each student – absence, tardiness, disruption, commendation, missing equipment, present – saved per lesson date
 - Students see all their tasks in one place – what is still due, what is awaiting a grade, and completed work with the teacher's grade and feedback
 - Students hand in work, build and share personal learning paths in the library
 - Works on phones, tablets and desktops
