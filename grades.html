@@ -432,6 +432,26 @@ html[dir='rtl'] .nav-arrow { transform: scaleX(-1); }
   .review-inputs .btn-primary { margin-inline-start: auto; }
 }
 @media (max-width: 899px) { .preview { min-height: 12rem; } }
+
+/* Exams, computed grades, attendance */
+.exam-row { display: flex; align-items: center; gap: 1rem; padding: 0.875rem 1.25rem; flex-wrap: wrap; }
+.exam-row + .exam-row { border-top: 1px solid var(--border); }
+.exam-modal { max-width: 40rem; }
+.exam-grid { display: grid; grid-template-columns: 1fr; gap: 0.5rem; }
+@media (min-width: 640px) { .exam-grid { grid-template-columns: 1fr 1fr; } }
+.exam-student { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.5rem; border-radius: 0.75rem; background: var(--surface); }
+.score-input.invalid { border-color: #F43F5E; box-shadow: 0 0 0 3px #F43F5E33; }
+.cell-score { font-family: var(--font-mono); font-weight: 800; font-size: 1rem; }
+.list-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; }
+.list-row + .list-row { border-top: 1px solid var(--border); }
+.mchip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700;
+  color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); }
+.att-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; }
+.att-row + .att-row { border-top: 1px solid var(--border); }
+.att-date { display: flex; flex-direction: column; width: 6.5rem; flex-shrink: 0; }
+.rules { padding: 0.75rem 0.875rem; border-radius: 0.875rem; background: var(--surface); }
+.rules summary { cursor: pointer; }
+.rules ul { padding-inline-start: 1.1rem; }
 </style>
 </head>
 <body>
@@ -667,6 +687,7 @@ const hebrewContent = {
   'Parent-teacher meeting next week — Biology 11A': 'אסיפת הורים בשבוע הבא – ביולוגיה י״א 1',
   '1d ago': 'אתמול',
   'Ruth Amir': 'רות אמיר',
+  'Unit 1 exam': 'מבחן יחידה 1',
   '5m ago': 'לפני 5 דקות', '10m ago': 'לפני 10 דקות', '1h ago': 'לפני שעה', '2h ago': 'לפני שעתיים', '3h ago': 'לפני 3 שעות',
   'WWII Operations': 'מבצעי מלחמת העולם השנייה', 'Quadratic Equations': 'משוואות ריבועיות', 'Cell Membrane Biology': 'ביולוגיה של קרום התא',
   'Oct 1': '1 באוקטובר', 'Sep 25': '25 בספטמבר', 'Sep 20': '20 בספטמבר', 'Open-ended': 'ללא תאריך יעד', Today: 'היום',
@@ -796,6 +817,18 @@ function inboxNotifs() {
       const count = (m.extra && m.extra.count) || 0;
       return { ...base, type: 'timetable', link: 'schedule.html',
         text: L(`${name} עדכן/ה את מערכת השעות השבועית (${count} שינויים)`, `${name} updated the weekly timetable (${count} change${count === 1 ? '' : 's'})`) };
+    }
+    if (m.kind === 'mashov') {
+      const x = m.extra || {};
+      const cls = classes.find(c => c.id === x.classId);
+      return { ...base, type: 'grade', link: 'grades.html#attendance',
+        text: L(`${name} עדכן/ה משוב: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? localize(cls.name) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`,
+                `${name} updated your Mashov: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? cls.name : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`) };
+    }
+    if (m.kind === 'exam-grade') {
+      const x = m.extra || {};
+      return { ...base, type: 'exam', link: 'grades.html',
+        text: L(`${name} הזין/ה ציון במבחן "${localize(x.title || '')}" · ${x.grade}`, `${name} entered your grade for "${x.title || ''}" · ${x.grade}`) };
     }
     if (m.kind === 'graded') {
       const x = m.extra || {};
@@ -1152,6 +1185,166 @@ function myTaskStatus(a) {
   return { state: 'todo' };
 }
 
+const MASHOV_KEY = 'cs-mashov';
+const MASHOV_CATS = [
+  { key: 'absent', he: 'חיסור', en: 'Absence', icon: '🚫', color: '#F43F5E' },
+  { key: 'late', he: 'איחור', en: 'Tardiness', icon: '⏰', color: '#F59E0B' },
+  { key: 'disrupt', he: 'הפרעה', en: 'Disruption', icon: '📢', color: '#F97316' },
+  { key: 'praise', he: 'ציון לשבח', en: 'Commendation', icon: '🌟', color: '#10B981' },
+  { key: 'noEquip', he: 'אי הבאת ציוד', en: 'Missing equipment', title: 'Failure to bring equipment', icon: '🎒', color: '#8B5CF6' },
+  { key: 'present', he: 'נוכח/ת', en: 'Present', icon: '✅', color: '#3B82F6' },
+];
+function mashovStore() { return load(MASHOV_KEY, {}); }
+function mashovRecord(slotId, date) { return mashovStore()[slotId + '|' + date] || null; }
+function mashovLabel(key) { const c = MASHOV_CATS.find(x => x.key === key); return c ? L(c.he, c.en) : key; }
+
+/* Every student is enrolled in every class in this demo: the sample roster plus registered students */
+function classRoster() {
+  const registered = loadUsers().filter(u => u.role === 'student' && u.status === 'active').map(fullName);
+  return [...new Set(STUDENT_ROSTER.concat(registered))];
+}
+
+/* ================= Grade calculation =================
+   Final grade = weighted mix of three categories (weights set per class by the teacher):
+   - Exams:         average of the student's exam scores in the class
+   - Assignments:   average of the student's graded submissions in the class
+   - Participation: built from Mashov records (see PARTICIPATION_RULES)
+   A category with no data yet is left out and the other weights are scaled up. */
+const EXAMS_KEY = 'cs-exams';
+const WEIGHTS_KEY = 'cs-class-weights';
+const FEEDBACK_KEY = 'cs-student-feedback';
+const DEFAULT_WEIGHTS = { exam: 20, participation: 20, assignments: 60 };
+const PARTICIPATION_RULES = { late: 30, noEquip: 15, disrupt: 20, praiseBonus: 5 };
+const GRADE_KEYS = ['exam', 'participation', 'assignments'];
+
+function classWeights(classId) {
+  const all = load(WEIGHTS_KEY, {});
+  if (all[classId]) return { ...all[classId] };
+  const old = load('cs-weights', null);   // earlier versions kept one set of weights for everyone
+  if (old && typeof old.exam === 'number') {
+    const exam = Math.round(old.exam * 100), participation = Math.round(old.participation * 100);
+    return { exam, participation, assignments: 100 - exam - participation };
+  }
+  return { ...DEFAULT_WEIGHTS };
+}
+function saveClassWeights(classId, pct) {
+  const all = load(WEIGHTS_KEY, {});
+  all[classId] = { ...pct };
+  save(WEIGHTS_KEY, all);
+}
+
+function average(nums) { return nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : null; }
+
+function classExams(classId) {
+  return load(EXAMS_KEY, []).filter(e => e.classId === classId).sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+function examScores(classId, name) {
+  return classExams(classId).filter(e => typeof e.grades[name] === 'number')
+    .map(e => ({ id: e.id, title: e.title, date: e.date, score: e.grades[name] }));
+}
+function assignmentScores(classId, name) {
+  const graded = load('cs-graded', []).filter(g => g.student === name).map(g => {
+    const a = findAssignment(g.assignmentId);
+    return a && a.classId === classId ? { title: a.title, grade: g.grade, feedback: g.feedback, assignmentId: a.id } : null;
+  }).filter(Boolean);
+  // built-in sample grades belong to the demo student
+  if (name === 'Noa Ben-David') {
+    assignments.filter(a => a.classId === classId && a.submitted && typeof a.grade === 'number' && !graded.some(g => g.assignmentId === a.id))
+      .forEach(a => graded.push({ title: a.title, grade: a.grade, feedback: a.feedback, assignmentId: a.id }));
+  }
+  return graded;
+}
+// Lessons in this class where the teacher marked the student in Mashov (newest first)
+function attendanceRecords(classId, name) {
+  const store = mashovStore();
+  return Object.keys(store).map(key => {
+    const rec = store[key];
+    const marks = rec.rows && rec.rows[name];
+    if (rec.classId !== classId || !marks || !MASHOV_CATS.some(c => marks[c.key])) return null;
+    const slot = timetable.find(s => s.id === key.split('|')[0]) || DEFAULT_TIMETABLE.find(s => s.id === key.split('|')[0]);
+    return { key, date: rec.date, slot, marks, by: rec.by };
+  }).filter(Boolean).sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+function lessonScore(m) {
+  if (m.absent) return 0;
+  return Math.max(0, 100 - (m.late ? PARTICIPATION_RULES.late : 0) - (m.noEquip ? PARTICIPATION_RULES.noEquip : 0) - (m.disrupt ? PARTICIPATION_RULES.disrupt : 0));
+}
+function participationSummary(records) {
+  const count = key => records.filter(r => r.marks[key]).length;
+  const onTime = records.filter(r => !r.marks.absent && !r.marks.late).length;
+  const base = average(records.map(r => lessonScore(r.marks)));
+  const score = base === null ? null : Math.min(100, base + count('praise') * PARTICIPATION_RULES.praiseBonus);
+  return { score, lessons: records.length, onTime, late: count('late'), absent: count('absent'), noEquip: count('noEquip'), disrupt: count('disrupt'), praise: count('praise') };
+}
+function finalFrom(parts, pct) {
+  const have = GRADE_KEYS.filter(k => typeof parts[k] === 'number');
+  const totalWeight = have.reduce((s, k) => s + pct[k], 0);
+  if (!have.length || !totalWeight) return null;
+  return Math.round(have.reduce((s, k) => s + parts[k] * pct[k], 0) / totalWeight);
+}
+function computeGrade(classId, name, pct) {
+  const exams = examScores(classId, name);
+  const work = assignmentScores(classId, name);
+  const records = attendanceRecords(classId, name);
+  const part = participationSummary(records);
+  const parts = { exam: average(exams.map(e => e.score)), assignments: average(work.map(w => w.grade)), participation: part.score };
+  const weights = pct || classWeights(classId);
+  return { ...parts, final: finalFrom(parts, weights), weights, exams, work, records, part };
+}
+function studentFeedback(classId, name) {
+  const saved = load(FEEDBACK_KEY, {})[classId + '|' + name];
+  if (saved) return saved;
+  return name === 'Noa Ben-David' && studentGrades[classId] ? localize(studentGrades[classId].feedback) : '';
+}
+
+/* Sample history so grades are not empty on first visit: one exam per class and
+   five weeks of Mashov marks for the sample roster. Runs once per browser. */
+function seedHash(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return Math.abs(h); }
+function ensureGradeSeed() {
+  if (load('cs-grades-seeded', false)) return;
+  const bioExam = { 'Noa Ben-David': 82, 'Yosef Avraham': 75, 'Maya Goldstein': 94, 'Lior Cohen': 68, 'Tamar Levy': 88, 'Eitan Mizrahi': 79 };
+  const exams = load(EXAMS_KEY, []);
+  classes.forEach(c => {
+    const grades = {};
+    STUDENT_ROSTER.forEach(name => {
+      grades[name] = c.id === 'bio11a' ? bioExam[name]
+        : name === 'Noa Ben-David' && studentGrades[c.id] ? studentGrades[c.id].exam
+        : 62 + seedHash(name + c.id) % 36;
+    });
+    exams.push({ id: 'ex-seed-' + c.id, classId: c.id, title: 'Unit 1 exam', date: '2026-09-24', grades, createdBy: c.teacher });
+  });
+  save(EXAMS_KEY, exams);
+
+  const store = mashovStore();
+  const profile = {
+    'Noa Ben-David': r => ({ late: r < 8, praise: r > 90 }),
+    'Yosef Avraham': r => ({ noEquip: r < 20, absent: r > 95 }),
+    'Maya Goldstein': r => ({ praise: r < 30 }),
+    'Lior Cohen': r => ({ late: r < 35, absent: r > 92 }),
+    'Tamar Levy': r => ({ absent: r < 6, praise: r > 85 }),
+    'Eitan Mizrahi': r => ({ disrupt: r < 25, noEquip: r >= 25 && r < 35 }),
+  };
+  ['2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28', '2026-10-05'].forEach(monday => {
+    DEFAULT_TIMETABLE.forEach(slot => {
+      const [y, m, d] = monday.split('-').map(Number);
+      const day = new Date(y, m - 1, d + slot.day);
+      const date = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+      const key = slot.id + '|' + date;
+      if (store[key]) return;
+      const rows = {};
+      STUDENT_ROSTER.forEach(name => {
+        const marks = profile[name](seedHash(name + key) % 100);
+        rows[name] = marks.absent ? { absent: true } : { ...marks, present: true };
+      });
+      const cls = classes.find(c => c.id === slot.classId);
+      store[key] = { classId: slot.classId, date, savedAt: date + 'T09:00:00', by: cls ? cls.teacher : '', rows, seeded: true };
+    });
+  });
+  save(MASHOV_KEY, store);
+  save('cs-grades-seeded', true);
+}
+ensureGradeSeed();
+
 /* ================= Render loop ================= */
 function renderHeaderOnly() {
   document.getElementById('header-slot').innerHTML = renderHeader();
@@ -1181,18 +1374,7 @@ document.addEventListener('DOMContentLoaded', renderAll);
 /* ===================== Page code ===================== */
 window.PAGE_KEY = 'grades';
 
-const gb = {
-  weights: load('cs-weights', { exam: 0.2, participation: 0.2, assignments: 0.6 }),
-  rows: load('cs-student-rows', [
-    { name: 'Noa Ben-David', exam: 82, participation: 90, assignments: 88 },
-    { name: 'Yosef Avraham', exam: 75, participation: 78, assignments: 72 },
-    { name: 'Maya Goldstein', exam: 94, participation: 95, assignments: 97 },
-    { name: 'Lior Cohen', exam: 68, participation: 65, assignments: 71 },
-    { name: 'Tamar Levy', exam: 88, participation: 82, assignments: 85 },
-    { name: 'Eitan Mizrahi', exam: 79, participation: 88, assignments: 83 },
-  ]),
-  feedbackFor: null,
-};
+const gb = { feedbackFor: null, examEdit: null, showAllAttendance: false };
 
 const COMPONENTS = [
   { key: 'exam', color: '#F43F5E', icon: '📋', he: 'מבחנים', en: 'Exams' },
@@ -1200,33 +1382,27 @@ const COMPONENTS = [
   { key: 'assignments', color: '#7C3AED', icon: '📄', he: 'מטלות', en: 'Assignments' },
 ];
 
-function weightedFinal(g, w) {
-  return Math.round(g.exam * w.exam + g.participation * w.participation + g.assignments * w.assignments);
-}
 function letter(v) { return v >= 90 ? 'A' : v >= 80 ? 'B' : v >= 70 ? 'C' : 'D'; }
 function verdict(v) {
   return v >= 90 ? L('מצוין', 'Excellent') : v >= 80 ? L('טוב', 'Good') : v >= 70 ? L('מספק', 'Satisfactory') : L('טעון שיפור', 'Needs Work');
 }
+function scoreText(v) { return typeof v === 'number' ? v : '—'; }
+function scoreColor(v, fallback) { return typeof v === 'number' ? (fallback || gradeColor(v)) : 'var(--muted)'; }
 
 /* ================= Teacher ================= */
-/* Weights are whole percents that always add up to exactly 100.
+/* Weights are whole percents that always add up to exactly 100, saved per class.
    Moving one component re-balances the other two proportionally. */
 const WEIGHT_KEYS = COMPONENTS.map(c => c.key);
 
 function normalizePct(p) {
   const vals = WEIGHT_KEYS.map(k => Math.max(0, Math.round(Number(p[k]) || 0)));
   const sum = vals.reduce((a, b) => a + b, 0);
-  if (sum === 0) return { exam: 20, participation: 20, assignments: 60 };
+  if (sum === 0) return { ...DEFAULT_WEIGHTS };
   const scaled = vals.map(v => Math.round(v * 100 / sum));
   scaled[scaled.indexOf(Math.max(...scaled))] += 100 - scaled.reduce((a, b) => a + b, 0);
   return Object.fromEntries(WEIGHT_KEYS.map((k, i) => [k, scaled[i]]));
 }
-gb.pct = normalizePct(Object.fromEntries(WEIGHT_KEYS.map(k => [k, gb.weights[k] * 100])));
-syncWeights();
-
-function syncWeights() {
-  WEIGHT_KEYS.forEach(k => { gb.weights[k] = gb.pct[k] / 100; });
-}
+gb.pct = normalizePct(classWeights(state.classId));
 function pctTotal() { return WEIGHT_KEYS.reduce((sum, k) => sum + gb.pct[k], 0); }
 
 function setPct(key, value) {
@@ -1242,7 +1418,6 @@ function setPct(key, value) {
     gb.pct[others[1]] = rest - gb.pct[others[0]];
   }
   gb.pct[key] = v;
-  syncWeights();
   WEIGHT_KEYS.forEach(k => {
     const range = document.getElementById('wr-' + k);
     const num = document.getElementById('wv-' + k);
@@ -1276,24 +1451,19 @@ function balanceChip() {
     : `<span class="chip" style="background:#F43F5E20;color:#F43F5E">⚠️ ${total}%</span>`;
 }
 
+// Live preview of final grades while the sliders move (before saving)
 function updateTeacherNumbers() {
   document.getElementById('balance').innerHTML = balanceChip();
   COMPONENTS.forEach(c => {
-    document.getElementById('seg-' + c.key).style.width = gb.weights[c.key] * 100 + '%';
-    document.querySelectorAll('.th-' + c.key).forEach(el => { el.textContent = Math.round(gb.weights[c.key] * 100); });
+    document.getElementById('seg-' + c.key).style.width = gb.pct[c.key] + '%';
+    document.querySelectorAll('.th-' + c.key).forEach(el => { el.textContent = gb.pct[c.key]; });
   });
-  gb.rows.forEach((row, i) => {
-    const f = weightedFinal(row, gb.weights);
+  (gb.rowParts || []).forEach((parts, i) => {
+    const f = finalFrom(parts, gb.pct);
     const el = document.getElementById('final-' + i);
-    el.textContent = f;
-    el.style.color = gradeColor(f);
+    el.textContent = scoreText(f);
+    el.style.color = scoreColor(f);
   });
-}
-
-function setScore(i, key, el) {
-  const v = Math.max(0, Math.min(100, parseInt(el.value, 10) || 0));
-  gb.rows[i][key] = v;
-  updateTeacherNumbers();
 }
 
 function saveWeights() {
@@ -1301,38 +1471,192 @@ function saveWeights() {
     toast(L('סכום המשקלים חייב להיות 100%', 'Weights must add up to 100%'));
     return;
   }
-  save('cs-weights', gb.weights);
-  save('cs-student-rows', gb.rows);
-  toast(L('הציונים והמשקלים נשמרו', 'Weights and grades saved'));
+  saveClassWeights(state.classId, gb.pct);
+  renderPage();
+  toast(L('המשקלים נשמרו – הציונים הסופיים עודכנו', 'Weights saved – final grades updated'));
 }
 
+/* ---------- Personal feedback from the teacher (per class) ---------- */
 function feedbackPanel() {
   if (gb.feedbackFor === null) return '';
-  const row = gb.rows[gb.feedbackFor];
+  const name = gb.feedbackFor;
+  const g = computeGrade(state.classId, name, gb.pct);
   return `
   <div class="modal-bg" onmousedown="if(event.target===this)closeFeedback()">
     <div class="card r-3xl p-6 modal fade-up">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="display w8 lg">${L('משוב עבור', 'Feedback for')} ${localize(row.name)}</h3>
+        <h3 class="display w8 lg">${L('משוב עבור', 'Feedback for')} ${esc(localize(name))}</h3>
         <button class="icon-btn" style="width:2rem;height:2rem" onclick="closeFeedback()">${ICONS.close}</button>
       </div>
       <textarea id="fb-text" class="input" rows="4" style="resize:vertical"
-        placeholder="${L('כתבו משוב אישי לתלמיד/ה...', 'Write personal feedback for the student...')}">${esc(row.feedback || '')}</textarea>
+        placeholder="${L('כתבו משוב אישי לתלמיד/ה...', 'Write personal feedback for the student...')}">${esc(studentFeedback(state.classId, name))}</textarea>
       <div class="flex justify-between items-center mt-4">
-        <span class="xs muted">${L('ציון סופי', 'Final grade')}: <b class="mono">${weightedFinal(row, gb.weights)}</b></span>
+        <span class="xs muted">${L('ציון סופי', 'Final grade')}: <b class="mono">${scoreText(g.final)}</b></span>
         <button class="btn btn-primary" onclick="sendFeedback()">${L('שליחת משוב', 'Send feedback')}</button>
       </div>
     </div>
   </div>`;
 }
-function openFeedback(i) { gb.feedbackFor = i; renderPage(); document.getElementById('fb-text').focus(); }
+function openFeedback(name) { gb.feedbackFor = name; renderPage(); document.getElementById('fb-text').focus(); }
 function closeFeedback() { gb.feedbackFor = null; renderPage(); }
 function sendFeedback() {
-  gb.rows[gb.feedbackFor].feedback = document.getElementById('fb-text').value;
-  save('cs-student-rows', gb.rows);
+  const all = load(FEEDBACK_KEY, {});
+  all[state.classId + '|' + gb.feedbackFor] = document.getElementById('fb-text').value.trim();
+  save(FEEDBACK_KEY, all);
   gb.feedbackFor = null;
   renderPage();
   toast(L('המשוב נשלח', 'Feedback sent'));
+}
+
+/* ---------- Exams (feed the "Exams" category) ---------- */
+function examsCard() {
+  const cls = currentClass();
+  const exams = classExams(cls.id);
+  return `
+  <div class="card r-3xl" style="overflow:hidden">
+    <div class="p-5 flex items-center justify-between wrap gap-3" style="border-bottom:1px solid var(--border)">
+      <div>
+        <h2 class="display w8 xl">📋 ${L('מבחנים', 'Exams')}</h2>
+        <p class="sm muted mt-1">${L('ממוצע המבחנים של כל תלמיד/ה נכנס לרכיב "מבחנים" בציון הסופי', 'Each student\'s exam average counts toward the "Exams" part of the final grade')}</p>
+      </div>
+      <button class="btn btn-primary" onclick="openExam(null)">${ICONS.plus} ${L('הוספת ציון מבחן', 'Add exam grades')}</button>
+    </div>
+    ${exams.length ? exams.map(e => {
+      const scores = Object.values(e.grades).filter(v => typeof v === 'number');
+      const avg = average(scores);
+      return `
+      <div class="exam-row">
+        <div class="flex-1 min-w-0">
+          <div class="w7">${esc(localize(e.title))}</div>
+          <div class="xs muted">${fmtDate(e.date, { day: 'numeric', month: 'short', year: 'numeric' })} · ${L(`${scores.length} ציונים`, `${scores.length} grades`)}</div>
+        </div>
+        <div class="text-end">
+          <div class="mono w8 base" style="color:${scoreColor(avg)}">${scoreText(avg)}</div>
+          <div class="xs muted">${L('ממוצע', 'average')}</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-soft btn-sm" onclick="openExam('${e.id}')">✏️ ${L('עריכה', 'Edit')}</button>
+          <button class="btn btn-sm" style="background:#F43F5E1a;color:#F43F5E" onclick="deleteExam('${e.id}')" aria-label="${L('מחיקה', 'Delete')}">🗑</button>
+        </div>
+      </div>`;
+    }).join('') : `<p class="p-5 sm muted">${L('עדיין אין מבחנים לכיתה הזו.', 'No exams for this class yet.')}</p>`}
+  </div>`;
+}
+
+function openExam(id) {
+  const existing = id ? classExams(state.classId).find(e => e.id === id) : null;
+  const grades = {};
+  classRoster().forEach(n => { grades[n] = existing && typeof existing.grades[n] === 'number' ? String(existing.grades[n]) : ''; });
+  gb.examEdit = existing
+    ? { id: existing.id, title: localize(existing.title), date: existing.date, grades, isNew: false, fresh: true }
+    : { id: 'ex-' + Date.now(), title: '', date: new Date().toISOString().slice(0, 10), grades, isNew: true, fresh: true };
+  renderPage();
+  document.getElementById('exam-title').focus();
+}
+function closeExam() { gb.examEdit = null; renderPage(); }
+function examInput(name, el) {
+  gb.examEdit.grades[name] = el.value;
+  const v = el.value.trim();
+  el.classList.toggle('invalid', v !== '' && !(Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) <= 100));
+}
+function saveExam() {
+  const e = gb.examEdit;
+  e.title = document.getElementById('exam-title').value.trim();
+  e.date = document.getElementById('exam-date').value;
+  const err = document.getElementById('exam-error');
+  if (!e.title) { err.textContent = L('יש לתת שם למבחן', 'Please name the exam'); return; }
+  if (!e.date) { err.textContent = L('יש לבחור תאריך', 'Please pick a date'); return; }
+  const grades = {};
+  for (const [name, raw] of Object.entries(e.grades)) {
+    const v = String(raw).trim();
+    if (v === '') continue;
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 0 || n > 100) {
+      err.textContent = L(`ציון לא תקין עבור ${localize(name)} – מספר שלם בין 0 ל־100`, `Invalid grade for ${name} – a whole number from 0 to 100`);
+      return;
+    }
+    grades[name] = n;
+  }
+  if (!Object.keys(grades).length) { err.textContent = L('יש להזין לפחות ציון אחד', 'Enter at least one grade'); return; }
+
+  const all = load(EXAMS_KEY, []);
+  const index = all.findIndex(x => x.id === e.id);
+  const before = index >= 0 ? all[index].grades : {};
+  const record = { id: e.id, classId: state.classId, title: e.title, date: e.date, grades, createdBy: currentUserName() };
+  if (index >= 0) all[index] = record; else all.push(record);
+  save(EXAMS_KEY, all);
+  // students with an account are told about a new or changed exam grade
+  loadUsers().filter(u => u.role === 'student' && u.status === 'active').forEach(u => {
+    const name = fullName(u);
+    if (typeof grades[name] === 'number' && grades[name] !== before[name]) {
+      sendInbox(u.id, 'exam-grade', CURRENT_USER.id, { title: e.title, grade: grades[name], classId: state.classId });
+    }
+  });
+  gb.examEdit = null;
+  renderPage();
+  toast(L('ציוני המבחן נשמרו – הציונים הסופיים עודכנו', 'Exam grades saved – final grades updated'));
+}
+function deleteExam(id) {
+  const exam = classExams(state.classId).find(e => e.id === id);
+  if (!exam || !confirm(L(`למחוק את "${localize(exam.title)}" וכל הציונים שלו?`, `Delete "${exam.title}" and all its grades?`))) return;
+  save(EXAMS_KEY, load(EXAMS_KEY, []).filter(e => e.id !== id));
+  renderPage();
+  toast(L('המבחן נמחק', 'Exam deleted'));
+}
+function examModal() {
+  const e = gb.examEdit;
+  if (!e) return '';
+  const fade = e.fresh ? 'fade-up' : '';
+  e.fresh = false;
+  return `
+  <div class="modal-bg" onmousedown="if(event.target===this)closeExam()">
+    <div class="card r-3xl p-6 modal exam-modal ${fade}">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="display w8 lg">${e.isNew ? L('מבחן חדש', 'New exam') : L('עריכת מבחן', 'Edit exam')} · ${localize(currentClass().name)}</h3>
+        <button class="icon-btn" style="width:2rem;height:2rem" onclick="closeExam()" aria-label="${L('סגירה', 'Close')}">${ICONS.close}</button>
+      </div>
+      <div class="grid g-1 sm-2" style="gap:0.75rem">
+        <div>
+          <label class="label" for="exam-title">${L('שם המבחן', 'Exam name')}</label>
+          <input id="exam-title" class="input" maxlength="60" value="${esc(e.title)}" placeholder="${L('לדוגמה: מבחן יחידה 2', 'e.g. Unit 2 exam')}">
+        </div>
+        <div>
+          <label class="label" for="exam-date">${L('תאריך', 'Date')}</label>
+          <input id="exam-date" type="date" class="input" value="${e.date}">
+        </div>
+      </div>
+      <p class="label mt-4">${L('ציונים (0–100) · השאירו ריק למי שלא נבחן/ה', 'Grades (0–100) · leave empty for students who did not sit the exam')}</p>
+      <div class="exam-grid">
+        ${Object.keys(e.grades).map((name, i) => `
+          <label class="exam-student">
+            <span class="letter-tile xs" style="width:1.75rem;height:1.75rem;border-radius:0.5rem;background:hsl(${i * 47 + 200},60%,50%)">${initials(name)}</span>
+            <span class="sm w6 flex-1 truncate">${esc(localize(name))}</span>
+            <input type="number" min="0" max="100" step="1" class="score-input mono" value="${esc(e.grades[name])}" placeholder="—"
+              aria-label="${esc(localize(name))}" oninput="examInput(${JSON.stringify(name).replace(/"/g, '&quot;')}, this)">
+          </label>`).join('')}
+      </div>
+      <p id="exam-error" class="xs mt-2" style="color:#F43F5E"></p>
+      <div class="flex justify-end gap-2 mt-3">
+        <button class="btn surface" onclick="closeExam()">${L('ביטול', 'Cancel')}</button>
+        <button class="btn btn-primary" onclick="saveExam()">💾 ${L('שמירת ציונים', 'Save grades')}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function rulesNote() {
+  const r = PARTICIPATION_RULES;
+  return `
+  <details class="rules">
+    <summary class="sm w7">ℹ️ ${L('איך מחושב הציון?', 'How is the grade calculated?')}</summary>
+    <ul class="sm muted leading-relaxed mt-2">
+      <li><b>${L('מבחנים', 'Exams')}:</b> ${L('ממוצע ציוני המבחנים שהמורה הזין/ה.', 'average of the exam grades the teacher entered.')}</li>
+      <li><b>${L('מטלות', 'Assignments')}:</b> ${L('ממוצע הציונים של כל עבודה שהוגשה ונבדקה.', 'average grade of every submitted assignment that was graded.')}</li>
+      <li><b>${L('השתתפות', 'Participation')}:</b> ${L(`כל שיעור במשוב מתחיל ב־100: איחור −${r.late}, אי הבאת ציוד −${r.noEquip}, הפרעה −${r.disrupt}, חיסור = 0. כל ציון לשבח מוסיף +${r.praiseBonus} (עד 100).`,
+        `every lesson in Mashov starts at 100: late −${r.late}, missing equipment −${r.noEquip}, disruption −${r.disrupt}, absent = 0. Each commendation adds +${r.praiseBonus} (up to 100).`)}</li>
+      <li>${L('רכיב שאין בו עדיין נתונים לא נספר, והמשקל שלו מתחלק בין הרכיבים האחרים.', 'A category with no data yet is left out and its weight is shared by the others.')}</li>
+    </ul>
+  </details>`;
 }
 
 /* ---------- Submissions awaiting review ---------- */
@@ -1629,20 +1953,24 @@ document.addEventListener('keydown', e => {
 
 function teacherView() {
   const cls = currentClass();
+  const roster = classRoster();
+  const rows = roster.map(name => ({ name, g: computeGrade(cls.id, name, gb.pct) }));
+  gb.rowParts = rows.map(r => ({ exam: r.g.exam, participation: r.g.participation, assignments: r.g.assignments }));
   const heads = [
     L('תלמיד/ה', 'Student'),
-    ...COMPONENTS.map(c => `${L(c.he, c.en)} (<span class="th-${c.key}">${Math.round(gb.weights[c.key] * 100)}</span>%)`),
+    ...COMPONENTS.map(c => `${L(c.he, c.en)} (<span class="th-${c.key}">${gb.pct[c.key]}</span>%)`),
     L('ציון סופי', 'Final Grade'),
     L('פעולה', 'Action'),
   ];
   return `
   ${reviewSection()}
   ${viewerModal()}
+  ${examsCard()}
   <div class="card r-3xl p-6">
     <div class="flex items-center justify-between wrap gap-3 mb-5">
       <div>
         <h2 class="display w8 xl">${L('הגדרת משקלי ציון', 'Grade Weight Setup')}</h2>
-        <p class="sm muted mt-1">${localize(cls.name)} · ${localize(cls.teacher)}</p>
+        <p class="sm muted mt-1">${localize(cls.name)} · ${esc(localize(currentUserName()))}</p>
       </div>
       <div class="flex items-center gap-2">
         <span id="balance">${balanceChip()}</span>
@@ -1651,7 +1979,7 @@ function teacherView() {
     </div>
     <div class="grid g-1 md-3" style="gap:1.5rem">${COMPONENTS.map(weightSlider).join('')}</div>
     <div class="weight-bar mt-5">
-      ${COMPONENTS.map(c => `<span id="seg-${c.key}" style="width:${gb.weights[c.key] * 100}%;background:${c.color}"></span>`).join('')}
+      ${COMPONENTS.map(c => `<span id="seg-${c.key}" style="width:${gb.pct[c.key]}%;background:${c.color}"></span>`).join('')}
     </div>
     <div class="flex gap-4 mt-2 wrap">
       ${COMPONENTS.map(c => `
@@ -1660,84 +1988,114 @@ function teacherView() {
           <span class="xs w5 muted">${L(c.he, c.en)}</span>
         </div>`).join('')}
     </div>
+    <div class="mt-4">${rulesNote()}</div>
   </div>
 
   <div class="card r-3xl" style="overflow:hidden">
     <div class="p-5" style="border-bottom:1px solid var(--border)">
       <h2 class="display w8 xl">${L('ציוני תלמידים', 'Student Grades')}</h2>
+      <p class="sm muted mt-1">${L('מחושב אוטומטית ממבחנים, ממטלות שנבדקו ומהמשוב בשיעורים', 'Calculated automatically from exams, graded assignments and lesson Mashov')}</p>
     </div>
     <div style="overflow-x:auto">
       <table class="gtable">
         <thead><tr>${heads.map(h => `<th>${h}</th>`).join('')}</tr></thead>
         <tbody>
-          ${gb.rows.map((row, i) => {
-            const f = weightedFinal(row, gb.weights);
+          ${rows.map(({ name, g }, i) => {
+            const p = g.part;
             return `
             <tr>
               <td>
                 <div class="flex items-center gap-2">
-                  <div class="letter-tile xs" style="width:1.75rem;height:1.75rem;border-radius:0.5rem;background:hsl(${i * 47 + 200},60%,50%)">${initials(row.name)}</div>
-                  <span class="w6 sm nowrap">${localize(row.name)}</span>
+                  <div class="letter-tile xs" style="width:1.75rem;height:1.75rem;border-radius:0.5rem;background:hsl(${i * 47 + 200},60%,50%)">${initials(name)}</div>
+                  <span class="w6 sm nowrap">${esc(localize(name))}</span>
                 </div>
               </td>
-              ${COMPONENTS.map(c => `
-                <td><input type="number" min="0" max="100" value="${row[c.key]}" class="score-input mono"
-                  oninput="setScore(${i}, '${c.key}', this)"></td>`).join('')}
+              <td><div class="cell-score" style="color:${scoreColor(g.exam, '#F43F5E')}">${scoreText(g.exam)}</div>
+                <div class="xs muted nowrap">${L(`${g.exams.length} מבחנים`, `${g.exams.length} exam${g.exams.length === 1 ? '' : 's'}`)}</div></td>
+              <td><div class="cell-score" style="color:${scoreColor(g.participation, '#3B82F6')}">${scoreText(g.participation)}</div>
+                <div class="xs muted nowrap" title="${L('שיעורים · איחורים · חיסורים · לשבח', 'lessons · late · absent · commendations')}">${p.lessons} ${L('שיעורים', 'lessons')} · ⏰${p.late} · 🚫${p.absent} · 🌟${p.praise}</div></td>
+              <td><div class="cell-score" style="color:${scoreColor(g.assignments, '#7C3AED')}">${scoreText(g.assignments)}</div>
+                <div class="xs muted nowrap">${L(`${g.work.length} נבדקו`, `${g.work.length} graded`)}</div></td>
               <td class="nowrap">
-                <span id="final-${i}" class="mono w8 base" style="color:${gradeColor(f)}">${f}</span>
+                <span id="final-${i}" class="mono w8 base" style="color:${scoreColor(g.final)}">${scoreText(g.final)}</span>
                 <span class="xs muted">/100</span>
               </td>
-              <td><button class="btn btn-soft btn-sm" onclick="openFeedback(${i})">${row.feedback ? '✓ ' : ''}${L('משוב', 'Feedback')}</button></td>
+              <td><button class="btn btn-soft btn-sm" onclick="openFeedback(${JSON.stringify(name).replace(/"/g, '&quot;')})">${studentFeedback(cls.id, name) ? '✓ ' : ''}${L('משוב', 'Feedback')}</button></td>
             </tr>`;
           }).join('')}
         </tbody>
       </table>
     </div>
   </div>
-  ${feedbackPanel()}`;
+  ${feedbackPanel()}
+  ${examModal()}`;
 }
 
 /* ================= Student ================= */
+function markChips(m) {
+  const chips = [];
+  if (m.absent) chips.push(['absent']);
+  else {
+    chips.push(m.late ? ['late'] : ['onTime']);
+    ['noEquip', 'disrupt', 'praise'].forEach(k => { if (m[k]) chips.push([k]); });
+  }
+  return chips.map(([k]) => {
+    if (k === 'onTime') return `<span class="mchip" style="--c:#10B981">✅ ${L('הגיע/ה בזמן', 'On time')}</span>`;
+    const c = MASHOV_CATS.find(x => x.key === k);
+    return `<span class="mchip" style="--c:${c.color}">${c.icon} ${L(c.he, c.en)}</span>`;
+  }).join('');
+}
+
 function studentView() {
   const cls = currentClass();
-  const grades = studentGrades[cls.id] || { exam: 0, participation: 0, assignments: 0, feedback: '' };
-  const final = weightedFinal(grades, gradeWeights);
-  const color = gradeColor(final);
+  const me = currentUserName();
+  const g = computeGrade(cls.id, me);
+  const final = g.final;
+  const color = scoreColor(final);
   const C = 2 * Math.PI * 50;
+  const feedback = studentFeedback(cls.id, me);
+  const p = g.part;
+  const records = gb.showAllAttendance ? g.records : g.records.slice(0, 8);
+  const details = {
+    exam: L(`${g.exams.length} מבחנים`, `${g.exams.length} exam${g.exams.length === 1 ? '' : 's'}`),
+    participation: L(`${p.lessons} שיעורים במשוב`, `${p.lessons} lessons in Mashov`),
+    assignments: L(`${g.work.length} מטלות נבדקו`, `${g.work.length} graded assignment${g.work.length === 1 ? '' : 's'}`),
+  };
 
   return `
-  <div class="card r-3xl p-8 hero" style="border:2px solid ${color}44">
+  <div class="card r-3xl p-8 hero" style="border:2px solid ${typeof final === 'number' ? gradeColor(final) + '44' : 'var(--border)'}">
     <div class="ring">
       <svg viewBox="0 0 120 120" style="width:100%;height:100%;transform:rotate(-90deg)">
         <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface)" stroke-width="12"/>
         <circle class="ring-arc" cx="60" cy="60" r="50" fill="none" stroke="${color}" stroke-width="12"
-          stroke-dasharray="${C}" stroke-dashoffset="${C}" data-target="${C * (1 - final / 100)}" stroke-linecap="round"/>
+          stroke-dasharray="${C}" stroke-dashoffset="${C}" data-target="${C * (1 - (final || 0) / 100)}" stroke-linecap="round"/>
       </svg>
       <div class="ring-label">
-        <span class="display w9 x4" style="color:${color}">${final}</span>
+        <span class="display w9 x4" style="color:${color}">${scoreText(final)}</span>
         <span class="xs w7 muted">/ 100</span>
       </div>
     </div>
     <div class="flex-1" style="width:100%">
       <h2 class="display w8 x2">${localize(cls.name)}</h2>
-      <p class="sm muted mt-1">${L(`עם ${localize(cls.teacher)} · כיתה י״א`, `with ${cls.teacher} · Grade 11`)}</p>
+      <p class="sm muted mt-1">${L('עם', 'with')} ${classTeachers(cls.id).map(n => esc(localize(n))).join(', ')}</p>
+      ${typeof final === 'number' ? `
       <div class="mt-3 flex items-center gap-2">
         <span class="display w9 x2" style="color:${color}">${letter(final)}</span>
-        <span class="badge sm" style="padding:0.25rem 0.75rem;background:${color}20;color:${color}">${verdict(final)}</span>
-      </div>
+        <span class="badge sm" style="padding:0.25rem 0.75rem;background:${gradeColor(final)}20;color:${color}">${verdict(final)}</span>
+      </div>` : `<p class="sm muted mt-3">${L('עדיין אין ציונים בכיתה הזו.', 'No grades in this class yet.')}</p>`}
       <div class="mt-3 p-3 r-2xl surface">
         <div class="flex items-center gap-2 mb-1">
           <span class="sm">💬</span>
           <span class="xs w7 muted">${L('משוב מהמורה', 'Teacher Feedback')}</span>
         </div>
-        <p class="sm leading-relaxed">${grades.feedback ? localize(grades.feedback) : L('אין עדיין משוב.', 'No feedback yet.')}</p>
+        <p class="sm leading-relaxed" style="white-space:pre-wrap">${feedback ? esc(feedback) : L('אין עדיין משוב.', 'No feedback yet.')}</p>
       </div>
     </div>
   </div>
 
   <div class="grid g-1 md-3" style="gap:1rem">
     ${COMPONENTS.map(c => {
-      const score = grades[c.key];
+      const score = g[c.key];
       return `
       <div class="card r-3xl p-5 col gap-3">
         <div class="flex items-center justify-between">
@@ -1745,35 +2103,84 @@ function studentView() {
             <span class="xl">${c.icon}</span>
             <div>
               <div class="w7 sm">${L(c.he, c.en)}</div>
-              <div class="xs muted">${L('משקל', 'Weight')}: ${Math.round(gradeWeights[c.key] * 100)}%</div>
+              <div class="xs muted">${L('משקל', 'Weight')}: ${g.weights[c.key]}% · ${details[c.key]}</div>
             </div>
           </div>
-          <div class="text-end">
-            <div class="mono w9 x2" style="color:${c.color}">${score}</div>
-            <div class="xs muted">+${Math.round(score * gradeWeights[c.key])} ${L('נק׳', 'pts')}</div>
-          </div>
+          <div class="mono w9 x2" style="color:${typeof score === 'number' ? c.color : 'var(--muted)'}">${scoreText(score)}</div>
         </div>
-        <div class="bar" style="height:0.625rem"><span class="xp-fill" style="width:${score}%;background:${c.color}"></span></div>
+        <div class="bar" style="height:0.625rem"><span class="xp-fill" style="width:${score || 0}%;background:${c.color}"></span></div>
       </div>`;
     }).join('')}
+  </div>
+
+  <div class="grid g-1 lg-2" style="gap:1rem">
+    <div class="card r-3xl p-5">
+      <h3 class="display w7 base mb-3">📋 ${L('המבחנים שלי', 'My exams')}</h3>
+      ${g.exams.length ? g.exams.map(e => `
+        <div class="list-row"><span class="flex-1 min-w-0"><span class="sm w7">${esc(localize(e.title))}</span>
+          <span class="xs muted" style="display:block">${fmtDate(e.date, { day: 'numeric', month: 'short', year: 'numeric' })}</span></span>
+          <span class="mono w8" style="color:${gradeColor(e.score)}">${e.score}</span></div>`).join('')
+        : `<p class="sm muted">${L('עדיין אין ציוני מבחנים.', 'No exam grades yet.')}</p>`}
+    </div>
+    <div class="card r-3xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="display w7 base">📄 ${L('מטלות שנבדקו', 'Graded assignments')}</h3>
+        <a href="tasks.html" class="link-btn xs">${L('כל המשימות ←', 'All tasks →')}</a>
+      </div>
+      ${g.work.length ? g.work.map(w => `
+        <div class="list-row"><span class="flex-1 min-w-0"><span class="sm w7">${esc(localize(w.title))}</span>
+          ${w.feedback ? `<span class="xs muted truncate" style="display:block">💬 ${esc(localize(w.feedback))}</span>` : ''}</span>
+          <span class="mono w8" style="color:${gradeColor(w.grade)}">${w.grade}</span></div>`).join('')
+        : `<p class="sm muted">${L('עדיין אין מטלות שנבדקו.', 'No graded assignments yet.')}</p>`}
+    </div>
+  </div>
+
+  <div id="attendance" class="card r-3xl p-5">
+    <div class="flex items-center justify-between wrap gap-2 mb-3">
+      <h3 class="display w7 base">🙋 ${L('נוכחות והתנהגות (משוב)', 'Attendance & behaviour (Mashov)')}</h3>
+      <span class="mono w8" style="color:${scoreColor(g.participation, '#3B82F6')}">${L('השתתפות', 'Participation')}: ${scoreText(g.participation)}</span>
+    </div>
+    <div class="flex wrap gap-2 mb-3">
+      <span class="mchip" style="--c:#10B981">✅ ${L('בזמן', 'On time')} · ${p.onTime}</span>
+      <span class="mchip" style="--c:#F59E0B">⏰ ${L('איחורים', 'Late')} · ${p.late}</span>
+      <span class="mchip" style="--c:#F43F5E">🚫 ${L('חיסורים', 'Absences')} · ${p.absent}</span>
+      <span class="mchip" style="--c:#8B5CF6">🎒 ${L('אי הבאת ציוד', 'Missing equipment')} · ${p.noEquip}</span>
+      <span class="mchip" style="--c:#F97316">📢 ${L('הפרעות', 'Disruptions')} · ${p.disrupt}</span>
+      <span class="mchip" style="--c:#10B981">🌟 ${L('ציונים לשבח', 'Commendations')} · ${p.praise}</span>
+    </div>
+    ${g.records.length ? `
+      <div class="col">
+        ${records.map(r => `
+          <div class="att-row">
+            <div class="att-date">
+              <span class="sm w7">${fmtDate(r.date, { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+              <span class="xs muted">${r.slot ? timeRange(r.slot.startHour, r.slot.startHour + r.slot.duration) : ''}</span>
+            </div>
+            <div class="flex wrap gap-1 flex-1">${markChips(r.marks)}</div>
+            <span class="mono xs w7" style="color:${gradeColor(lessonScore(r.marks))}" title="${L('ציון השיעור', 'Lesson score')}">${lessonScore(r.marks)}</span>
+          </div>`).join('')}
+      </div>
+      ${g.records.length > 8 ? `<button class="link-btn xs mt-3" onclick="gb.showAllAttendance=!gb.showAllAttendance;renderPage()">
+        ${gb.showAllAttendance ? L('הצגת פחות', 'Show less') : L(`הצגת כל ${g.records.length} השיעורים`, `Show all ${g.records.length} lessons`)}</button>` : ''}`
+      : `<p class="sm muted">${L('המורה עדיין לא מילא/ה משוב בשיעורים שלך בכיתה הזו.', 'Your teacher has not filled in Mashov for your lessons in this class yet.')}</p>`}
+    <div class="mt-4">${rulesNote()}</div>
   </div>
 
   <div class="card r-3xl p-5">
     <h3 class="display w7 base mb-4">${L('סקירת כל הכיתות', 'All Classes Overview')}</h3>
     <div class="col gap-3">
       ${classes.map(c => {
-        const g = studentGrades[c.id] || { exam: 0, participation: 0, assignments: 0 };
-        const f = weightedFinal(g, gradeWeights);
-        const fc = gradeColor(f);
+        const f = computeGrade(c.id, me).final;
+        const fc = scoreColor(f);
         return `
-        <button class="flex items-center gap-4 text-start overview-row ${c.id === cls.id ? 'on' : ''}" onclick="setState({ classId: '${c.id}' })">
+        <button class="flex items-center gap-4 text-start overview-row ${c.id === cls.id ? 'on' : ''}" onclick="gb.showAllAttendance=false;setState({ classId: '${c.id}' })">
           <div class="letter-tile sm" style="width:2rem;height:2rem;background:${c.color}">${localize(c.subject)[0]}</div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center justify-between mb-1">
               <span class="sm w7">${localize(c.name)}</span>
-              <span class="mono w7 sm" style="color:${fc}">${f}</span>
+              <span class="mono w7 sm" style="color:${fc}">${scoreText(f)}</span>
             </div>
-            <div class="bar"><span style="width:${f}%;background:${fc}"></span></div>
+            <div class="bar"><span style="width:${f || 0}%;background:${fc}"></span></div>
           </div>
         </button>`;
       }).join('')}
@@ -1784,6 +2191,8 @@ function studentView() {
 /* ================= Page ================= */
 function renderPage() {
   const teacher = state.role === 'teacher';
+  gb.pct = gb.pct && gb.pctClass === state.classId ? gb.pct : normalizePct(classWeights(state.classId));
+  gb.pctClass = state.classId;
   document.getElementById('main').innerHTML = `
     <h1 class="display w8 x2">${teacher ? L('📊 יומן ציונים', '📊 Gradebook') : L('📈 הציונים שלי', '📈 My Grades')}</h1>
     ${teacher ? teacherView() : studentView()}
@@ -1806,6 +2215,11 @@ function renderPage() {
     history.replaceState(null, '', location.pathname);
     gb.highlightReview = false;
     document.querySelector('.review-row input')?.focus({ preventScroll: true });
+  }
+  // arriving from a Mashov notification
+  if (!teacher && location.hash === '#attendance') {
+    document.getElementById('attendance').scrollIntoView({ block: 'start' });
+    history.replaceState(null, '', location.pathname);
   }
 }
 </script>

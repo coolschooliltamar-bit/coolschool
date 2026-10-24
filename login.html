@@ -631,6 +631,7 @@ const hebrewContent = {
   'Parent-teacher meeting next week — Biology 11A': 'אסיפת הורים בשבוע הבא – ביולוגיה י״א 1',
   '1d ago': 'אתמול',
   'Ruth Amir': 'רות אמיר',
+  'Unit 1 exam': 'מבחן יחידה 1',
   '5m ago': 'לפני 5 דקות', '10m ago': 'לפני 10 דקות', '1h ago': 'לפני שעה', '2h ago': 'לפני שעתיים', '3h ago': 'לפני 3 שעות',
   'WWII Operations': 'מבצעי מלחמת העולם השנייה', 'Quadratic Equations': 'משוואות ריבועיות', 'Cell Membrane Biology': 'ביולוגיה של קרום התא',
   'Oct 1': '1 באוקטובר', 'Sep 25': '25 בספטמבר', 'Sep 20': '20 בספטמבר', 'Open-ended': 'ללא תאריך יעד', Today: 'היום',
@@ -760,6 +761,18 @@ function inboxNotifs() {
       const count = (m.extra && m.extra.count) || 0;
       return { ...base, type: 'timetable', link: 'schedule.html',
         text: L(`${name} עדכן/ה את מערכת השעות השבועית (${count} שינויים)`, `${name} updated the weekly timetable (${count} change${count === 1 ? '' : 's'})`) };
+    }
+    if (m.kind === 'mashov') {
+      const x = m.extra || {};
+      const cls = classes.find(c => c.id === x.classId);
+      return { ...base, type: 'grade', link: 'grades.html#attendance',
+        text: L(`${name} עדכן/ה משוב: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? localize(cls.name) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`,
+                `${name} updated your Mashov: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? cls.name : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`) };
+    }
+    if (m.kind === 'exam-grade') {
+      const x = m.extra || {};
+      return { ...base, type: 'exam', link: 'grades.html',
+        text: L(`${name} הזין/ה ציון במבחן "${localize(x.title || '')}" · ${x.grade}`, `${name} entered your grade for "${x.title || ''}" · ${x.grade}`) };
     }
     if (m.kind === 'graded') {
       const x = m.extra || {};
@@ -1115,6 +1128,166 @@ function myTaskStatus(a) {
   if (sub) return { state: 'submitted', submittedAt: sub.submittedAt, files: (sub.files || []).map(f => f.name) };
   return { state: 'todo' };
 }
+
+const MASHOV_KEY = 'cs-mashov';
+const MASHOV_CATS = [
+  { key: 'absent', he: 'חיסור', en: 'Absence', icon: '🚫', color: '#F43F5E' },
+  { key: 'late', he: 'איחור', en: 'Tardiness', icon: '⏰', color: '#F59E0B' },
+  { key: 'disrupt', he: 'הפרעה', en: 'Disruption', icon: '📢', color: '#F97316' },
+  { key: 'praise', he: 'ציון לשבח', en: 'Commendation', icon: '🌟', color: '#10B981' },
+  { key: 'noEquip', he: 'אי הבאת ציוד', en: 'Missing equipment', title: 'Failure to bring equipment', icon: '🎒', color: '#8B5CF6' },
+  { key: 'present', he: 'נוכח/ת', en: 'Present', icon: '✅', color: '#3B82F6' },
+];
+function mashovStore() { return load(MASHOV_KEY, {}); }
+function mashovRecord(slotId, date) { return mashovStore()[slotId + '|' + date] || null; }
+function mashovLabel(key) { const c = MASHOV_CATS.find(x => x.key === key); return c ? L(c.he, c.en) : key; }
+
+/* Every student is enrolled in every class in this demo: the sample roster plus registered students */
+function classRoster() {
+  const registered = loadUsers().filter(u => u.role === 'student' && u.status === 'active').map(fullName);
+  return [...new Set(STUDENT_ROSTER.concat(registered))];
+}
+
+/* ================= Grade calculation =================
+   Final grade = weighted mix of three categories (weights set per class by the teacher):
+   - Exams:         average of the student's exam scores in the class
+   - Assignments:   average of the student's graded submissions in the class
+   - Participation: built from Mashov records (see PARTICIPATION_RULES)
+   A category with no data yet is left out and the other weights are scaled up. */
+const EXAMS_KEY = 'cs-exams';
+const WEIGHTS_KEY = 'cs-class-weights';
+const FEEDBACK_KEY = 'cs-student-feedback';
+const DEFAULT_WEIGHTS = { exam: 20, participation: 20, assignments: 60 };
+const PARTICIPATION_RULES = { late: 30, noEquip: 15, disrupt: 20, praiseBonus: 5 };
+const GRADE_KEYS = ['exam', 'participation', 'assignments'];
+
+function classWeights(classId) {
+  const all = load(WEIGHTS_KEY, {});
+  if (all[classId]) return { ...all[classId] };
+  const old = load('cs-weights', null);   // earlier versions kept one set of weights for everyone
+  if (old && typeof old.exam === 'number') {
+    const exam = Math.round(old.exam * 100), participation = Math.round(old.participation * 100);
+    return { exam, participation, assignments: 100 - exam - participation };
+  }
+  return { ...DEFAULT_WEIGHTS };
+}
+function saveClassWeights(classId, pct) {
+  const all = load(WEIGHTS_KEY, {});
+  all[classId] = { ...pct };
+  save(WEIGHTS_KEY, all);
+}
+
+function average(nums) { return nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : null; }
+
+function classExams(classId) {
+  return load(EXAMS_KEY, []).filter(e => e.classId === classId).sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+function examScores(classId, name) {
+  return classExams(classId).filter(e => typeof e.grades[name] === 'number')
+    .map(e => ({ id: e.id, title: e.title, date: e.date, score: e.grades[name] }));
+}
+function assignmentScores(classId, name) {
+  const graded = load('cs-graded', []).filter(g => g.student === name).map(g => {
+    const a = findAssignment(g.assignmentId);
+    return a && a.classId === classId ? { title: a.title, grade: g.grade, feedback: g.feedback, assignmentId: a.id } : null;
+  }).filter(Boolean);
+  // built-in sample grades belong to the demo student
+  if (name === 'Noa Ben-David') {
+    assignments.filter(a => a.classId === classId && a.submitted && typeof a.grade === 'number' && !graded.some(g => g.assignmentId === a.id))
+      .forEach(a => graded.push({ title: a.title, grade: a.grade, feedback: a.feedback, assignmentId: a.id }));
+  }
+  return graded;
+}
+// Lessons in this class where the teacher marked the student in Mashov (newest first)
+function attendanceRecords(classId, name) {
+  const store = mashovStore();
+  return Object.keys(store).map(key => {
+    const rec = store[key];
+    const marks = rec.rows && rec.rows[name];
+    if (rec.classId !== classId || !marks || !MASHOV_CATS.some(c => marks[c.key])) return null;
+    const slot = timetable.find(s => s.id === key.split('|')[0]) || DEFAULT_TIMETABLE.find(s => s.id === key.split('|')[0]);
+    return { key, date: rec.date, slot, marks, by: rec.by };
+  }).filter(Boolean).sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+function lessonScore(m) {
+  if (m.absent) return 0;
+  return Math.max(0, 100 - (m.late ? PARTICIPATION_RULES.late : 0) - (m.noEquip ? PARTICIPATION_RULES.noEquip : 0) - (m.disrupt ? PARTICIPATION_RULES.disrupt : 0));
+}
+function participationSummary(records) {
+  const count = key => records.filter(r => r.marks[key]).length;
+  const onTime = records.filter(r => !r.marks.absent && !r.marks.late).length;
+  const base = average(records.map(r => lessonScore(r.marks)));
+  const score = base === null ? null : Math.min(100, base + count('praise') * PARTICIPATION_RULES.praiseBonus);
+  return { score, lessons: records.length, onTime, late: count('late'), absent: count('absent'), noEquip: count('noEquip'), disrupt: count('disrupt'), praise: count('praise') };
+}
+function finalFrom(parts, pct) {
+  const have = GRADE_KEYS.filter(k => typeof parts[k] === 'number');
+  const totalWeight = have.reduce((s, k) => s + pct[k], 0);
+  if (!have.length || !totalWeight) return null;
+  return Math.round(have.reduce((s, k) => s + parts[k] * pct[k], 0) / totalWeight);
+}
+function computeGrade(classId, name, pct) {
+  const exams = examScores(classId, name);
+  const work = assignmentScores(classId, name);
+  const records = attendanceRecords(classId, name);
+  const part = participationSummary(records);
+  const parts = { exam: average(exams.map(e => e.score)), assignments: average(work.map(w => w.grade)), participation: part.score };
+  const weights = pct || classWeights(classId);
+  return { ...parts, final: finalFrom(parts, weights), weights, exams, work, records, part };
+}
+function studentFeedback(classId, name) {
+  const saved = load(FEEDBACK_KEY, {})[classId + '|' + name];
+  if (saved) return saved;
+  return name === 'Noa Ben-David' && studentGrades[classId] ? localize(studentGrades[classId].feedback) : '';
+}
+
+/* Sample history so grades are not empty on first visit: one exam per class and
+   five weeks of Mashov marks for the sample roster. Runs once per browser. */
+function seedHash(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return Math.abs(h); }
+function ensureGradeSeed() {
+  if (load('cs-grades-seeded', false)) return;
+  const bioExam = { 'Noa Ben-David': 82, 'Yosef Avraham': 75, 'Maya Goldstein': 94, 'Lior Cohen': 68, 'Tamar Levy': 88, 'Eitan Mizrahi': 79 };
+  const exams = load(EXAMS_KEY, []);
+  classes.forEach(c => {
+    const grades = {};
+    STUDENT_ROSTER.forEach(name => {
+      grades[name] = c.id === 'bio11a' ? bioExam[name]
+        : name === 'Noa Ben-David' && studentGrades[c.id] ? studentGrades[c.id].exam
+        : 62 + seedHash(name + c.id) % 36;
+    });
+    exams.push({ id: 'ex-seed-' + c.id, classId: c.id, title: 'Unit 1 exam', date: '2026-09-24', grades, createdBy: c.teacher });
+  });
+  save(EXAMS_KEY, exams);
+
+  const store = mashovStore();
+  const profile = {
+    'Noa Ben-David': r => ({ late: r < 8, praise: r > 90 }),
+    'Yosef Avraham': r => ({ noEquip: r < 20, absent: r > 95 }),
+    'Maya Goldstein': r => ({ praise: r < 30 }),
+    'Lior Cohen': r => ({ late: r < 35, absent: r > 92 }),
+    'Tamar Levy': r => ({ absent: r < 6, praise: r > 85 }),
+    'Eitan Mizrahi': r => ({ disrupt: r < 25, noEquip: r >= 25 && r < 35 }),
+  };
+  ['2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28', '2026-10-05'].forEach(monday => {
+    DEFAULT_TIMETABLE.forEach(slot => {
+      const [y, m, d] = monday.split('-').map(Number);
+      const day = new Date(y, m - 1, d + slot.day);
+      const date = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+      const key = slot.id + '|' + date;
+      if (store[key]) return;
+      const rows = {};
+      STUDENT_ROSTER.forEach(name => {
+        const marks = profile[name](seedHash(name + key) % 100);
+        rows[name] = marks.absent ? { absent: true } : { ...marks, present: true };
+      });
+      const cls = classes.find(c => c.id === slot.classId);
+      store[key] = { classId: slot.classId, date, savedAt: date + 'T09:00:00', by: cls ? cls.teacher : '', rows, seeded: true };
+    });
+  });
+  save(MASHOV_KEY, store);
+  save('cs-grades-seeded', true);
+}
+ensureGradeSeed();
 
 /* ================= Render loop ================= */
 function renderHeaderOnly() {
