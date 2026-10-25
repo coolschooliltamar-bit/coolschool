@@ -547,6 +547,10 @@ html[dir='rtl'] .nav-arrow { transform: scaleX(-1); }
 .tally-row { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.375rem; }
 .tally-row .tally-label { display: none; }
 @media (min-width: 1280px) { .part-cell { min-width: 22rem; } .tally-row .tally-label { display: inline; } }
+.att-week { font-size: 0.75rem; font-weight: 800; color: var(--muted); padding: 0.75rem 0 0.25rem; text-transform: none; }
+.att-week:first-child { padding-top: 0; }
+.att-week.now { color: var(--primary); }
+.att-week + .att-row { border-top: 0; }
 </style>
 </head>
 <body>
@@ -1314,13 +1318,41 @@ function myTaskStatus(a) {
 const MASHOV_KEY = 'cs-mashov';
 const MASHOV_CATS = [
   { key: 'absent', he: 'חיסור', en: 'Absence', icon: '🚫', color: '#F43F5E' },
+  { key: 'absentEx', he: 'חיסור מוצדק', en: 'Excused absence', icon: '🚫', color: '#0EA5E9', excused: true },
   { key: 'late', he: 'איחור', en: 'Tardiness', icon: '⏰', color: '#F59E0B' },
+  { key: 'lateEx', he: 'איחור מוצדק', en: 'Excused lateness', icon: '⏰', color: '#0EA5E9', excused: true },
   { key: 'disrupt', he: 'הפרעה', en: 'Disruption', icon: '📢', color: '#F97316' },
   { key: 'praise', he: 'ציון לשבח', en: 'Commendation', icon: '🌟', color: '#10B981' },
   { key: 'noEquip', he: 'אי הבאת ציוד', en: 'Missing equipment', title: 'Failure to bring equipment', icon: '🎒', color: '#8B5CF6' },
   { key: 'present', he: 'נוכח/ת', en: 'Present', icon: '✅', color: '#3B82F6' },
 ];
 function mashovStore() { return load(MASHOV_KEY, {}); }
+/* Weeks, counted from the current school week (Monday–Friday; the weekend still belongs to the week that just ended) */
+function thisMonday() {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+  return d;
+}
+function weekOffsetOf(iso) {
+  const [y, m, dd] = iso.split('-').map(Number);
+  const d = new Date(y, m - 1, dd);
+  d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+  return Math.round((d - thisMonday()) / (7 * 86400000));
+}
+function relWeekLabel(offset) {
+  if (offset === 0) return L('השבוע הנוכחי', 'Current week');
+  if (offset === -1) return L('שבוע שעבר', 'Last week');
+  if (offset === -2) return L('לפני שבועיים', 'Two weeks ago');
+  if (offset < 0) return L(`לפני ${-offset} שבועות`, `${-offset} weeks ago`);
+  if (offset === 1) return L('שבוע הבא', 'Next week');
+  if (offset === 2) return L('בעוד שבועיים', 'In two weeks');
+  return L(`בעוד ${offset} שבועות`, `In ${offset} weeks`);
+}
+// Absence / lateness come in two kinds: plain and excused (by the teacher or an approved request)
+const ABSENT_KEYS = ['absent', 'absentEx'];
+const LATE_KEYS = ['late', 'lateEx'];
+function isAbsent(m) { return !!(m && (m.absent || m.absentEx)); }
+function isLate(m) { return !!(m && (m.late || m.lateEx)); }
 function mashovRecord(slotId, date) { return mashovStore()[slotId + '|' + date] || null; }
 function mashovLabel(key) { const c = MASHOV_CATS.find(x => x.key === key); return c ? L(c.he, c.en) : key; }
 
@@ -1394,10 +1426,10 @@ function attendanceRecords(classId, name) {
 }
 // How many times each Mashov entry was recorded – a tally for the teacher, not a grade
 function participationSummary(records) {
-  const count = key => records.filter(r => r.marks[key] && !(r.marks.justified && (key === 'late' || key === 'absent'))).length;
-  const onTime = records.filter(r => !r.marks.absent && !r.marks.late).length;
-  const justified = records.filter(r => r.marks.justified && (r.marks.absent || r.marks.late)).length;
-  return { lessons: records.length, onTime, late: count('late'), absent: count('absent'), justified, noEquip: count('noEquip'), disrupt: count('disrupt'), praise: count('praise') };
+  const count = key => records.filter(r => r.marks[key]).length;
+  const onTime = records.filter(r => !isAbsent(r.marks) && !isLate(r.marks)).length;
+  return { lessons: records.length, onTime, late: count('late'), absent: count('absent'), lateEx: count('lateEx'), absentEx: count('absentEx'),
+    justified: count('lateEx') + count('absentEx'), noEquip: count('noEquip'), disrupt: count('disrupt'), praise: count('praise') };
 }
 function participationGrade(classId, name) {
   const v = load(PARTICIPATION_KEY, {})[classId + '|' + name];
@@ -1413,13 +1445,16 @@ function setParticipationGrade(classId, name, value) {
 // `ref` = { key, name } ties the chips to a Mashov record, so a late/absent mark shows its
 // justification request and, for the student it belongs to, opens the request form.
 function statusChips(m, ref) {
-  const keys = m.absent ? ['absent'] : [m.late ? 'late' : 'onTime'].concat(['noEquip', 'disrupt', 'praise'].filter(k => m[k]));
+  const keys = isAbsent(m) ? [m.absentEx ? 'absentEx' : 'absent']
+    : [m.lateEx ? 'lateEx' : m.late ? 'late' : 'onTime'].concat(['noEquip', 'disrupt', 'praise'].filter(k => m[k]));
   return keys.map(k => {
     if (k === 'onTime') return `<span class="mchip" style="--c:#10B981">✅ ${L('בזמן', 'On time')}</span>`;
     const c = MASHOV_CATS.find(x => x.key === k);
     const label = `${c.icon} ${L(c.he, c.en)}`;
-    if (!ref || (k !== 'late' && k !== 'absent')) return `<span class="mchip" style="--c:${c.color}">${label}</span>`;
+    if (!ref || ![...ABSENT_KEYS, ...LATE_KEYS].includes(k)) return `<span class="mchip" style="--c:${c.color}">${label}</span>`;
     const j = justificationFor(ref.key, ref.name);
+    // excused straight away by the teacher: nothing for the student to ask for
+    if (c.excused && !j) return `<span class="mchip" style="--c:${c.color}">${label}</span>`;
     const tag = j ? `<span class="jtag ${j.status}">${justifyStatusLabel(j.status, true)}</span>` : '';
     if (state.role === 'student' && ref.name === currentUserName()) {
       const hint = j ? L('צפייה בבקשת ההצדקה', 'View justification request') : L('לחצו כדי להגיש בקשת הצדקה', 'Click to request a justification');
@@ -1434,7 +1469,8 @@ function statusChips(m, ref) {
 function tallyChips(p) {
   const items = [
     ['#10B981', '✅', L('בזמן', 'On time'), p.onTime], ['#F59E0B', '⏰', L('איחורים', 'Late'), p.late],
-    ['#F43F5E', '🚫', L('חיסורים', 'Absent'), p.absent], ['#0EA5E9', '📨', L('מוצדקים', 'Justified'), p.justified || 0], ['#8B5CF6', '🎒', L('אי הבאת ציוד', 'Missing equipment'), p.noEquip],
+    ['#0EA5E9', '⏰', L('איחורים מוצדקים', 'Excused late'), p.lateEx || 0],
+    ['#F43F5E', '🚫', L('חיסורים', 'Absent'), p.absent], ['#0EA5E9', '🚫', L('חיסורים מוצדקים', 'Excused absences'), p.absentEx || 0], ['#8B5CF6', '🎒', L('אי הבאת ציוד', 'Missing equipment'), p.noEquip],
     ['#F97316', '📢', L('הפרעות', 'Disruptions'), p.disrupt], ['#10B981', '🌟', L('לשבח', 'Commendations'), p.praise],
   ];
   return items.map(([color, icon, label, n]) => `<span class="mchip tally ${n ? '' : 'zero'}" style="--c:${color}" title="${label}">${icon} ${n} <span class="tally-label">${label}</span></span>`).join('');
@@ -1548,6 +1584,21 @@ function ensureRecentSeed() {
   save('cs-grades-seeded-v2', true);
 }
 ensureRecentSeed();
+(function migrateJustified() {
+  const store = mashovStore();
+  let changed = false;
+  Object.values(store).forEach(rec => Object.values(rec.rows || {}).forEach(row => {
+    if (!row.justified) return;
+    excuseMarksEarly(row);
+    delete row.justified;
+    changed = true;
+  }));
+  if (changed) save(MASHOV_KEY, store);
+  function excuseMarksEarly(row) {
+    if (row.absent) { delete row.absent; row.absentEx = true; }
+    else if (row.late) { delete row.late; row.lateEx = true; }
+  }
+})();
 
 /* ================= Justification requests =================
    A student who was marked late or absent can explain why. The request goes to the
@@ -1575,7 +1626,7 @@ function justifyStatusLabel(status, short) {
   if (status === 'rejected') return short ? '✗ ' + L('נדחתה', 'Declined') : '❌ ' + L('נדחתה', 'Declined');
   return '⏳ ' + L('ממתינה', 'Pending');
 }
-function justifyKindFor(marks) { return marks.absent ? 'absent' : 'late'; }
+function justifyKindFor(marks) { return isAbsent(marks) ? 'absent' : 'late'; }
 // Requests waiting for the signed-in teacher (classes they teach)
 function pendingJustificationsForMe() {
   if (state.role !== 'teacher') return [];
@@ -1608,7 +1659,7 @@ function openJustify(key) {
   if (!CURRENT_USER || state.role !== 'student') return;
   const rec = mashovStore()[key];
   const marks = rec && rec.rows && rec.rows[currentUserName()];
-  if (!marks || !(marks.absent || marks.late)) return;
+  if (!marks || !(isAbsent(marks) || isLate(marks))) return;
   const existing = justificationFor(key, currentUserName());
   justify.key = key;
   justify.id = existing ? existing.id : null;
@@ -1707,12 +1758,14 @@ function decideJustify(approve) {
   j.reviewedBy = currentUserName();
   j.reviewedAt = new Date().toISOString();
   saveJustifications(list);
-  // an approved request marks that lesson as justified in Mashov
+  // an approved request turns the mark into an excused absence / excused lateness in Mashov
   const store = mashovStore();
   const rec = store[j.key];
-  if (rec && rec.rows && rec.rows[j.studentName]) {
-    if (approve) rec.rows[j.studentName].justified = true; else delete rec.rows[j.studentName].justified;
+  if (approve && rec && rec.rows && rec.rows[j.studentName]) {
+    excuseMarks(rec.rows[j.studentName], j.kind);
     save(MASHOV_KEY, store);
+    // the teacher may have this lesson open in Mashov right now
+    if (typeof mashov !== 'undefined' && mashov.slotId && mashov.slotId + '|' + mashov.date === j.key && mashov.rows[j.studentName]) excuseMarks(mashov.rows[j.studentName], j.kind);
   }
   if (j.studentId) sendInbox(j.studentId, 'justification-result', CURRENT_USER.id, { id: j.id, classId: j.classId, date: j.date, kind: j.kind, status: j.status });
   markJustifyRead(j.id);
@@ -1721,6 +1774,10 @@ function decideJustify(approve) {
   toast(approve ? L('הבקשה אושרה', 'Request approved') : L('הבקשה נדחתה', 'Request declined'));
 }
 
+function excuseMarks(row, kind) {
+  if (kind === 'absent') { if (row.absent) { delete row.absent; row.absentEx = true; } }
+  else if (row.late) { delete row.late; row.lateEx = true; }
+}
 function markJustifyRead(id) {
   const inbox = loadInbox();
   let changed = false;
@@ -3128,22 +3185,28 @@ function studentView() {
       <span class="mchip" style="--c:#10B981">✅ ${L('בזמן', 'On time')} · ${p.onTime}</span>
       <span class="mchip" style="--c:#F59E0B">⏰ ${L('איחורים', 'Late')} · ${p.late}</span>
       <span class="mchip" style="--c:#F43F5E">🚫 ${L('חיסורים', 'Absences')} · ${p.absent}</span>
-      ${p.justified ? `<span class="mchip" style="--c:#0EA5E9">📨 ${L('מוצדקים', 'Justified')} · ${p.justified}</span>` : ''}
+      <span class="mchip" style="--c:#0EA5E9">⏰ ${L('איחורים מוצדקים', 'Excused lateness')} · ${p.lateEx}</span>
+      <span class="mchip" style="--c:#0EA5E9">🚫 ${L('חיסורים מוצדקים', 'Excused absences')} · ${p.absentEx}</span>
       <span class="mchip" style="--c:#8B5CF6">🎒 ${L('אי הבאת ציוד', 'Missing equipment')} · ${p.noEquip}</span>
       <span class="mchip" style="--c:#F97316">📢 ${L('הפרעות', 'Disruptions')} · ${p.disrupt}</span>
       <span class="mchip" style="--c:#10B981">🌟 ${L('ציונים לשבח', 'Commendations')} · ${p.praise}</span>
     </div>
-    ${g.records.some(r => r.marks.absent || r.marks.late) ? `<p class="xs muted mb-2">📨 ${L('נעדרת או איחרת? לחצו על הסימון כדי לשלוח למורה בקשת הצדקה.', 'Absent or late? Click the mark to send your teacher a justification request.')}</p>` : ''}
+    ${g.records.some(r => isAbsent(r.marks) || isLate(r.marks)) ? `<p class="xs muted mb-2">📨 ${L('נעדרת או איחרת? לחצו על הסימון כדי לשלוח למורה בקשת הצדקה.', 'Absent or late? Click the mark to send your teacher a justification request.')}</p>` : ''}
     ${g.records.length ? `
       <div class="col">
-        ${records.map(r => `
+        ${records.map((r, i) => {
+          const week = weekOffsetOf(r.date);
+          const head = i === 0 || weekOffsetOf(records[i - 1].date) !== week
+            ? `<div class="att-week ${week === 0 ? 'now' : ''}">${relWeekLabel(week)}</div>` : '';
+          return `${head}
           <div class="att-row">
             <div class="att-date">
               <span class="sm w7">${fmtDate(r.date, { weekday: 'short', day: 'numeric', month: 'short' })}</span>
               <span class="xs muted">${r.slot ? timeRange(r.slot.startHour, r.slot.startHour + r.slot.duration) : ''}</span>
             </div>
             <div class="flex wrap gap-1 flex-1">${statusChips(r.marks, { key: r.key, name: currentUserName() })}</div>
-          </div>`).join('')}
+          </div>`;
+        }).join('')}
       </div>
       ${g.records.length > 8 ? `<button class="link-btn xs mt-3" onclick="gb.showAllAttendance=!gb.showAllAttendance;renderPage()">
         ${gb.showAllAttendance ? L('הצגת פחות', 'Show less') : L(`הצגת כל ${g.records.length} השיעורים`, `Show all ${g.records.length} lessons`)}</button>` : ''}`
