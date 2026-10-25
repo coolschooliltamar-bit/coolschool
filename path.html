@@ -339,6 +339,29 @@ svg { display: block; }
 .mchip.zero { opacity: .45; }
 .mchip.tally .tally-label { font-weight: 600; }
 
+/* ============ Collapsible sections ============ */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.collapse-head { cursor: pointer; position: relative; }
+.collapse-head > .collapse-btn { position: absolute; top: 50%; transform: translateY(-50%); }
+.collapse-btn {
+  width: 2rem; height: 2rem; border-radius: 0.625rem; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent); transition: background .15s;
+}
+.collapse-btn:hover { background: color-mix(in srgb, var(--primary) 18%, transparent); }
+.collapse-btn svg { width: 1rem !important; height: 1rem !important; transition: transform .25s ease; }
+.collapsible.collapsed .collapse-btn svg { transform: rotate(-90deg); }
+html[dir='rtl'] .collapsible.collapsed .collapse-btn svg { transform: rotate(90deg); }
+.collapse-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .25s ease; }
+.collapsible.collapsed > .collapse-body { grid-template-rows: 0fr; }
+.collapse-inner { min-height: 0; }
+.collapsible.collapsed > .collapse-body > .collapse-inner,
+.collapsible.animating > .collapse-body > .collapse-inner { overflow: hidden; }
+.collapsible.collapsed > .collapse-body { visibility: hidden; }
+.collapsible.animating > .collapse-body { visibility: visible; }
+/* headers that carry a bottom margin or border look tidy when folded */
+.collapsible.collapsed > .collapse-head { margin-bottom: 0 !important; border-bottom-color: transparent !important; }
+@media (prefers-reduced-motion: reduce) { .collapse-body, .collapse-btn svg { transition: none; } }
+
 /* ===================== Page styles ===================== */
 /* Node map — padded so nodes at 0%/100% never clip */
 .node-map { position: relative; width: 100%; max-width: 24rem; height: 32.5rem; margin: 3.5rem 0; direction: ltr; }
@@ -712,6 +735,7 @@ const state = {
   role: CURRENT_USER ? CURRENT_USER.role : 'student',
   classId: load('cs-class', 'bio11a'),
   fontSize: load('cs-font-size', 'medium'),
+  collapsible: load('cs-collapsible', true),   // big sections fold away behind a header (default on)
   notifs: load('cs-notifs', null),
 };
 if (!['he', 'en', 'ar'].includes(state.language)) state.language = 'he';
@@ -801,6 +825,7 @@ function setState(patch) {
   save('cs-role', state.role);
   save('cs-class', state.classId);
   save('cs-font-size', state.fontSize);
+  save('cs-collapsible', state.collapsible);
   save('cs-notifs', state.notifs);
   renderAll();
 }
@@ -1312,6 +1337,96 @@ function renderAll() {
   if (!sessionCheck || sessionCheck.userId !== CURRENT_USER.id) { location.replace('login.html'); return; }
   window.renderPage();
 }
+/* ================= Collapsible sections =================
+   Sections marked data-collapse="key" (and data-collapse-default="open|closed") get a
+   clickable header when the "collapsible sections" setting is on. The first child is the
+   header; everything after it folds away. Each section remembers being opened or closed. */
+const COLLAPSE_KEY = 'cs-collapsed';
+const initialHash = decodeURIComponent(location.hash.slice(1));
+let hashOpened = false;
+
+function sectionOpen(key, fallbackOpen) {
+  const saved = load(COLLAPSE_KEY, {});
+  return key in saved ? saved[key] : fallbackOpen;
+}
+function rememberSection(key, open) {
+  const saved = load(COLLAPSE_KEY, {});
+  saved[key] = open;
+  save(COLLAPSE_KEY, saved);
+}
+
+function enhanceCollapsibles() {
+  if (!state.collapsible) return;
+  document.querySelectorAll('#main [data-collapse]').forEach(sec => {
+    if (sec.dataset.enhanced || sec.children.length < 2) return;
+    sec.dataset.enhanced = '1';
+    const key = sec.dataset.collapse;
+    const head = sec.firstElementChild;
+    const body = document.createElement('div');
+    const inner = document.createElement('div');
+    body.className = 'collapse-body';
+    body.id = 'cb-' + key;
+    inner.className = 'collapse-inner';
+    while (head.nextSibling) inner.appendChild(head.nextSibling);
+    body.appendChild(inner);
+    sec.appendChild(body);
+
+    let open = sectionOpen(key, sec.dataset.collapseDefault === 'open');
+    // a link straight to something inside (e.g. #attendance from a notification) opens it
+    if (!hashOpened && initialHash && (sec.id === initialHash || sec.querySelector('#' + CSS.escape(initialHash)))) {
+      open = true;
+      hashOpened = true;
+      requestAnimationFrame(() => sec.scrollIntoView({ block: 'start' }));
+    }
+    sec.classList.add('collapsible');
+    sec.classList.toggle('collapsed', !open);
+    head.classList.add('collapse-head');
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'collapse-btn';
+    btn.setAttribute('aria-controls', body.id);
+    btn.setAttribute('aria-expanded', String(open));
+    btn.innerHTML = ICONS.chevron + `<span class="sr-only">${L('הצגה או הסתרה', 'Show or hide')}</span>`;
+    // the arrow sits at the header's end, inside its padding; the header makes room for it
+    const pad = parseFloat(getComputedStyle(head).paddingInlineEnd) || 0;
+    btn.style.insetInlineEnd = pad + 'px';
+    head.style.paddingInlineEnd = (pad + 44) + 'px';
+    head.appendChild(btn);
+
+    const toggle = () => {
+      const nowOpen = sec.classList.contains('collapsed');
+      sec.classList.add('animating');
+      sec.classList.toggle('collapsed', !nowOpen);
+      btn.setAttribute('aria-expanded', String(nowOpen));
+      rememberSection(key, nowOpen);
+      setTimeout(() => sec.classList.remove('animating'), 280);
+    };
+    btn.addEventListener('click', e => { e.stopPropagation(); toggle(); });
+    // the whole header is clickable, except the controls that live inside it
+    head.addEventListener('click', e => {
+      if (e.target.closest('a, input, select, textarea, label, button, [onclick]')) return;
+      toggle();
+    });
+  });
+}
+function setAllSections(open) {
+  const saved = {};
+  document.querySelectorAll('#main [data-collapse]').forEach(sec => { saved[sec.dataset.collapse] = open; });
+  save(COLLAPSE_KEY, { ...load(COLLAPSE_KEY, {}), ...saved });
+}
+
+// Every page re-draws through renderPage(); fold the marked sections after each draw
+document.addEventListener('DOMContentLoaded', () => {
+  const draw = window.renderPage;
+  if (typeof draw === 'function') {
+    window.renderPage = function () {
+      const result = draw.apply(this, arguments);
+      enhanceCollapsibles();
+      return result;
+    };
+  }
+});
 document.addEventListener('DOMContentLoaded', renderAll);
 </script>
 <script>
@@ -1442,7 +1557,7 @@ function teacherPathEditor() {
     : L(`שכבה ${pathUi.audience}`, `Grade ${pathUi.audience}`);
 
   return `
-  <div class="card r-3xl p-6">
+  <div class="card r-3xl p-6" data-collapse="path-generator" data-collapse-default="closed">
     <div class="flex items-center gap-3 mb-4">
       <div class="icon-tile" style="background:color-mix(in srgb, var(--primary) 12%, transparent)">🤖</div>
       <div>
@@ -1525,7 +1640,7 @@ function progressTracker() {
   ];
   const visible = STUDENT_PROGRESS.filter(s => pathUi.filter === 'all' || s.state === pathUi.filter);
   return `
-  <div class="card r-3xl p-5">
+  <div class="card r-3xl p-5" data-collapse="path-tracker" data-collapse-default="closed">
     <div class="col sm-row justify-between gap-3 mb-4" style="align-items:flex-start">
       <div>
         <h2 class="display w8 lg">${L('איפה כל תלמיד נמצא במסלול', 'Student position in the path')}</h2>
@@ -1568,7 +1683,7 @@ function legends() {
   ];
   return `
   <div class="col gap-4">
-    <div class="card r-3xl p-5">
+    <div class="card r-3xl p-5" data-collapse="path-node-types" data-collapse-default="closed">
       <h3 class="display w7 sm mb-3">${L('סוגי שלבים', 'Node Types')}</h3>
       ${Object.entries(NODE_ICONS).map(([type, icon]) => `
         <div class="flex items-center gap-3" style="padding:0.5rem 0;border-bottom:1px solid var(--border)">
@@ -1579,7 +1694,7 @@ function legends() {
           </div>
         </div>`).join('')}
     </div>
-    <div class="card r-3xl p-5">
+    <div class="card r-3xl p-5" data-collapse="path-status" data-collapse-default="closed">
       <h3 class="display w7 sm mb-3">${L('סטטוס', 'Status')}</h3>
       ${statuses.map(s => `
         <div class="flex items-center gap-3" style="padding:0.5rem 0">

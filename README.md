@@ -43,6 +43,7 @@ Password for all: `demo1234`
 - Students see all their tasks in one place – what is still due, what is awaiting a grade, and completed work with the teacher's grade and feedback
 - Students hand in work, build and share personal learning paths in the library
 - Works on phones, tablets and desktops
+- Collapsible sections (Settings): large sections fold behind a clickable header – on by default, or switch to “show everything”
 
 ## Note
 
