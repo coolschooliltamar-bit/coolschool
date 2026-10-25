@@ -758,7 +758,8 @@ const state = {
   role: CURRENT_USER ? CURRENT_USER.role : 'student',
   classId: load('cs-class', 'bio11a'),
   fontSize: load('cs-font-size', 'medium'),
-  collapsible: load('cs-collapsible', true),   // big sections fold away behind a header (default on)
+  // 'auto' (default): drop-down sections on phones, everything open on computers; or 'on' / 'off'
+  collapseMode: ['auto', 'on', 'off'].includes(load('cs-collapse-mode', 'auto')) ? load('cs-collapse-mode', 'auto') : 'auto',
   notifs: load('cs-notifs', null),
 };
 if (!['he', 'en', 'ar'].includes(state.language)) state.language = 'he';
@@ -848,7 +849,7 @@ function setState(patch) {
   save('cs-role', state.role);
   save('cs-class', state.classId);
   save('cs-font-size', state.fontSize);
-  save('cs-collapsible', state.collapsible);
+  save('cs-collapse-mode', state.collapseMode);
   save('cs-notifs', state.notifs);
   renderAll();
 }
@@ -1365,6 +1366,15 @@ function renderAll() {
    clickable header when the "collapsible sections" setting is on. The first child is the
    header; everything after it folds away. Each section remembers being opened or closed. */
 const COLLAPSE_KEY = 'cs-collapsed';
+const PHONE_QUERY = window.matchMedia ? window.matchMedia('(max-width: 767px)') : null;
+function isPhoneScreen() { return !!(PHONE_QUERY && PHONE_QUERY.matches); }
+function collapsibleActive() {
+  return state.collapseMode === 'on' || (state.collapseMode === 'auto' && isPhoneScreen());
+}
+// In automatic mode, turning a tablet or resizing the window switches the layout
+if (PHONE_QUERY && PHONE_QUERY.addEventListener) {
+  PHONE_QUERY.addEventListener('change', () => { if (!window.AUTH_PAGE && state.collapseMode === 'auto' && CURRENT_USER) renderAll(); });
+}
 const initialHash = decodeURIComponent(location.hash.slice(1));
 let hashOpened = false;
 
@@ -1379,7 +1389,7 @@ function rememberSection(key, open) {
 }
 
 function enhanceCollapsibles() {
-  if (!state.collapsible) return;
+  if (!collapsibleActive()) return;
   document.querySelectorAll('#main [data-collapse]').forEach(sec => {
     if (sec.dataset.enhanced || sec.children.length < 2) return;
     sec.dataset.enhanced = '1';

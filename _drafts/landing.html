@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#7C3AED">
+<title>CoolSchool · כל בית הספר במקום אחד</title>
+<meta name="description" content="CoolSchool – שיעורים חיים, מערכת שעות, ציונים, משוב ומשימות לתלמידים, למורים ולהנהלה.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800;900&family=Nunito:wght@500;600;700;800&family=Heebo:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ===================== Tokens ===================== */
+:root {
+  --bg: #F6F4FF;
+  --bg-2: #EEEAFF;
+  --card: #FFFFFF;
+  --text: #1E1B4B;
+  --muted: #625F8F;
+  --border: #E2DDFF;
+  --primary: #7C3AED;
+  --primary-2: #4F46E5;
+  --sky: #0EA5E9;
+  --green: #10B981;
+  --amber: #F59E0B;
+  --rose: #F43F5E;
+  --pink: #EC4899;
+  --shadow: 0 30px 60px -25px rgba(76, 29, 149, .35);
+  --font-display: 'Outfit', 'Heebo', sans-serif;
+  --font-body: 'Nunito', 'Heebo', sans-serif;
+}
+html.dark {
+  --bg: #0D0D1A;
+  --bg-2: #13132A;
+  --card: #1A1A32;
+  --text: #EEECFF;
+  --muted: #A19DC9;
+  --border: #2E2E50;
+  --primary: #8B5CF6;
+  --shadow: 0 30px 60px -25px rgba(0, 0, 0, .7);
+}
+html[lang='he'] { --font-display: 'Heebo', sans-serif; --font-body: 'Heebo', sans-serif; }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body); color: var(--text); background: var(--bg);
+  overflow-x: hidden; -webkit-font-smoothing: antialiased; line-height: 1.5;
+}
+h1, h2, h3, .display { font-family: var(--font-display); line-height: 1.1; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+img, svg { display: block; }
+.container { width: 100%; max-width: 76rem; margin: 0 auto; padding: 0 1.25rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; border-radius: 0.5rem; }
+
+/* ===================== Buttons ===================== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.85rem 1.5rem; border-radius: 999px; font-weight: 800; font-size: 1rem; white-space: nowrap;
+  transition: transform .2s, box-shadow .2s, background .2s;
+}
+.btn:hover { transform: translateY(-2px); }
+.btn:active { transform: translateY(0) scale(.98); }
+.btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: #fff; box-shadow: 0 12px 24px -10px rgba(124, 58, 237, .7); }
+.btn-primary:hover { box-shadow: 0 18px 30px -10px rgba(124, 58, 237, .8); }
+.btn-ghost { background: var(--card); color: var(--primary); border: 2px solid var(--border); }
+.btn-white { background: #fff; color: #5B21B6; box-shadow: 0 12px 30px -12px rgba(0,0,0,.4); }
+.btn-outline-white { border: 2px solid rgba(255,255,255,.6); color: #fff; }
+.btn-lg { padding: 1rem 1.9rem; font-size: 1.1rem; }
+
+/* ===================== Nav ===================== */
+.nav {
+  position: fixed; inset: 0 0 auto 0; z-index: 50; transition: background .3s, box-shadow .3s, backdrop-filter .3s;
+  padding-top: env(safe-area-inset-top);
+}
+.nav.solid { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(14px); box-shadow: 0 1px 0 var(--border); }
+.nav-inner { height: 4.5rem; display: flex; align-items: center; gap: 1.25rem; }
+.logo { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-display); font-weight: 900; font-size: 1.45rem; color: var(--primary); }
+.logo-mark {
+  width: 2.4rem; height: 2.4rem; border-radius: 0.8rem; display: flex; align-items: center; justify-content: center; color: #fff;
+  background: linear-gradient(135deg, #7C3AED, #10B981); box-shadow: 0 8px 18px -8px rgba(124,58,237,.8); transform: rotate(-6deg);
+}
+.nav-links { display: none; gap: 1.5rem; font-weight: 700; color: var(--muted); }
+.nav-links a:hover { color: var(--primary); }
+.nav-spacer { flex: 1; }
+.nav-actions { display: flex; align-items: center; gap: 0.5rem; }
+.lang-btn { padding: 0.45rem 0.75rem; border-radius: 999px; font-weight: 800; font-size: 0.85rem; background: var(--card); border: 1.5px solid var(--border); }
+.nav .btn { padding: 0.6rem 1.15rem; font-size: 0.95rem; }
+.nav-login { display: none; }
+.menu-btn { width: 2.6rem; height: 2.6rem; border-radius: 0.8rem; background: var(--card); border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; }
+.mobile-menu {
+  display: none; position: fixed; inset: 4.5rem 0.75rem auto; z-index: 49; padding: 1rem; border-radius: 1.25rem;
+  background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow); flex-direction: column; gap: 0.25rem;
+}
+.mobile-menu.open { display: flex; }
+.mobile-menu a { padding: 0.75rem 1rem; border-radius: 0.75rem; font-weight: 800; }
+.mobile-menu a:hover { background: var(--bg-2); }
+@media (min-width: 900px) {
+  .nav-links, .nav-login { display: flex; }
+  .menu-btn { display: none; }
+}
+@media (max-width: 480px) {
+  .logo { font-size: 1.15rem; gap: 0.45rem; }
+  .logo-mark { width: 2rem; height: 2rem; }
+  .nav-inner { gap: 0.5rem; }
+  .nav-actions { gap: 0.35rem; }
+  .nav .btn { padding: 0.5rem 0.85rem; font-size: 0.85rem; }
+  .lang-btn { padding: 0.4rem 0.55rem; }
+}
+@media (max-width: 999px) { .hero-bg .orb { opacity: .45; --s: 3rem !important; } }
+
+/* ===================== Hero (3D device + floating objects) ===================== */
+.hero { position: relative; --hp: 0; --mx: 0; --my: 0; }
+.hero-sticky { position: relative; min-height: 100vh; min-height: 100dvh; padding: 7rem 0 4rem; overflow: hidden; display: flex; align-items: center; }
+.hero-sticky > .container { width: 100%; }
+/* wide screens: the hero stays pinned while the device turns flat and comes forward */
+@media (min-width: 1000px) {
+  .hero { height: 185vh; }
+  .hero-sticky { position: sticky; top: 0; height: 100vh; height: 100dvh; padding: 5rem 0 2rem; }
+  .hero-copy { opacity: calc(1 - var(--hp) * 0.75); transform: translateY(calc(var(--hp) * -40px)); will-change: opacity, transform; }
+  .device { --lift: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .hero { height: auto; } .hero-sticky { position: relative; height: auto; } }
+.hero-bg { position: absolute; inset: 0; pointer-events: none; }
+.blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: .55; }
+.blob.b1 { width: 32rem; height: 32rem; background: #C4B5FD; top: -8rem; inset-inline-end: -8rem; }
+.blob.b2 { width: 26rem; height: 26rem; background: #A7F3D0; bottom: -6rem; inset-inline-start: -6rem; }
+.blob.b3 { width: 18rem; height: 18rem; background: #FBCFE8; top: 40%; inset-inline-start: 35%; }
+html.dark .blob { opacity: .22; }
+.hero-grid { position: relative; display: grid; gap: 3rem; align-items: center; }
+@media (min-width: 1000px) { .hero-grid { grid-template-columns: 1fr 1.1fr; } }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.9rem; border-radius: 999px; font-weight: 800; font-size: 0.9rem;
+  background: var(--card); color: var(--primary); border: 1.5px solid var(--border); box-shadow: 0 6px 16px -10px rgba(124,58,237,.5);
+}
+.hero h1 { font-size: clamp(2.6rem, 6vw, 4.6rem); font-weight: 900; margin: 1.25rem 0 1rem; letter-spacing: -0.02em; }
+.grad-text { background: linear-gradient(120deg, var(--primary), var(--sky) 55%, var(--green)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero p.lead { font-size: clamp(1.05rem, 2vw, 1.3rem); color: var(--muted); max-width: 34rem; }
+.hero-ctas { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; }
+.hero-note { margin-top: 1rem; font-size: 0.9rem; color: var(--muted); font-weight: 600; }
+
+.scene { position: relative; perspective: 1400px; height: clamp(22rem, 48vw, 34rem); }
+.device {
+  position: absolute; inset: 0; margin: auto; width: min(100%, 38rem); height: min(100%, 25rem);
+  transform-style: preserve-3d; will-change: transform;
+  transform:
+    translateY(calc(var(--hp) * -40px))
+    rotateX(calc(26deg - var(--hp) * 26deg + var(--my) * -6deg))
+    rotateY(calc(-22deg + var(--hp) * 22deg + var(--mx) * 8deg))
+    rotateZ(calc(6deg - var(--hp) * 6deg))
+    scale(calc(0.92 + var(--hp) * 0.08 * (1 + var(--lift, 0) * 1.2)));
+}
+html[dir='rtl'] .device {
+  transform:
+    translateY(calc(var(--hp) * -40px))
+    rotateX(calc(26deg - var(--hp) * 26deg + var(--my) * -6deg))
+    rotateY(calc(22deg - var(--hp) * 22deg + var(--mx) * 8deg))
+    rotateZ(calc(-6deg + var(--hp) * 6deg))
+    scale(calc(0.92 + var(--hp) * 0.08 * (1 + var(--lift, 0) * 1.2)));
+}
+.screen {
+  position: absolute; inset: 0; border-radius: 1.4rem; overflow: hidden; background: var(--card);
+  border: 1px solid var(--border); box-shadow: 0 60px 90px -40px rgba(49, 19, 120, .55), 0 0 0 10px color-mix(in srgb, var(--card) 70%, transparent);
+  display: grid; grid-template-rows: auto 1fr; transform: translateZ(0);
+}
+.screen-bar { display: flex; align-items: center; gap: 0.4rem; padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); background: var(--bg-2); }
+.screen-bar i { width: 0.6rem; height: 0.6rem; border-radius: 50%; display: block; }
+.screen-bar span { margin-inline-start: 0.6rem; font-size: 0.7rem; font-weight: 800; color: var(--muted); }
+.screen-body { display: grid; grid-template-columns: 3rem 1fr; min-height: 0; }
+.screen-side { border-inline-end: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 0.6rem; padding: 0.8rem 0; }
+.screen-side b { width: 1.6rem; height: 1.6rem; border-radius: 0.5rem; background: var(--bg-2); display: block; }
+.screen-side b.on { background: linear-gradient(135deg, var(--primary), var(--primary-2)); }
+.screen-main { padding: 0.9rem; display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
+.mini-banner { border-radius: 0.9rem; padding: 0.8rem 1rem; color: #fff; background: linear-gradient(135deg, #7C3AED, #4F46E5 55%, #0EA5E9); }
+.mini-banner small { display: inline-block; font-size: 0.6rem; font-weight: 800; background: #F43F5E; border-radius: 999px; padding: 0.1rem 0.5rem; }
+.mini-banner strong { display: block; font-family: var(--font-display); font-size: 1.05rem; margin-top: 0.35rem; }
+.mini-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.mini-stats div { border: 1px solid var(--border); border-radius: 0.7rem; padding: 0.45rem 0.6rem; }
+.mini-stats b { display: block; font-family: var(--font-display); font-size: 1.05rem; }
+.mini-stats span { font-size: 0.6rem; color: var(--muted); font-weight: 700; }
+.mini-week { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35rem; flex: 1; }
+.mini-week div { border-radius: 0.5rem; font-size: 0.58rem; font-weight: 800; padding: 0.3rem; }
+/* layers that float above the screen in real 3D space */
+.pop {
+  position: absolute; border-radius: 1rem; background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow);
+  padding: 0.6rem 0.8rem; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; white-space: nowrap;
+}
+.pop.p1 { top: 12%; inset-inline-end: -6%; transform: translateZ(90px); }
+.pop.p2 { bottom: 10%; inset-inline-start: -8%; transform: translateZ(130px); }
+.pop.p3 { top: 46%; inset-inline-end: -10%; transform: translateZ(60px); }
+.pop .dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; }
+@media (max-width: 640px) { .pop.p1, .pop.p3 { inset-inline-end: 0; } .pop.p2 { inset-inline-start: 0; } .pop { font-size: 0.7rem; } }
+
+/* glossy 3D "orbs" with school objects, parallax by depth */
+.orb {
+  position: absolute; width: var(--s, 4.5rem); height: var(--s, 4.5rem); border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: calc(var(--s, 4.5rem) * .5); pointer-events: none; will-change: transform;
+  background: radial-gradient(circle at 30% 25%, #fff 0, color-mix(in srgb, var(--c) 35%, #fff) 30%, var(--c) 75%);
+  box-shadow: inset -8px -10px 18px rgba(0,0,0,.15), 0 22px 30px -18px color-mix(in srgb, var(--c) 90%, #000);
+  transform: translate3d(calc(var(--mx) * var(--d) * 30px), calc(var(--hp) * var(--d) * -260px + var(--my) * var(--d) * 20px), 0) rotate(calc(var(--hp) * var(--d) * 90deg));
+  animation: bob 6s ease-in-out infinite; animation-delay: var(--delay, 0s);
+}
+@keyframes bob { 50% { translate: 0 -12px; } }
+
+/* ===================== Wave divider ===================== */
+.wave { display: block; width: 100%; height: 5rem; color: var(--card); }
+.wave.flip { transform: scaleY(-1); }
+
+/* ===================== Badges strip ===================== */
+.strip { background: var(--card); padding: 1.25rem 0 3rem; }
+.strip-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem 1.5rem; }
+.strip-row span { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border-radius: 999px; background: var(--bg); font-weight: 800; font-size: 0.95rem; }
+
+/* ===================== Sections ===================== */
+section.block { padding: 6rem 0; position: relative; }
+.section-head { text-align: center; max-width: 44rem; margin: 0 auto 3.5rem; }
+.kicker { font-weight: 900; color: var(--primary); letter-spacing: .08em; text-transform: uppercase; font-size: 0.85rem; }
+html[lang='he'] .kicker { letter-spacing: 0; }
+.section-head h2 { font-size: clamp(2rem, 4.5vw, 3.2rem); font-weight: 900; margin: 0.6rem 0 0.9rem; }
+.section-head p { color: var(--muted); font-size: 1.1rem; }
+
+/* Feature cards flip up in 3D as they enter the screen (--e: 0 → 1) */
+.features { display: grid; gap: 1.25rem; perspective: 1200px; }
+@media (min-width: 700px) { .features { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1050px) { .features { grid-template-columns: repeat(3, 1fr); } }
+.feature {
+  --e: 1;
+  background: var(--card); border: 1.5px solid var(--border); border-radius: 1.6rem; padding: 1.75rem; box-shadow: var(--shadow);
+  transform-origin: 50% 100%; will-change: transform, opacity;
+  transform: rotateX(calc((1 - var(--e)) * 70deg)) translateY(calc((1 - var(--e)) * 70px)) scale(calc(0.88 + var(--e) * 0.12));
+  opacity: calc(var(--e) * 1.4);
+  transition: box-shadow .25s, border-color .25s;
+}
+.feature:hover { border-color: color-mix(in srgb, var(--c) 50%, var(--border)); box-shadow: 0 30px 60px -25px color-mix(in srgb, var(--c) 60%, transparent); }
+.f-icon {
+  width: 3.75rem; height: 3.75rem; border-radius: 1.2rem; display: flex; align-items: center; justify-content: center; font-size: 1.9rem;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--c) 25%, #fff), color-mix(in srgb, var(--c) 55%, #fff));
+  box-shadow: inset 0 -4px 0 color-mix(in srgb, var(--c) 45%, transparent), 0 10px 20px -12px var(--c);
+  transform: rotate(-6deg);
+}
+html.dark .f-icon { background: color-mix(in srgb, var(--c) 30%, var(--card)); }
+.feature h3 { font-size: 1.35rem; font-weight: 800; margin: 1.1rem 0 0.5rem; }
+.feature p { color: var(--muted); }
+
+/* ===================== Pinned 3D drum: Students → Teachers → Principal ===================== */
+.roles { height: 320vh; position: relative; background: linear-gradient(180deg, var(--bg), var(--bg-2)); }
+.roles-sticky { position: sticky; top: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.roles .section-head { margin-bottom: 1.5rem; }
+.drum-stage { position: relative; height: min(30rem, 62vh); perspective: 1600px; }
+.drum { position: absolute; inset: 0; transform-style: preserve-3d; }
+.panel {
+  position: absolute; top: 0; bottom: 0; inset-inline: 0; margin: auto; width: min(88vw, 36rem); height: 100%;
+  border-radius: 2rem; padding: 2rem; color: #fff; overflow: hidden; backface-visibility: hidden; will-change: transform, opacity;
+  display: flex; flex-direction: column; gap: 1rem; box-shadow: 0 40px 80px -30px rgba(30, 10, 80, .55);
+}
+.panel.student { background: linear-gradient(145deg, #10B981, #0EA5E9); }
+.panel.teacher { background: linear-gradient(145deg, #7C3AED, #4F46E5); }
+.panel.principal { background: linear-gradient(145deg, #F59E0B, #EC4899); }
+.panel .p-emoji { font-size: 3rem; line-height: 1; filter: drop-shadow(0 8px 10px rgba(0,0,0,.25)); }
+.panel h3 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); font-weight: 900; }
+.panel ul { list-style: none; display: flex; flex-direction: column; gap: 0.55rem; font-weight: 700; }
+.panel li { display: flex; gap: 0.6rem; align-items: flex-start; }
+.panel li::before { content: '✓'; flex-shrink: 0; width: 1.4rem; height: 1.4rem; border-radius: 50%; background: rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 900; }
+.panel .glass { margin-top: auto; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35); border-radius: 1rem; padding: 0.75rem 0.9rem; font-size: 0.85rem; font-weight: 700; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.glass .chip { background: rgba(255,255,255,.92); color: #1E1B4B; border-radius: 999px; padding: 0.15rem 0.6rem; font-size: 0.75rem; font-weight: 800; }
+.role-dots[hidden], .scroll-hint[hidden] { display: none; }
+.role-dots { display: flex; justify-content: center; gap: 0.6rem; margin-top: 1.75rem; }
+.role-dots button { padding: 0.45rem 1rem; border-radius: 999px; font-weight: 800; font-size: 0.9rem; color: var(--muted); background: var(--card); border: 1.5px solid var(--border); transition: all .25s; }
+.role-dots button.on { color: #fff; background: var(--primary); border-color: var(--primary); transform: scale(1.05); }
+.scroll-hint { text-align: center; color: var(--muted); font-weight: 700; font-size: 0.85rem; margin-top: 0.75rem; }
+
+/* ===================== How it works: a deck that fans out ===================== */
+.how { height: 260vh; position: relative; }
+.how-sticky { position: sticky; top: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.deck { position: relative; height: 22rem; perspective: 1400px; }
+.step {
+  position: absolute; top: 0; bottom: 0; inset-inline: 0; margin: auto; width: min(80vw, 21rem); height: 19rem;
+  background: var(--card); border: 1.5px solid var(--border); border-radius: 1.75rem; padding: 1.75rem; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 0.75rem; will-change: transform;
+}
+.step .num { width: 3rem; height: 3rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 900; font-size: 1.4rem; color: #fff; background: var(--c); box-shadow: 0 10px 18px -10px var(--c); }
+.step h3 { font-size: 1.4rem; font-weight: 800; }
+.step p { color: var(--muted); }
+.step .tag { margin-top: auto; align-self: flex-start; font-size: 0.8rem; font-weight: 800; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); padding: 0.3rem 0.75rem; border-radius: 999px; }
+
+/* ===================== 3D phone that turns while scrolling ===================== */
+.everywhere { background: var(--card); }
+.ev-grid { display: grid; gap: 3rem; align-items: center; }
+@media (min-width: 950px) { .ev-grid { grid-template-columns: 1fr 1fr; } }
+.ev-list { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; }
+.ev-item { display: flex; gap: 1rem; align-items: flex-start; padding: 1rem; border-radius: 1.25rem; background: var(--bg); transition: transform .3s; }
+.ev-item:hover { transform: translateX(-4px); }
+.ev-item .f-icon { width: 3rem; height: 3rem; font-size: 1.4rem; flex-shrink: 0; border-radius: 0.9rem; }
+.ev-item h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 0.2rem; }
+.ev-item p { color: var(--muted); font-size: 0.95rem; }
+.phone-stage { height: 36rem; perspective: 1500px; display: flex; align-items: center; justify-content: center; --pp: 0.5; }
+.phone {
+  width: 16.5rem; height: 33rem; border-radius: 2.8rem; padding: 0.7rem; background: linear-gradient(145deg, #2A2A40, #0F0F1C);
+  box-shadow: 0 50px 80px -30px rgba(20, 10, 60, .6), inset 0 0 0 2px #3A3A55; transform-style: preserve-3d; will-change: transform;
+  transform: rotateY(calc(-38deg + var(--pp) * 76deg)) rotateX(calc(14deg - var(--pp) * 10deg)) rotateZ(calc(-4deg + var(--pp) * 8deg));
+}
+.phone-screen { height: 100%; border-radius: 2.2rem; overflow: hidden; display: flex; flex-direction: column; background: #F6F4FF; color: #1E1B4B; transition: background .5s, color .5s; position: relative; }
+.phone-screen.dark { background: #0D0D1A; color: #EEECFF; }
+.notch { position: absolute; top: 0.5rem; left: 50%; transform: translateX(-50%); width: 6rem; height: 1.4rem; border-radius: 999px; background: #0F0F1C; z-index: 2; }
+.ph-head { padding: 2.4rem 1rem 0.8rem; display: flex; align-items: center; justify-content: space-between; font-weight: 900; }
+.ph-head .logo-mark { width: 1.8rem; height: 1.8rem; font-size: 0.8rem; border-radius: 0.6rem; }
+.ph-body { padding: 0 0.8rem; display: flex; flex-direction: column; gap: 0.55rem; }
+.ph-card { border-radius: 1rem; padding: 0.7rem 0.8rem; background: #fff; border: 1px solid #E2DDFF; font-size: 0.75rem; font-weight: 700; transition: background .5s, border-color .5s; }
+.phone-screen.dark .ph-card { background: #1A1A32; border-color: #2E2E50; }
+.ph-card .row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.ph-chip { font-size: 0.62rem; padding: 0.1rem 0.45rem; border-radius: 999px; font-weight: 800; }
+.ph-tabs { margin-top: auto; display: grid; grid-template-columns: repeat(4, 1fr); padding: 0.6rem 0.6rem 1rem; gap: 0.3rem; }
+.ph-tabs i { height: 2.2rem; border-radius: 0.8rem; background: rgba(124, 58, 237, .12); display: block; }
+.ph-tabs i.on { background: #7C3AED; }
+
+/* ===================== CTA ===================== */
+.cta-card {
+  position: relative; overflow: hidden; border-radius: 2.5rem; padding: clamp(2.5rem, 6vw, 4.5rem); color: #fff; text-align: center;
+  background: linear-gradient(135deg, #7C3AED, #4F46E5 50%, #0EA5E9); box-shadow: 0 50px 90px -40px rgba(79, 70, 229, .8);
+  transform: perspective(1200px) rotateX(calc(var(--ty, 0) * 1deg)) rotateY(calc(var(--tx, 0) * 1deg)); transition: transform .2s ease-out;
+}
+.cta-card h2 { font-size: clamp(2rem, 5vw, 3.4rem); font-weight: 900; }
+.cta-card p { opacity: .9; font-size: 1.15rem; margin: 1rem auto 2rem; max-width: 36rem; }
+.cta-card .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; }
+.cta-card .orb { opacity: .9; }
+.school-card { margin-top: 1.5rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.5rem 1.75rem; border-radius: 1.75rem; background: var(--card); border: 1.5px solid var(--border); }
+.school-card h3 { font-size: 1.3rem; font-weight: 800; }
+.school-card p { color: var(--muted); }
+
+/* ===================== Footer ===================== */
+footer { padding: 3rem 0 calc(2.5rem + env(safe-area-inset-bottom)); color: var(--muted); }
+.foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.25rem; }
+.foot-links { display: flex; flex-wrap: wrap; gap: 1.25rem; font-weight: 700; }
+.foot-links a:hover { color: var(--primary); }
+
+/* ===================== Reduced motion / small screens ===================== */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .orb { animation: none; }
+  .roles, .how { height: auto; }
+  .roles-sticky, .how-sticky { position: static; height: auto; padding: 5rem 0; }
+}
+.static-drum .drum-stage { height: auto; perspective: none; }
+.static-drum .drum { position: static; display: grid; gap: 1.25rem; }
+@media (min-width: 1000px) { .static-drum .drum { grid-template-columns: repeat(3, 1fr); } }
+.static-drum .panel { position: static; width: auto; height: auto; min-height: 24rem; transform: none !important; opacity: 1 !important; }
+.static-deck .deck { height: auto; perspective: none; display: grid; gap: 1.25rem; }
+@media (min-width: 900px) { .static-deck .deck { grid-template-columns: repeat(3, 1fr); } }
+.static-deck .step { position: static; width: auto; transform: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ===================== Navigation ===================== -->
+<header class="nav" id="nav">
+  <div class="container nav-inner">
+    <a href="#top" class="logo" aria-label="CoolSchool"><span class="logo-mark">C</span>CoolSchool</a>
+    <nav class="nav-links" aria-label="main">
+      <a href="#features" data-t="navFeatures"></a>
+      <a href="#roles" data-t="navRoles"></a>
+      <a href="#how" data-t="navHow"></a>
+      <a href="#everywhere" data-t="navEverywhere"></a>
+    </nav>
+    <span class="nav-spacer"></span>
+    <div class="nav-actions">
+      <button class="lang-btn" id="langBtn" type="button" aria-label="Language"></button>
+      <a class="btn btn-ghost nav-login" data-auth="login" href="login.html" data-t="login"></a>
+      <a class="btn btn-primary" data-auth="start" href="register.html" data-t="start"></a>
+      <button class="menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="mobileMenu" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#features" data-t="navFeatures"></a>
+  <a href="#roles" data-t="navRoles"></a>
+  <a href="#how" data-t="navHow"></a>
+  <a href="#everywhere" data-t="navEverywhere"></a>
+  <a href="login.html" data-auth="login" data-t="login"></a>
+</div>
+
+<main id="top">
+<!-- ===================== Hero ===================== -->
+<section class="hero" id="hero">
+ <div class="hero-sticky">
+  <div class="hero-bg" aria-hidden="true">
+    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+    <span class="orb" style="--c:#F59E0B;--s:5rem;--d:1.2;top:16%;inset-inline-start:6%">⭐</span>
+    <span class="orb" style="--c:#38BDF8;--s:3.6rem;--d:2;top:70%;inset-inline-start:42%;--delay:-2s">✏️</span>
+    <span class="orb" style="--c:#F472B6;--s:4.2rem;--d:1.6;top:12%;inset-inline-start:48%;--delay:-4s">📚</span>
+    <span class="orb" style="--c:#34D399;--s:3.2rem;--d:2.6;top:84%;inset-inline-start:10%;--delay:-1s">🧪</span>
+    <span class="orb" style="--c:#A78BFA;--s:3.8rem;--d:1;top:78%;inset-inline-start:88%;--delay:-3s">🎓</span>
+  </div>
+  <div class="container hero-grid">
+    <div class="hero-copy">
+      <span class="eyebrow">🚀 <span data-t="eyebrow"></span></span>
+      <h1><span data-t="h1a"></span><br><span class="grad-text" data-t="h1b"></span></h1>
+      <p class="lead" data-t="lead"></p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary btn-lg" data-auth="start" href="register.html" data-t="startFree"></a>
+        <a class="btn btn-ghost btn-lg" data-auth="login" href="login.html" data-t="haveAccount"></a>
+      </div>
+      <p class="hero-note" data-t="heroNote"></p>
+    </div>
+
+    <div class="scene" aria-hidden="true">
+      <div class="device" id="device">
+        <div class="screen">
+          <div class="screen-bar"><i style="background:#F43F5E"></i><i style="background:#F59E0B"></i><i style="background:#10B981"></i><span>coolschool · <span data-t="mockHome"></span></span></div>
+          <div class="screen-body">
+            <div class="screen-side"><b class="on"></b><b></b><b></b><b></b><b></b></div>
+            <div class="screen-main">
+              <div class="mini-banner"><small data-t="mockLive"></small><strong data-t="mockLesson"></strong></div>
+              <div class="mini-stats">
+                <div><b style="color:#7C3AED">3</b><span data-t="mockTasks"></span></div>
+                <div><b style="color:#10B981">92</b><span data-t="mockAvg"></span></div>
+                <div><b style="color:#F59E0B">⭐ 240</b><span>XP</span></div>
+              </div>
+              <div class="mini-week">
+                <div style="background:#D1FAE5;color:#047857" data-t="mBio"></div>
+                <div style="background:#FFE4E6;color:#BE123C" data-t="mChem"></div>
+                <div style="background:#EDE9FE;color:#6D28D9" data-t="mMath"></div>
+                <div style="background:#FEF3C7;color:#B45309" data-t="mHist"></div>
+                <div style="background:#DBEAFE;color:#1D4ED8" data-t="mEng"></div>
+                <div style="background:#EDE9FE;color:#6D28D9" data-t="mMath"></div>
+                <div></div>
+                <div style="background:#D1FAE5;color:#047857" data-t="mBio"></div>
+                <div style="background:#FFE4E6;color:#BE123C" data-t="mChem"></div>
+                <div style="background:#DBEAFE;color:#1D4ED8" data-t="mEng"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pop p1"><span class="dot" style="background:#10B981"></span><span data-t="pop1"></span></div>
+        <div class="pop p2">📝 <span data-t="pop2"></span></div>
+        <div class="pop p3">⏰ <span data-t="pop3"></span></div>
+      </div>
+    </div>
+  </div>
+ </div>
+</section>
+
+<svg class="wave" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true"><path fill="currentColor" d="M0 40 C 240 90 480 0 720 30 C 960 60 1200 10 1440 40 L1440 80 L0 80 Z"/></svg>
+<div class="strip">
+  <div class="container strip-row">
+    <span>🌍 <span data-t="b1"></span></span>
+    <span>📱 <span data-t="b2"></span></span>
+    <span>🌙 <span data-t="b3"></span></span>
+    <span>🛡️ <span data-t="b4"></span></span>
+  </div>
+</div>
+<svg class="wave flip" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true"><path fill="currentColor" d="M0 40 C 240 90 480 0 720 30 C 960 60 1200 10 1440 40 L1440 80 L0 80 Z"/></svg>
+
+<!-- ===================== Features ===================== -->
+<section class="block" id="features">
+  <div class="container">
+    <div class="section-head">
+      <span class="kicker" data-t="fKicker"></span>
+      <h2 data-t="fTitle"></h2>
+      <p data-t="fSub"></p>
+    </div>
+    <div class="features">
+      <article class="feature" data-reveal style="--c:#F43F5E"><div class="f-icon">🎥</div><h3 data-t="f1t"></h3><p data-t="f1p"></p></article>
+      <article class="feature" data-reveal style="--c:#0EA5E9"><div class="f-icon">🗓️</div><h3 data-t="f2t"></h3><p data-t="f2p"></p></article>
+      <article class="feature" data-reveal style="--c:#7C3AED"><div class="f-icon">📊</div><h3 data-t="f3t"></h3><p data-t="f3p"></p></article>
+      <article class="feature" data-reveal style="--c:#10B981"><div class="f-icon">✅</div><h3 data-t="f4t"></h3><p data-t="f4p"></p></article>
+      <article class="feature" data-reveal style="--c:#F59E0B"><div class="f-icon">📋</div><h3 data-t="f5t"></h3><p data-t="f5p"></p></article>
+      <article class="feature" data-reveal style="--c:#EC4899"><div class="f-icon">🗺️</div><h3 data-t="f6t"></h3><p data-t="f6p"></p></article>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Roles drum (pinned while it turns) ===================== -->
+<section class="roles" id="roles">
+  <div class="roles-sticky">
+    <div class="container">
+      <div class="section-head">
+        <span class="kicker" data-t="rKicker"></span>
+        <h2 data-t="rTitle"></h2>
+      </div>
+      <div class="drum-stage">
+        <div class="drum" id="drum">
+          <article class="panel student">
+            <div class="p-emoji">🎒</div>
+            <h3 data-t="rs"></h3>
+            <ul><li data-t="rs1"></li><li data-t="rs2"></li><li data-t="rs3"></li><li data-t="rs4"></li></ul>
+            <div class="glass"><span class="chip">✅ <span data-t="cOnTime"></span></span><span class="chip">🌟 <span data-t="cPraise"></span></span><span class="chip">📄 93</span></div>
+          </article>
+          <article class="panel teacher">
+            <div class="p-emoji">🧑‍🏫</div>
+            <h3 data-t="rt"></h3>
+            <ul><li data-t="rt1"></li><li data-t="rt2"></li><li data-t="rt3"></li><li data-t="rt4"></li></ul>
+            <div class="glass"><span class="chip">✅ 14</span><span class="chip">⏰ 2</span><span class="chip">🚫 1</span><span class="chip">🌟 3</span></div>
+          </article>
+          <article class="panel principal">
+            <div class="p-emoji">🏫</div>
+            <h3 data-t="rp"></h3>
+            <ul><li data-t="rp1"></li><li data-t="rp2"></li><li data-t="rp3"></li><li data-t="rp4"></li></ul>
+            <div class="glass"><span class="chip">🧑‍🏫 <span data-t="cApprove"></span></span><span class="chip">🗓️ <span data-t="cPublish"></span></span></div>
+          </article>
+        </div>
+      </div>
+      <div class="role-dots" id="roleDots">
+        <button type="button" data-role="0" data-t="rs"></button>
+        <button type="button" data-role="1" data-t="rt"></button>
+        <button type="button" data-role="2" data-t="rp"></button>
+      </div>
+      <p class="scroll-hint" data-t="scrollHint"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== How it works (fanning deck) ===================== -->
+<section class="how" id="how">
+  <div class="how-sticky">
+    <div class="container">
+      <div class="section-head">
+        <span class="kicker" data-t="hKicker"></span>
+        <h2 data-t="hTitle"></h2>
+      </div>
+      <div class="deck" id="deck">
+        <article class="step" style="--c:#7C3AED"><span class="num">1</span><h3 data-t="h1t"></h3><p data-t="h1p"></p><span class="tag" data-t="h1g"></span></article>
+        <article class="step" style="--c:#F59E0B"><span class="num">2</span><h3 data-t="h2t"></h3><p data-t="h2p"></p><span class="tag" data-t="h2g"></span></article>
+        <article class="step" style="--c:#10B981"><span class="num">3</span><h3 data-t="h3t"></h3><p data-t="h3p"></p><span class="tag" data-t="h3g"></span></article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Everywhere (turning phone) ===================== -->
+<svg class="wave" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true"><path fill="currentColor" d="M0 50 C 300 0 600 90 900 40 C 1150 0 1300 60 1440 30 L1440 80 L0 80 Z"/></svg>
+<section class="block everywhere" id="everywhere">
+  <div class="container ev-grid">
+    <div>
+      <span class="kicker" data-t="eKicker"></span>
+      <h2 class="display" style="font-size:clamp(2rem,4.5vw,3rem);font-weight:900;margin:.6rem 0 .9rem" data-t="eTitle"></h2>
+      <p style="color:var(--muted);font-size:1.1rem" data-t="eSub"></p>
+      <div class="ev-list">
+        <div class="ev-item" style="--c:#0EA5E9"><div class="f-icon">🌍</div><div><h3 data-t="e1t"></h3><p data-t="e1p"></p></div></div>
+        <div class="ev-item" style="--c:#7C3AED"><div class="f-icon">🌙</div><div><h3 data-t="e2t"></h3><p data-t="e2p"></p></div></div>
+        <div class="ev-item" style="--c:#10B981"><div class="f-icon">🔒</div><div><h3 data-t="e3t"></h3><p data-t="e3p"></p></div></div>
+      </div>
+    </div>
+    <div class="phone-stage" id="phoneStage" aria-hidden="true">
+      <div class="phone">
+        <div class="phone-screen" id="phoneScreen">
+          <div class="notch"></div>
+          <div class="ph-head"><span class="logo-mark">C</span><span data-t="phTitle"></span><span>🔔</span></div>
+          <div class="ph-body">
+            <div class="ph-card"><div class="row"><span data-t="mBio"></span><span class="ph-chip" style="background:#D1FAE5;color:#047857">✅ <span data-t="cOnTime"></span></span></div></div>
+            <div class="ph-card"><div class="row"><span data-t="mMath"></span><span class="ph-chip" style="background:#FEF3C7;color:#B45309">⏰ <span data-t="cLate"></span></span></div></div>
+            <div class="ph-card"><div class="row"><span data-t="mHist"></span><span class="ph-chip" style="background:#D1FAE5;color:#047857">🌟 <span data-t="cPraise"></span></span></div></div>
+            <div class="ph-card"><div class="row"><span data-t="phTask"></span><span class="ph-chip" style="background:#EDE9FE;color:#6D28D9">93</span></div></div>
+            <div class="ph-card"><div class="row"><span data-t="phExam"></span><span class="ph-chip" style="background:#DBEAFE;color:#1D4ED8">86</span></div></div>
+          </div>
+          <div class="ph-tabs"><i class="on"></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<svg class="wave flip" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true"><path fill="currentColor" d="M0 50 C 300 0 600 90 900 40 C 1150 0 1300 60 1440 30 L1440 80 L0 80 Z"/></svg>
+
+<!-- ===================== Call to action ===================== -->
+<section class="block" id="join">
+  <div class="container">
+    <div class="cta-card" id="ctaCard">
+      <span class="orb" aria-hidden="true" style="--c:#FBBF24;--s:4rem;--d:0;top:12%;inset-inline-start:6%">⭐</span>
+      <span class="orb" aria-hidden="true" style="--c:#34D399;--s:3rem;--d:0;bottom:14%;inset-inline-end:8%;--delay:-2s">📚</span>
+      <h2 data-t="ctaTitle"></h2>
+      <p data-t="ctaSub"></p>
+      <div class="row">
+        <a class="btn btn-white btn-lg" data-auth="start" href="register.html" data-t="startFree"></a>
+        <a class="btn btn-outline-white btn-lg" data-auth="login" href="login.html" data-t="login"></a>
+      </div>
+    </div>
+    <div class="school-card">
+      <div>
+        <h3>🏫 <span data-t="schoolTitle"></span></h3>
+        <p data-t="schoolSub"></p>
+      </div>
+      <a class="btn btn-primary" href="register.html?role=principal" data-t="schoolBtn"></a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container foot">
+    <a href="#top" class="logo"><span class="logo-mark">C</span>CoolSchool</a>
+    <nav class="foot-links" aria-label="footer">
+      <a href="#features" data-t="navFeatures"></a>
+      <a href="#roles" data-t="navRoles"></a>
+      <a href="login.html" data-t="login"></a>
+      <a href="register.html" data-t="register"></a>
+    </nav>
+    <span>© 2026 CoolSchool</span>
+  </div>
+</footer>
+
+<script>
+/* ===================== Text (Hebrew / English) ===================== */
+const T = {
+  he: {
+    navFeatures: 'מה יש בפנים', navRoles: 'למי זה', navHow: 'איך מתחילים', navEverywhere: 'בכל מסך',
+    login: 'התחברות', register: 'הרשמה', start: 'מתחילים', startFree: 'מתחילים עכשיו – בחינם', haveAccount: 'כבר יש לי חשבון',
+    dashboard: 'למערכת שלי', eyebrow: 'הכיתה הדיגיטלית של בית הספר',
+    h1a: 'כל בית הספר.', h1b: 'במקום אחד.',
+    lead: 'שיעורים חיים, מערכת שעות, ציונים, משוב ומשימות – לתלמידים, למורים ולהנהלה. בעברית, באנגלית ובערבית.',
+    heroNote: '✓ בלי התקנה  ✓ בטלפון ובמחשב  ✓ מורים מאושרים על ידי ההנהלה',
+    mockHome: 'בית', mockLive: '● בשידור חי', mockLesson: 'העברה דרך קרום התא', mockTasks: 'משימות פתוחות', mockAvg: 'ממוצע',
+    mBio: 'ביולוגיה', mChem: 'כימיה', mMath: 'מתמטיקה', mHist: 'היסטוריה', mEng: 'אנגלית',
+    pop1: 'ד״ר לוי בדק/ה את העבודה שלך · 93', pop2: 'מבחן יחידה 2 נוסף', pop3: 'משוב: הגעת בזמן ✓',
+    b1: 'עברית · English · العربية', b2: 'טלפון, טאבלט ומחשב', b3: 'מצב כהה וגודל גופן', b4: 'מורים מאושרים על ידי ההנהלה',
+    fKicker: 'מה יש בפנים', fTitle: 'כל מה שבית ספר צריך – בלי עשר מערכות שונות',
+    fSub: 'CoolSchool מחבר את השיעור, הציון והמשוב, כך שכולם רואים את אותה תמונה.',
+    f1t: 'שיעורים חיים', f1p: 'כניסה לשיעור בלחיצה אחת, הזמנה ב־QR ושידור מוצפן.',
+    f2t: 'מערכת שעות לכל השנה', f2p: 'המנהל/ת בונה את המערכת השבועית, ומורים ותלמידים מקבלים התראה על כל שינוי.',
+    f3t: 'ציונים שמחשבים את עצמם', f3p: 'מבחנים, מטלות והשתתפות – לפי משקלים שהמורה קובע/ת, תמיד 100%.',
+    f4t: 'משוב בכל שיעור', f4p: 'נוכחות, איחור, ציון לשבח או ציוד – בסימון אחד, והתלמיד/ה רואה את זה מיד.',
+    f5t: 'משימות ועבודות', f5p: 'הגשה בקובץ, בדיקה עם צפייה בקובץ, ציון ומשוב אישי שמגיע ישר לתלמיד/ה.',
+    f6t: 'מסלולי למידה וספרייה', f6p: 'מסלולי למידה עם AI, ספרייה אישית ושיתוף מסלולים עם חברים.',
+    rKicker: 'למי זה', rTitle: 'מסך אחד, שלוש נקודות מבט', scrollHint: '↓ גללו כדי לסובב',
+    rs: 'תלמידים', rs1: 'כל המשימות במקום אחד – מה להגיש ומה כבר נבדק', rs2: 'הציון והמשוב מהמורה מיד כשנבדק', rs3: 'רואים בכל שיעור אם נרשמה נוכחות, איחור או ציון לשבח', rs4: 'מסלולי למידה אישיים שאפשר לשתף',
+    rt: 'מורים', rt1: 'משוב לשיעור בטבלה אחת: נוכחות, איחור, הפרעה, ציוד ולשבח', rt2: 'הוספת מבחנים ובדיקת עבודות עם צפייה בקבצים', rt3: 'ציון סופי שמתעדכן לבד לפי המשקלים', rt4: 'הערות שמופיעות בעמוד הבית של התלמידים',
+    rp: 'הנהלה', rp1: 'אישור מורים חדשים לפני שהם נכנסים למערכת', rp2: 'עריכת מערכת השעות לכל שנת הלימודים', rp3: 'פרסום שינויים עם התראה לכל מי שמושפע', rp4: 'תמונת מצב של צוות המורים והתלמידים',
+    cOnTime: 'בזמן', cPraise: 'לשבח', cLate: 'איחור', cApprove: 'אישור מורה', cPublish: 'פרסום מערכת',
+    hKicker: 'איך מתחילים', hTitle: 'שלושה צעדים ובית הספר באוויר',
+    h1t: 'המנהל/ת נרשם/ת', h1p: 'פותחים חשבון הנהלה ובונים את מערכת השעות השבועית לכל השנה.', h1g: '5 דקות',
+    h2t: 'מורים מצטרפים', h2p: 'מורים נרשמים, המנהל/ת מקבל/ת התראה ומאשר/ת – ורק אז הם נכנסים.', h2g: 'אישור בלחיצה',
+    h3t: 'תלמידים לומדים', h3p: 'תלמידים נרשמים ורואים משימות, ציונים ומשוב – מכל מכשיר.', h3g: 'מכל מסך',
+    eKicker: 'בכל מסך', eTitle: 'בכיס, בכיתה ובבית', eSub: 'אותה מערכת בטלפון, בטאבלט ובמחשב – מתאימה את עצמה לכל מסך.',
+    e1t: 'שלוש שפות, מימין לשמאל', e1p: 'עברית, אנגלית וערבית, עם תצוגה נכונה מימין לשמאל.',
+    e2t: 'מצב כהה וגודל גופן', e2p: 'נוח לעיניים בערב, וגודל טקסט שמתאים לכל אחד.',
+    e3t: 'רק מי שצריך', e3p: 'כל אחד רואה רק את מה ששייך לו – ומורים נכנסים רק אחרי אישור ההנהלה.',
+    phTitle: 'המערכת שלי', phTask: 'עבודה על קרום התא', phExam: 'מבחן יחידה 2',
+    ctaTitle: 'מוכנים להתחיל?', ctaSub: 'פותחים חשבון בדקה, ומתחילים ללמוד, ללמד ולנהל – הכול במקום אחד.',
+    schoolTitle: 'מנהלים בית ספר?', schoolSub: 'פתחו חשבון הנהלה, הזמינו את המורים ובנו את מערכת השעות לשנה.', schoolBtn: 'פתיחת חשבון הנהלה',
+  },
+  en: {
+    navFeatures: 'Features', navRoles: 'Who it’s for', navHow: 'How it works', navEverywhere: 'Any screen',
+    login: 'Log in', register: 'Sign up', start: 'Get started', startFree: 'Get started – it’s free', haveAccount: 'I have an account',
+    dashboard: 'Go to my dashboard', eyebrow: 'Your school’s digital classroom',
+    h1a: 'The whole school.', h1b: 'One place.',
+    lead: 'Live classes, timetables, grades, Mashov and tasks – for students, teachers and school leaders. In Hebrew, English and Arabic.',
+    heroNote: '✓ Nothing to install  ✓ Phone and computer  ✓ Teachers approved by the principal',
+    mockHome: 'Home', mockLive: '● LIVE NOW', mockLesson: 'Cell Membrane Transport', mockTasks: 'Open tasks', mockAvg: 'Average',
+    mBio: 'Biology', mChem: 'Chemistry', mMath: 'Math', mHist: 'History', mEng: 'English',
+    pop1: 'Dr. Levi graded your work · 93', pop2: 'Unit 2 exam added', pop3: 'Mashov: you were on time ✓',
+    b1: 'עברית · English · العربية', b2: 'Phone, tablet and computer', b3: 'Dark mode and font size', b4: 'Teachers approved by the principal',
+    fKicker: 'Features', fTitle: 'Everything a school needs – without ten different systems',
+    fSub: 'CoolSchool connects the lesson, the grade and the feedback, so everyone sees the same picture.',
+    f1t: 'Live classes', f1p: 'Join a lesson in one click, invite with a QR code, encrypted end to end.',
+    f2t: 'A timetable for the whole year', f2p: 'The principal builds the weekly timetable; teachers and students are notified of every change.',
+    f3t: 'Grades that add up by themselves', f3p: 'Exams, assignments and participation – weighted the way the teacher chooses, always 100%.',
+    f4t: 'Mashov in every lesson', f4p: 'Present, late, commendation or equipment – one tick, and the student sees it right away.',
+    f5t: 'Tasks and submissions', f5p: 'Hand in files, review them in the browser, and send a grade and personal feedback.',
+    f6t: 'Learning paths & library', f6p: 'AI-made learning paths, a personal library and paths you can share with friends.',
+    rKicker: 'Who it’s for', rTitle: 'One system, three points of view', scrollHint: '↓ Scroll to turn',
+    rs: 'Students', rs1: 'All tasks in one place – what’s due and what’s graded', rs2: 'Grades and teacher feedback as soon as work is checked', rs3: 'See in every lesson whether you were marked on time, late or commended', rs4: 'Personal learning paths you can share',
+    rt: 'Teachers', rt1: 'Lesson Mashov in one table: attendance, lateness, disruption, equipment, commendations', rt2: 'Add exams and review work with file preview', rt3: 'Final grades that update by themselves', rt4: 'Notes that appear on students’ home page',
+    rp: 'Principals', rp1: 'Approve new teachers before they can sign in', rp2: 'Edit the weekly timetable for the whole school year', rp3: 'Publish changes and notify everyone affected', rp4: 'A clear view of staff and students',
+    cOnTime: 'On time', cPraise: 'Commendation', cLate: 'Late', cApprove: 'Approve teacher', cPublish: 'Publish timetable',
+    hKicker: 'How it works', hTitle: 'Three steps and your school is live',
+    h1t: 'The principal signs up', h1p: 'Open a principal account and build the weekly timetable for the year.', h1g: '5 minutes',
+    h2t: 'Teachers join', h2p: 'Teachers sign up, the principal is notified and approves – only then can they sign in.', h2g: 'One-click approval',
+    h3t: 'Students learn', h3p: 'Students sign up and see their tasks, grades and Mashov – on any device.', h3g: 'Any screen',
+    eKicker: 'Any screen', eTitle: 'In your pocket, in class and at home', eSub: 'The same system on phone, tablet and computer – it adapts to every screen.',
+    e1t: 'Three languages, right-to-left', e1p: 'Hebrew, English and Arabic, with proper right-to-left layout.',
+    e2t: 'Dark mode and font size', e2p: 'Easy on the eyes in the evening, with text sizes for everyone.',
+    e3t: 'Only who needs to', e3p: 'Everyone sees only what belongs to them – and teachers sign in only after the principal approves.',
+    phTitle: 'My school', phTask: 'Cell membrane essay', phExam: 'Unit 2 exam',
+    ctaTitle: 'Ready to start?', ctaSub: 'Open an account in a minute and start learning, teaching and managing – all in one place.',
+    schoolTitle: 'Running a school?', schoolSub: 'Open a principal account, invite your teachers and build the year’s timetable.', schoolBtn: 'Open a principal account',
+  },
+};
+
+/* Same saved preferences as the app (language and dark mode) */
+function load(key, fallback) { try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; } }
+function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ } }
+let lang = load('cs-language', 'he') === 'en' ? 'en' : 'he';
+if (load('cs-dark', false)) document.documentElement.classList.add('dark');
+
+// Signed-in visitors get a shortcut to their dashboard instead of "log in"
+const signedIn = !!load('cs-session', null);
+
+function applyLang() {
+  const root = document.documentElement;
+  root.lang = lang;
+  root.dir = lang === 'he' ? 'rtl' : 'ltr';
+  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = T[lang][el.dataset.t]; });
+  document.getElementById('langBtn').textContent = lang === 'he' ? 'EN' : 'עב';
+  document.title = 'CoolSchool · ' + (lang === 'he' ? 'כל בית הספר במקום אחד' : 'The whole school in one place');
+  if (signedIn) {
+    document.querySelectorAll('[data-auth="login"]').forEach(a => { a.href = 'home.html'; a.textContent = T[lang].dashboard; });
+    document.querySelectorAll('[data-auth="start"]').forEach(a => { a.href = 'home.html'; a.textContent = T[lang].dashboard; });
+  }
+  layoutDrum();
+}
+document.getElementById('langBtn').addEventListener('click', () => {
+  lang = lang === 'he' ? 'en' : 'he';
+  save('cs-language', lang);
+  applyLang();
+  onScroll();
+});
+
+/* Mobile menu */
+const menuBtn = document.getElementById('menuBtn');
+const mobileMenu = document.getElementById('mobileMenu');
+menuBtn.addEventListener('click', () => {
+  const open = mobileMenu.classList.toggle('open');
+  menuBtn.setAttribute('aria-expanded', open);
+});
+mobileMenu.addEventListener('click', e => { if (e.target.tagName === 'A') { mobileMenu.classList.remove('open'); menuBtn.setAttribute('aria-expanded', 'false'); } });
+
+/* ===================== Scroll-driven 3D ===================== */
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const nav = document.getElementById('nav');
+const hero = document.getElementById('hero');
+const reveals = [...document.querySelectorAll('[data-reveal]')];
+const roles = document.getElementById('roles');
+const panels = [...document.querySelectorAll('.panel')];
+const roleBtns = [...document.querySelectorAll('#roleDots button')];
+const how = document.getElementById('how');
+const steps = [...document.querySelectorAll('.step')];
+const phoneStage = document.getElementById('phoneStage');
+const phoneScreen = document.getElementById('phoneScreen');
+
+// progress of a pinned (sticky) section: 0 when it reaches the top, 1 when it is about to leave
+function pinnedProgress(el) {
+  const r = el.getBoundingClientRect();
+  return clamp(-r.top / Math.max(1, r.height - innerHeight));
+}
+
+let drumRadius = 300;
+function layoutDrum() {
+  const w = panels[0] ? panels[0].offsetWidth : 500;
+  drumRadius = Math.max(w * 0.62, 220);
+}
+
+function onScroll() {
+  ticking = false;
+  const vh = innerHeight;
+  nav.classList.toggle('solid', scrollY > 20);
+  if (reduceMotion) return;
+
+  // hero: the device tilts up and the orbs drift by depth
+  let heroP;
+  if (innerWidth >= 1000) heroP = pinnedProgress(hero);
+  else { const r = document.querySelector('.scene').getBoundingClientRect(); heroP = clamp((vh - r.top) / (vh * 0.9) - 0.35); }
+  hero.style.setProperty('--hp', heroP.toFixed(4));
+
+  // feature cards flip up as they enter (small stagger by column)
+  reveals.forEach((el, i) => {
+    const r = el.getBoundingClientRect();
+    const e = clamp((vh - r.top - (i % 3) * 40) / (vh * 0.45));
+    el.style.setProperty('--e', e.toFixed(4));
+  });
+
+  // roles drum turns 0° → 240° while the section is pinned
+  const rp = pinnedProgress(roles);
+  const seg = Math.min(rp * 2, 1.9999), k = Math.floor(seg), f = clamp((seg - k - 0.25) / 0.5);
+  const turn = (k + f * f * (3 - 2 * f) + (rp === 1 ? 0.0001 : 0)) * 120;
+  const dir = document.documentElement.dir === 'rtl' ? -1 : 1;
+  panels.forEach((p, i) => {
+    const a = i * 120 - turn;                      // this panel's angle from the front
+    const rad = a * Math.PI / 180;
+    p.style.transform = `translateZ(${-drumRadius}px) rotateY(${a * dir}deg) translateZ(${drumRadius}px)`;
+    p.style.opacity = clamp(0.15 + Math.cos(rad) * 0.85, 0.08, 1).toFixed(3);
+    p.style.zIndex = Math.round(Math.cos(rad) * 10) + 10;
+  });
+  const active = Math.round(rp * 2);
+  roleBtns.forEach((b, i) => b.classList.toggle('on', i === active));
+
+  // how-it-works deck fans out
+  const hp = pinnedProgress(how);
+  const fan = clamp(hp * 1.6);
+  const wide = innerWidth >= 900;
+  steps.forEach((s, i) => {
+    const o = i - 1;                                  // -1, 0, 1
+    const x = wide ? o * fan * 360 * (dir === -1 ? -1 : 1) : 0;
+    const y = wide ? 0 : o * fan * 120;
+    const rotY = wide ? o * fan * -14 * (dir === -1 ? -1 : 1) : 0;
+    const rotZ = (1 - fan) * o * 7;
+    const z = -Math.abs(o) * fan * 40 - (1 - fan) * (2 - i) * 18;
+    s.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateY(${rotY}deg) rotateZ(${rotZ}deg)`;
+    s.style.zIndex = wide ? 3 - Math.abs(o) : i + 1;
+  });
+
+  // phone turns while it crosses the screen; its screen switches to dark mode halfway
+  const pr = phoneStage.getBoundingClientRect();
+  const pp = clamp((vh - pr.top) / (vh + pr.height));
+  phoneStage.style.setProperty('--pp', pp.toFixed(4));
+  phoneScreen.classList.toggle('dark', pp > 0.55);
+}
+let ticking = false;
+addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
+addEventListener('resize', () => { layoutDrum(); onScroll(); });
+
+// role buttons jump to that part of the pinned section
+roleBtns.forEach((b, i) => b.addEventListener('click', () => {
+  if (reduceMotion) return;
+  const top = roles.offsetTop + (roles.offsetHeight - innerHeight) * (i / 2);
+  scrollTo({ top, behavior: 'smooth' });
+}));
+
+// subtle mouse tilt for the hero device and the CTA card
+const ctaCard = document.getElementById('ctaCard');
+if (!reduceMotion && matchMedia('(hover: hover)').matches) {
+  hero.addEventListener('pointermove', e => {
+    const r = hero.getBoundingClientRect();
+    hero.style.setProperty('--mx', ((e.clientX - r.left) / r.width - 0.5).toFixed(3));
+    hero.style.setProperty('--my', ((e.clientY - r.top) / r.height - 0.5).toFixed(3));
+  });
+  hero.addEventListener('pointerleave', () => { hero.style.setProperty('--mx', 0); hero.style.setProperty('--my', 0); });
+  ctaCard.addEventListener('pointermove', e => {
+    const r = ctaCard.getBoundingClientRect();
+    ctaCard.style.setProperty('--tx', (((e.clientX - r.left) / r.width - 0.5) * 8).toFixed(2));
+    ctaCard.style.setProperty('--ty', (((e.clientY - r.top) / r.height - 0.5) * -8).toFixed(2));
+  });
+  ctaCard.addEventListener('pointerleave', () => { ctaCard.style.setProperty('--tx', 0); ctaCard.style.setProperty('--ty', 0); });
+}
+
+// Without motion, the drum and the deck become simple grids
+if (reduceMotion) {
+  roles.classList.add('static-drum');
+  how.classList.add('static-deck');
+  document.querySelector('.scroll-hint').hidden = true;
+  document.getElementById('roleDots').hidden = true;
+}
+
+applyLang();
+onScroll();
+</script>
+</body>
+</html>

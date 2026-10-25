@@ -2,13 +2,13 @@
 
 A school learning platform for students, teachers and principals, built as standalone HTML pages (HTML, CSS and JavaScript in each file — no build step, no dependencies).
 
-Open `index.html` (the public landing page) in a browser to start.
+Open `index.html` in a browser to start – it takes you to sign in (or to your dashboard if you are already signed in).
 
 ## Pages
 
 | Page | File | Who |
 |---|---|---|
-| Landing page (3D scrolling, leads to sign in / sign up) | `index.html` | Public |
+| Entry point – redirects to sign in or dashboard | `index.html` | Public |
 | Sign in | `login.html` | Everyone |
 | Register (student / teacher / principal) | `register.html` | Everyone |
 | Home (dashboard) | `home.html` | Everyone (principals get the approvals dashboard) |
@@ -36,14 +36,18 @@ Password for all: `demo1234`
 - Hebrew / English / Arabic with right-to-left layout, light and dark themes, three font sizes
 - Teachers who register must be approved by a principal (the principal is notified)
 - Principals edit the weekly timetable for the whole school year; teachers and students are notified of changes
-- Teachers grade submissions and view student files; grade weights (per class) always total 100%
+- Teachers grade submissions and view student files; grade weights (per class) can be typed freely and are scaled to exactly 100% on save
 - Grades: **Exams** = average of exam grades the teacher enters, **Assignments** = average of graded submissions, **Participation** = a grade the teacher sets, shown next to each student's Mashov tally (e.g. 14 on time, 5 late, 1 absent)
 - Students see the Mashov status of each lesson (on time / late / absent / equipment / disruption / commendation) on their schedule and Grades page – but not a participation grade – and get notified of new marks and grades
 - Mashov: teachers click a lesson in the schedule to mark each student – absence, tardiness, disruption, commendation, missing equipment, present – saved per lesson date
 - Students see all their tasks in one place – what is still due, what is awaiting a grade, and completed work with the teacher's grade and feedback
 - Students hand in work, build and share personal learning paths in the library
 - Works on phones, tablets and desktops
-- Collapsible sections (Settings): large sections fold behind a clickable header – on by default, or switch to “show everything”
+- Collapsible sections (Settings): automatic by default – drop-downs on phones, everything open on computers – or always collapsible / always open
+
+## Landing page (switched off)
+
+A marketing landing page with 3D scrolling is kept in `_drafts/landing.html`. GitHub Pages does not publish folders that start with `_`, so it is not online. To switch it back on, copy `_drafts/landing.html` over `index.html`.
 
 ## Note
 

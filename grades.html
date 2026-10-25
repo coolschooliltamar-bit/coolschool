@@ -825,7 +825,8 @@ const state = {
   role: CURRENT_USER ? CURRENT_USER.role : 'student',
   classId: load('cs-class', 'bio11a'),
   fontSize: load('cs-font-size', 'medium'),
-  collapsible: load('cs-collapsible', true),   // big sections fold away behind a header (default on)
+  // 'auto' (default): drop-down sections on phones, everything open on computers; or 'on' / 'off'
+  collapseMode: ['auto', 'on', 'off'].includes(load('cs-collapse-mode', 'auto')) ? load('cs-collapse-mode', 'auto') : 'auto',
   notifs: load('cs-notifs', null),
 };
 if (!['he', 'en', 'ar'].includes(state.language)) state.language = 'he';
@@ -915,7 +916,7 @@ function setState(patch) {
   save('cs-role', state.role);
   save('cs-class', state.classId);
   save('cs-font-size', state.fontSize);
-  save('cs-collapsible', state.collapsible);
+  save('cs-collapse-mode', state.collapseMode);
   save('cs-notifs', state.notifs);
   renderAll();
 }
@@ -1432,6 +1433,15 @@ function renderAll() {
    clickable header when the "collapsible sections" setting is on. The first child is the
    header; everything after it folds away. Each section remembers being opened or closed. */
 const COLLAPSE_KEY = 'cs-collapsed';
+const PHONE_QUERY = window.matchMedia ? window.matchMedia('(max-width: 767px)') : null;
+function isPhoneScreen() { return !!(PHONE_QUERY && PHONE_QUERY.matches); }
+function collapsibleActive() {
+  return state.collapseMode === 'on' || (state.collapseMode === 'auto' && isPhoneScreen());
+}
+// In automatic mode, turning a tablet or resizing the window switches the layout
+if (PHONE_QUERY && PHONE_QUERY.addEventListener) {
+  PHONE_QUERY.addEventListener('change', () => { if (!window.AUTH_PAGE && state.collapseMode === 'auto' && CURRENT_USER) renderAll(); });
+}
 const initialHash = decodeURIComponent(location.hash.slice(1));
 let hashOpened = false;
 
@@ -1446,7 +1456,7 @@ function rememberSection(key, open) {
 }
 
 function enhanceCollapsibles() {
-  if (!state.collapsible) return;
+  if (!collapsibleActive()) return;
   document.querySelectorAll('#main [data-collapse]').forEach(sec => {
     if (sec.dataset.enhanced || sec.children.length < 2) return;
     sec.dataset.enhanced = '1';
@@ -1539,8 +1549,8 @@ function scoreText(v) { return typeof v === 'number' ? v : '—'; }
 function scoreColor(v, fallback) { return typeof v === 'number' ? (fallback || gradeColor(v)) : 'var(--muted)'; }
 
 /* ================= Teacher ================= */
-/* Weights are whole percents that always add up to exactly 100, saved per class.
-   Moving one component re-balances the other two proportionally. */
+/* Weights are whole percents per class. While typing, each one moves on its own and the
+   total may be above or below 100; on Save they are scaled proportionally to exactly 100. */
 const WEIGHT_KEYS = COMPONENTS.map(c => c.key);
 
 function normalizePct(p) {
@@ -1556,24 +1566,12 @@ function pctTotal() { return WEIGHT_KEYS.reduce((sum, k) => sum + gb.pct[k], 0);
 
 function setPct(key, value) {
   const v = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
-  const others = WEIGHT_KEYS.filter(k => k !== key);
-  const rest = 100 - v;
-  const current = others.reduce((sum, k) => sum + gb.pct[k], 0);
-  if (current === 0) {
-    gb.pct[others[0]] = Math.ceil(rest / 2);
-    gb.pct[others[1]] = Math.floor(rest / 2);
-  } else {
-    gb.pct[others[0]] = Math.round(gb.pct[others[0]] / current * rest);
-    gb.pct[others[1]] = rest - gb.pct[others[0]];
-  }
   gb.pct[key] = v;
-  WEIGHT_KEYS.forEach(k => {
-    const range = document.getElementById('wr-' + k);
-    const num = document.getElementById('wv-' + k);
-    range.value = gb.pct[k];
-    range.style.setProperty('--v', gb.pct[k] + '%');
-    num.value = gb.pct[k];
-  });
+  const range = document.getElementById('wr-' + key);
+  const num = document.getElementById('wv-' + key);
+  range.value = v;
+  range.style.setProperty('--v', v + '%');
+  if (document.activeElement !== num) num.value = v;
   updateTeacherNumbers();
 }
 
@@ -1585,7 +1583,7 @@ function weightSlider(c) {
       <span class="sm w7">${c.icon} ${L(c.he, c.en)}</span>
       <span class="flex items-center gap-1 mono w7 sm" style="color:${c.color}">
         <input id="wv-${c.key}" type="number" min="0" max="100" step="1" value="${v}" class="pct-input mono" style="color:${c.color}"
-          aria-label="${L(c.he, c.en)} %" onchange="setPct('${c.key}', this.value)" onkeydown="if(event.key==='Enter')this.blur()">%
+          aria-label="${L(c.he, c.en)} %" oninput="setPct('${c.key}', this.value)" onchange="this.value = gb.pct['${c.key}']" onkeydown="if(event.key==='Enter')this.blur()">%
       </span>
     </div>
     <input id="wr-${c.key}" type="range" min="0" max="100" step="1" value="${v}" class="range" style="--c:${c.color};--v:${v}%"
@@ -1595,16 +1593,18 @@ function weightSlider(c) {
 
 function balanceChip() {
   const total = pctTotal();
-  return total === 100
-    ? `<span class="chip" style="background:#10B98120;color:#10B981">${ICONS.check} ${L('סה״כ 100%', 'Total 100%')}</span>`
-    : `<span class="chip" style="background:#F43F5E20;color:#F43F5E">⚠️ ${total}%</span>`;
+  if (total === 100) return `<span class="chip" style="background:#10B98120;color:#10B981">${ICONS.check} ${L('סה״כ 100%', 'Total 100%')}</span>`;
+  if (total === 0) return `<span class="chip" style="background:#F43F5E20;color:#F43F5E">⚠️ ${L('סה״כ 0%', 'Total 0%')}</span>`;
+  return `<span class="chip" style="background:#F59E0B20;color:#B45309" title="${L('בשמירה המשקלים יותאמו באופן יחסי ל־100%', 'On save the weights are scaled proportionally to 100%')}">
+    ${L(`סה״כ ${total}% · יותאם ל־100% בשמירה`, `Total ${total}% · scaled to 100% on save`)}</span>`;
 }
 
 // Live preview of final grades while the sliders move (before saving)
 function updateTeacherNumbers() {
   document.getElementById('balance').innerHTML = balanceChip();
   COMPONENTS.forEach(c => {
-    document.getElementById('seg-' + c.key).style.width = gb.pct[c.key] + '%';
+    const total = pctTotal() || 1;   // the bar always shows each part's share of the whole
+    document.getElementById('seg-' + c.key).style.width = (gb.pct[c.key] / total * 100) + '%';
     document.querySelectorAll('.th-' + c.key).forEach(el => { el.textContent = gb.pct[c.key]; });
   });
   (gb.rowParts || []).forEach((parts, i) => {
@@ -1616,13 +1616,19 @@ function updateTeacherNumbers() {
 }
 
 function saveWeights() {
-  if (pctTotal() !== 100) {
-    toast(L('סכום המשקלים חייב להיות 100%', 'Weights must add up to 100%'));
+  const total = pctTotal();
+  if (total === 0) {
+    toast(L('יש לתת משקל לפחות לרכיב אחד', 'Give at least one category a weight'));
     return;
   }
+  const scaled = total !== 100;
+  gb.pct = normalizePct(gb.pct);      // proportional, whole numbers, exactly 100
   saveClassWeights(state.classId, gb.pct);
   renderPage();
-  toast(L('המשקלים נשמרו – הציונים הסופיים עודכנו', 'Weights saved – final grades updated'));
+  toast(scaled
+    ? L(`המשקלים הותאמו ל־100% ונשמרו: מבחנים ${gb.pct.exam}% · השתתפות ${gb.pct.participation}% · מטלות ${gb.pct.assignments}%`,
+        `Weights scaled to 100% and saved: exams ${gb.pct.exam}% · participation ${gb.pct.participation}% · assignments ${gb.pct.assignments}%`)
+    : L('המשקלים נשמרו – הציונים הסופיים עודכנו', 'Weights saved – final grades updated'));
 }
 
 /* ---------- Participation grade: decided by the teacher ---------- */
@@ -2148,7 +2154,7 @@ function teacherView() {
     </div>
     <div class="grid g-1 md-3" style="gap:1.5rem">${COMPONENTS.map(weightSlider).join('')}</div>
     <div class="weight-bar mt-5">
-      ${COMPONENTS.map(c => `<span id="seg-${c.key}" style="width:${gb.pct[c.key]}%;background:${c.color}"></span>`).join('')}
+      ${COMPONENTS.map(c => `<span id="seg-${c.key}" style="width:${gb.pct[c.key] / (pctTotal() || 1) * 100}%;background:${c.color}"></span>`).join('')}
     </div>
     <div class="flex gap-4 mt-2 wrap">
       ${COMPONENTS.map(c => `
