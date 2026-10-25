@@ -40,10 +40,12 @@ Password for all: `demo1234`
 - Grades: **Exams** = average of exam grades the teacher enters, **Assignments** = average of graded submissions, **Participation** = a grade the teacher sets, shown next to each student's Mashov tally (e.g. 14 on time, 5 late, 1 absent)
 - Students see the Mashov status of each lesson (on time / late / absent / equipment / disruption / commendation) on their schedule and Grades page – but not a participation grade – and get notified of new marks and grades
 - Mashov: teachers click a lesson in the schedule to mark each student – absence, tardiness, disruption, commendation, missing equipment, present – saved per lesson date
+- Schedule week picker: This week / Last week / 2 weeks ago (and arrows for any week of the school year) – each lesson block shows that week's date and that lesson's Mashov
+- Justification requests: a student clicks a Late or Absent mark to explain why (reason, explanation, optional document such as a doctor's note). The teacher is notified and sees an alert at the top of Home; they open the request (lesson details + explanation) and approve or decline it with a reply. Approved lessons count as justified, and the student is told the outcome
 - Students see all their tasks in one place – what is still due, what is awaiting a grade, and completed work with the teacher's grade and feedback
 - Students hand in work, build and share personal learning paths in the library
 - Works on phones, tablets and desktops
-- Collapsible sections (Settings): automatic by default – drop-downs on phones, everything open on computers – or always collapsible / always open
+- Collapsible sections (Settings): automatic by default – drop-downs on phones (always starting closed), everything open on computers – or always collapsible / always open
 
 ## Landing page (switched off)
 

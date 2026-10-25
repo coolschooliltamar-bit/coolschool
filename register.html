@@ -362,6 +362,48 @@ html[dir='rtl'] .collapsible.collapsed .collapse-btn svg { transform: rotate(90d
 .collapsible.collapsed > .collapse-head { margin-bottom: 0 !important; border-bottom-color: transparent !important; }
 @media (prefers-reduced-motion: reduce) { .collapse-body, .collapse-btn svg { transition: none; } }
 
+/* ============ Justification requests ============ */
+.mchip.jchip { cursor: pointer; border: 1.5px dashed color-mix(in srgb, var(--c) 55%, transparent); transition: background .15s ease, transform .15s ease; }
+.mchip.jchip:hover, .mchip.jchip:focus-visible { background: color-mix(in srgb, var(--c) 24%, transparent); outline: none; transform: translateY(-1px); }
+.mchip .jplus { opacity: .75; font-weight: 800; }
+.jtag { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0 0.375rem; border-radius: 9999px; font-size: 0.6875rem; font-weight: 800; white-space: nowrap;
+  color: #B45309; background: #F59E0B26; }
+.mchip .jtag { margin-inline-start: 0.125rem; }
+.jtag.approved { color: #047857; background: #10B98126; }
+.jtag.rejected { color: #BE123C; background: #F43F5E22; }
+.dark .jtag { color: #FCD34D; } .dark .jtag.approved { color: #6EE7B7; } .dark .jtag.rejected { color: #FDA4AF; }
+
+.jmodal-bg { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(0,0,0,.5); }
+.jmodal { width: 100%; max-width: 32rem; max-height: calc(100dvh - 2rem); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 1.5625rem 3.125rem -0.75rem rgba(0,0,0,.3); }
+.jmodal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; padding: 1.25rem 1.25rem 0.75rem; }
+.jmodal-body { display: flex; flex-direction: column; gap: 1rem; padding: 0.25rem 1.25rem 1rem; overflow-y: auto; }
+.jmodal-foot { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; padding: 0.875rem 1.25rem; border-top: 1px solid var(--border); }
+.jmodal textarea.input { font: inherit; resize: vertical; }
+body.jmodal-open { overflow: hidden; }
+.jlesson { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 0.875rem; border-radius: 1rem;
+  background: color-mix(in srgb, var(--c) 8%, transparent); border: 1.5px solid color-mix(in srgb, var(--c) 30%, transparent); }
+.jreasons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.jreason { padding: 0.4375rem 0.75rem; border-radius: 0.75rem; font-size: 0.8125rem; font-weight: 600; background: var(--surface); border: 1.5px solid transparent; cursor: pointer; color: var(--text); }
+.jreason:hover { border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+.jreason.on { background: color-mix(in srgb, var(--primary) 14%, transparent); border-color: var(--primary); color: var(--primary); }
+.jbox { padding: 0.75rem 0.875rem; border-radius: 0.875rem; background: var(--surface); }
+.jbox.reply { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.jtext { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+.jfile { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8125rem; font-weight: 700; color: var(--primary); overflow-wrap: anywhere; }
+.jerror { font-size: 0.8125rem; font-weight: 600; color: #F43F5E; }
+@media (max-width: 520px) {
+  .jmodal-bg { padding: 0; align-items: flex-end; }
+  .jmodal { max-width: none; max-height: 92dvh; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .jmodal-foot .btn { flex: 1; justify-content: center; }
+  .jmodal-foot .link-btn { flex-basis: 100%; text-align: center; }
+}
+
+/* Teacher alert: justification requests waiting */
+.jalert { border: 1.5px solid #0EA5E955; background: linear-gradient(135deg, #0EA5E914, transparent 70%), var(--card); }
+.jalert-row { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.625rem 0.75rem; border-radius: 0.875rem; text-align: start; background: var(--surface); cursor: pointer; border: 1.5px solid transparent; color: var(--text); }
+.jalert-row:hover, .jalert-row:focus-visible { border-color: #0EA5E9; outline: none; }
+.block { display: block; }
+
 /* ===================== Sign-in pages ===================== */
 /* ============ Sign-in / sign-up layout ============ */
 .auth { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
@@ -826,6 +868,20 @@ function inboxNotifs() {
       return { ...base, type: 'grade', link: 'tasks.html',
         text: L(`${name} בדק/ה את "${x.title || ''}" · ציון ${x.grade}`, `${name} graded "${x.title || ''}" · ${x.grade}`) };
     }
+    if (m.kind === 'justification' || m.kind === 'justification-result') {
+      const x = m.extra || {};
+      const cls = classes.find(c => c.id === x.classId);
+      const what = `${mashovLabel(x.kind)} · ${cls ? localize(cls.name) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`;
+      const link = 'home.html#justify=' + x.id;
+      if (m.kind === 'justification') {
+        return { ...base, type: 'justify', link, jid: x.id,
+          text: L(`${name} הגיש/ה בקשת הצדקה: ${what}`, `${name} sent a justification request: ${what}`) };
+      }
+      return { ...base, type: x.status === 'approved' ? 'justify-ok' : 'justify-no', link, jid: x.id,
+        text: x.status === 'approved'
+          ? L(`${name} אישר/ה את בקשת ההצדקה שלך: ${what}`, `${name} approved your justification request: ${what}`)
+          : L(`${name} דחה/תה את בקשת ההצדקה שלך: ${what}`, `${name} declined your justification request: ${what}`) };
+    }
     if (m.kind === 'teacher-approved') {
       return { ...base, type: 'approved', text: L('המנהל/ת אישר/ה את החשבון שלך. ברוכים הבאים!', 'The principal approved your account. Welcome!') };
     }
@@ -926,7 +982,7 @@ const NAV = [
 
 /* ================= Header ================= */
 function notifIcon(type) {
-  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅' }[type] || '📌';
+  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
 }
 
 function renderHeader() {
@@ -991,7 +1047,7 @@ function renderHeader() {
             <div class="notif ${n.read ? '' : 'unread'}">
               <span class="base">${notifIcon(n.type)}</span>
               <div class="flex-1 min-w-0">
-                ${n.link ? `<a href="${n.link}" class="sm w5 leading-tight primary" style="display:block">${esc(n.text)}</a>` : `<p class="sm w5 leading-tight">${n.inbox ? esc(n.text) : localize(n.text)}</p>`}
+                ${n.link ? `<a href="${n.link}" class="sm w5 leading-tight primary" style="display:block"${n.jid ? ` onclick="return followJustifyLink(event, '${n.jid}', '${n.link}')"` : ''}>${esc(n.text)}</a>` : `<p class="sm w5 leading-tight">${n.inbox ? esc(n.text) : localize(n.text)}</p>`}
                 <p class="xs muted mt-1">${n.inbox ? n.time : localize(n.time)}</p>
                 ${n.pendingUser ? `
                 <div class="flex gap-2 mt-2">
@@ -1260,9 +1316,10 @@ function attendanceRecords(classId, name) {
 }
 // How many times each Mashov entry was recorded – a tally for the teacher, not a grade
 function participationSummary(records) {
-  const count = key => records.filter(r => r.marks[key]).length;
+  const count = key => records.filter(r => r.marks[key] && !(r.marks.justified && (key === 'late' || key === 'absent'))).length;
   const onTime = records.filter(r => !r.marks.absent && !r.marks.late).length;
-  return { lessons: records.length, onTime, late: count('late'), absent: count('absent'), noEquip: count('noEquip'), disrupt: count('disrupt'), praise: count('praise') };
+  const justified = records.filter(r => r.marks.justified && (r.marks.absent || r.marks.late)).length;
+  return { lessons: records.length, onTime, late: count('late'), absent: count('absent'), justified, noEquip: count('noEquip'), disrupt: count('disrupt'), praise: count('praise') };
 }
 function participationGrade(classId, name) {
   const v = load(PARTICIPATION_KEY, {})[classId + '|' + name];
@@ -1275,19 +1332,31 @@ function setParticipationGrade(classId, name, value) {
 }
 
 /* Status of one lesson for a student, as small coloured chips (on time / late / absent / …) */
-function statusChips(m) {
+// `ref` = { key, name } ties the chips to a Mashov record, so a late/absent mark shows its
+// justification request and, for the student it belongs to, opens the request form.
+function statusChips(m, ref) {
   const keys = m.absent ? ['absent'] : [m.late ? 'late' : 'onTime'].concat(['noEquip', 'disrupt', 'praise'].filter(k => m[k]));
   return keys.map(k => {
     if (k === 'onTime') return `<span class="mchip" style="--c:#10B981">✅ ${L('בזמן', 'On time')}</span>`;
     const c = MASHOV_CATS.find(x => x.key === k);
-    return `<span class="mchip" style="--c:${c.color}">${c.icon} ${L(c.he, c.en)}</span>`;
+    const label = `${c.icon} ${L(c.he, c.en)}`;
+    if (!ref || (k !== 'late' && k !== 'absent')) return `<span class="mchip" style="--c:${c.color}">${label}</span>`;
+    const j = justificationFor(ref.key, ref.name);
+    const tag = j ? `<span class="jtag ${j.status}">${justifyStatusLabel(j.status, true)}</span>` : '';
+    if (state.role === 'student' && ref.name === currentUserName()) {
+      const hint = j ? L('צפייה בבקשת ההצדקה', 'View justification request') : L('לחצו כדי להגיש בקשת הצדקה', 'Click to request a justification');
+      const go = `event.stopPropagation();openJustify('${ref.key}')`;
+      return `<span class="mchip jchip" style="--c:${c.color}" role="button" tabindex="0" title="${hint}" aria-label="${label} – ${hint}"
+        onclick="${go}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${go}}">${label}${tag || ' <span class="jplus">✎</span>'}</span>`;
+    }
+    return `<span class="mchip" style="--c:${c.color}">${label}${tag}</span>`;
   }).join('');
 }
 // Tally chips for the teacher (e.g. ✅ 14 · ⏰ 5 …)
 function tallyChips(p) {
   const items = [
     ['#10B981', '✅', L('בזמן', 'On time'), p.onTime], ['#F59E0B', '⏰', L('איחורים', 'Late'), p.late],
-    ['#F43F5E', '🚫', L('חיסורים', 'Absent'), p.absent], ['#8B5CF6', '🎒', L('אי הבאת ציוד', 'Missing equipment'), p.noEquip],
+    ['#F43F5E', '🚫', L('חיסורים', 'Absent'), p.absent], ['#0EA5E9', '📨', L('מוצדקים', 'Justified'), p.justified || 0], ['#8B5CF6', '🎒', L('אי הבאת ציוד', 'Missing equipment'), p.noEquip],
     ['#F97316', '📢', L('הפרעות', 'Disruptions'), p.disrupt], ['#10B981', '🌟', L('לשבח', 'Commendations'), p.praise],
   ];
   return items.map(([color, icon, label, n]) => `<span class="mchip tally ${n ? '' : 'zero'}" style="--c:${color}" title="${label}">${icon} ${n} <span class="tally-label">${label}</span></span>`).join('');
@@ -1360,6 +1429,362 @@ function ensureGradeSeed() {
   save('cs-grades-seeded', true);
 }
 ensureGradeSeed();
+function ensureRecentSeed() {
+  if (load('cs-grades-seeded-v2', false)) return;
+  const store = mashovStore();
+  const profile = {
+    'Noa Ben-David': r => ({ late: r < 12, absent: r > 94, praise: r > 80 && r <= 94 }),
+    'Yosef Avraham': r => ({ noEquip: r < 20, absent: r > 95 }),
+    'Maya Goldstein': r => ({ praise: r < 30 }),
+    'Lior Cohen': r => ({ late: r < 35, absent: r > 92 }),
+    'Tamar Levy': r => ({ absent: r < 6, praise: r > 85 }),
+    'Eitan Mizrahi': r => ({ disrupt: r < 25, noEquip: r >= 25 && r < 35 }),
+  };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const end = new Date(schoolYear().end + 'T00:00:00');
+  const last = today < end ? today : end;
+  for (let monday = new Date(2026, 8, 7); monday <= last; monday.setDate(monday.getDate() + 7)) {
+    DEFAULT_TIMETABLE.forEach(slot => {
+      const day = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + slot.day);
+      if (day >= last) return;                     // only lessons that already happened
+      const date = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+      const key = slot.id + '|' + date;
+      if (store[key]) return;
+      const rows = {};
+      STUDENT_ROSTER.forEach(name => {
+        const marks = profile[name](seedHash(name + key) % 100);
+        rows[name] = marks.absent ? { absent: true } : { ...marks, present: true };
+      });
+      const cls = classes.find(c => c.id === slot.classId);
+      store[key] = { classId: slot.classId, date, savedAt: date + 'T09:00:00', by: cls ? cls.teacher : '', rows, seeded: true };
+    });
+  }
+  // make sure the sample student has something recent to justify: a late and an absence last week
+  const lastWeek = new Date(today); lastWeek.setDate(lastWeek.getDate() - 7 - (today.getDay() + 6) % 7);
+  [['t7', 2, { late: true, present: true }], ['t2', 0, { absent: true }]].forEach(([id, day, marks]) => {
+    const d = new Date(lastWeek); d.setDate(d.getDate() + day);
+    const key = id + '|' + `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (store[key] && store[key].seeded) store[key].rows['Noa Ben-David'] = marks;
+  });
+  save(MASHOV_KEY, store);
+  save('cs-grades-seeded-v2', true);
+}
+ensureRecentSeed();
+
+/* ================= Justification requests =================
+   A student who was marked late or absent can explain why. The request goes to the
+   class's teachers, who approve or decline it; an approved request marks the lesson
+   as justified in Mashov and the student is told the outcome. */
+const JUSTIFY_KEY = 'cs-justifications';
+const JUSTIFY_REASONS = [
+  { key: 'medical', he: 'מחלה / ביקור רופא', en: 'Illness / doctor visit', icon: '🩺' },
+  { key: 'family', he: 'סיבה משפחתית', en: 'Family matter', icon: '👪' },
+  { key: 'transport', he: 'עיכוב בתחבורה', en: 'Transport delay', icon: '🚌' },
+  { key: 'school', he: 'פעילות בית ספרית', en: 'School activity', icon: '🏫' },
+  { key: 'other', he: 'אחר', en: 'Other', icon: '📝' },
+];
+const JUSTIFY_FILE_MAX = 1024 * 1024;
+const justify = { mode: null, key: null, id: null, draft: null, error: '' };
+
+function loadJustifications() { return load(JUSTIFY_KEY, []); }
+function saveJustifications(list) { save(JUSTIFY_KEY, list); }
+function justificationFor(key, name) {
+  return loadJustifications().find(j => j.key === key && j.studentName === name) || null;
+}
+function justifyReason(key) { return JUSTIFY_REASONS.find(r => r.key === key) || JUSTIFY_REASONS[JUSTIFY_REASONS.length - 1]; }
+function justifyStatusLabel(status, short) {
+  if (status === 'approved') return short ? '✓ ' + L('הוצדק', 'Justified') : '✅ ' + L('אושרה', 'Approved');
+  if (status === 'rejected') return short ? '✗ ' + L('נדחתה', 'Declined') : '❌ ' + L('נדחתה', 'Declined');
+  return '⏳ ' + L('ממתינה', 'Pending');
+}
+function justifyKindFor(marks) { return marks.absent ? 'absent' : 'late'; }
+// Requests waiting for the signed-in teacher (classes they teach)
+function pendingJustificationsForMe() {
+  if (state.role !== 'teacher') return [];
+  const mine = teacherClasses().map(c => c.id);
+  return loadJustifications().filter(j => j.status === 'pending' && mine.includes(j.classId))
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+function justifySlot(key) {
+  const id = key.split('|')[0];
+  return timetable.find(s => s.id === id) || DEFAULT_TIMETABLE.find(s => s.id === id) || null;
+}
+function lessonWhen(slot, date) {
+  const when = fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return slot ? `${when} · ${timeRange(slot.startHour, slot.startHour + slot.duration)}${slot.room ? ' · ' + esc(localize(slot.room)) : ''}` : when;
+}
+
+/* ----- Student: open the form (or the request already sent) ----- */
+function openJustify(key) {
+  if (!CURRENT_USER || state.role !== 'student') return;
+  const rec = mashovStore()[key];
+  const marks = rec && rec.rows && rec.rows[currentUserName()];
+  if (!marks || !(marks.absent || marks.late)) return;
+  const existing = justificationFor(key, currentUserName());
+  justify.key = key;
+  justify.id = existing ? existing.id : null;
+  justify.mode = existing ? 'view' : 'form';
+  justify.draft = { reason: '', text: '', file: null };
+  justify.error = '';
+  justify.fresh = true;
+  renderJustify();
+}
+function editJustify() {
+  const j = loadJustifications().find(x => x.id === justify.id);
+  justify.mode = 'form';
+  justify.draft = { reason: j ? j.reason : '', text: j ? j.text : '', file: j ? j.file : null };
+  justify.error = '';
+  renderJustify();
+}
+function justifyField(field, value) {
+  justify.draft[field] = value;
+  if (field === 'reason') { justify.error = ''; renderJustify(); }
+}
+async function justifyFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (file.size > JUSTIFY_FILE_MAX) {
+    justify.error = L('הקובץ גדול מדי (עד 1MB).', 'That file is too big (1 MB max).');
+    renderJustify();
+    return;
+  }
+  justify.draft.file = { name: file.name, type: file.type, size: file.size, data: await readAsDataUrl(file) };
+  justify.error = '';
+  renderJustify();
+}
+function submitJustify() {
+  const d = justify.draft;
+  const textEl = document.getElementById('justify-text');
+  if (textEl) d.text = textEl.value;
+  if (!d.reason) justify.error = L('נא לבחור סיבה.', 'Please choose a reason.');
+  else if (d.text.trim().length < 5) justify.error = L('נא לכתוב הסבר קצר (לפחות 5 תווים).', 'Please write a short explanation (at least 5 characters).');
+  else justify.error = '';
+  if (justify.error) { renderJustify(); return; }
+
+  const rec = mashovStore()[justify.key];
+  const marks = rec.rows[currentUserName()];
+  const list = loadJustifications().filter(j => !(j.key === justify.key && j.studentName === currentUserName()));
+  const j = {
+    id: 'j-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), key: justify.key, slotId: justify.key.split('|')[0],
+    date: rec.date, classId: rec.classId, kind: justifyKindFor(marks), studentId: CURRENT_USER.id, studentName: currentUserName(),
+    reason: d.reason, text: d.text.trim(), file: d.file, status: 'pending', createdAt: new Date().toISOString(),
+  };
+  list.unshift(j);
+  try { saveJustifications(list); }
+  catch (e) {
+    justify.error = L('אין מספיק מקום לשמור את הקובץ. נסו קובץ קטן יותר.', 'Not enough room to save that file. Try a smaller one.');
+    renderJustify();
+    return;
+  }
+  loadUsers().filter(u => u.role === 'teacher' && u.status === 'active' && (u.classIds || []).includes(j.classId))
+    .forEach(u => sendInbox(u.id, 'justification', CURRENT_USER.id, { id: j.id, classId: j.classId, date: j.date, kind: j.kind }));
+  justify.id = j.id;
+  justify.mode = 'view';
+  renderJustify();
+  refreshAfterJustify();
+  toast(L('הבקשה נשלחה למורה', 'Request sent to your teacher'));
+}
+function withdrawJustify() {
+  if (!confirm(L('לבטל את בקשת ההצדקה?', 'Withdraw this justification request?'))) return;
+  saveJustifications(loadJustifications().filter(j => j.id !== justify.id));
+  saveInbox(loadInbox().filter(m => !(m.kind === 'justification' && m.extra && m.extra.id === justify.id)));
+  closeJustify();
+  refreshAfterJustify();
+}
+
+/* ----- Teacher: review a request ----- */
+function openJustifyReview(id) {
+  const j = loadJustifications().find(x => x.id === id);
+  if (!j) { toast(L('הבקשה כבר לא קיימת', 'That request no longer exists')); return; }
+  if (state.role === 'student') {
+    if (j.studentName !== currentUserName()) return;
+    justify.key = j.key; justify.id = j.id; justify.mode = 'view';
+  } else {
+    if (!teacherClasses().some(c => c.id === j.classId)) return;
+    justify.id = id; justify.key = j.key; justify.mode = 'review';
+  }
+  justify.error = '';
+  justify.fresh = true;
+  markJustifyRead(id);
+  renderJustify();
+}
+function decideJustify(approve) {
+  const list = loadJustifications();
+  const j = list.find(x => x.id === justify.id);
+  if (!j) return;
+  const replyEl = document.getElementById('justify-reply');
+  j.status = approve ? 'approved' : 'rejected';
+  j.reply = replyEl ? replyEl.value.trim() : '';
+  j.reviewedBy = currentUserName();
+  j.reviewedAt = new Date().toISOString();
+  saveJustifications(list);
+  // an approved request marks that lesson as justified in Mashov
+  const store = mashovStore();
+  const rec = store[j.key];
+  if (rec && rec.rows && rec.rows[j.studentName]) {
+    if (approve) rec.rows[j.studentName].justified = true; else delete rec.rows[j.studentName].justified;
+    save(MASHOV_KEY, store);
+  }
+  if (j.studentId) sendInbox(j.studentId, 'justification-result', CURRENT_USER.id, { id: j.id, classId: j.classId, date: j.date, kind: j.kind, status: j.status });
+  markJustifyRead(j.id);
+  closeJustify();
+  refreshAfterJustify();
+  toast(approve ? L('הבקשה אושרה', 'Request approved') : L('הבקשה נדחתה', 'Request declined'));
+}
+
+function markJustifyRead(id) {
+  const inbox = loadInbox();
+  let changed = false;
+  inbox.forEach(m => { if (m.to === (CURRENT_USER && CURRENT_USER.id) && m.extra && m.extra.id === id && !m.read) { m.read = true; changed = true; } });
+  if (changed) { saveInbox(inbox); renderHeaderOnly(); }
+}
+// A notification link to the page you are already on only changes the hash, so open it here
+function followJustifyLink(e, id, link) {
+  if (location.pathname.split('/').pop() === link.split('#')[0]) {
+    e.preventDefault();
+    ui.notifs = false;
+    renderHeaderOnly();
+    openJustifyReview(id);
+    return false;
+  }
+  return true;
+}
+function closeJustify() {
+  justify.mode = null;
+  renderJustify();
+  if (location.hash.startsWith('#justify=')) history.replaceState(null, '', location.pathname + location.search);
+}
+function refreshAfterJustify() {
+  if (typeof window.renderPage === 'function') {
+    const y = window.scrollY;
+    window.renderPage();
+    window.scrollTo(0, y);
+  }
+}
+
+/* ----- The dialog (lives outside #main, so any page can show it) ----- */
+function justifyDialogHtml() {
+  if (!justify.mode) return '';
+  const j = justify.id ? loadJustifications().find(x => x.id === justify.id) : null;
+  const rec = mashovStore()[justify.key];
+  const name = justify.mode === 'review' && j ? j.studentName : currentUserName();
+  const marks = rec && rec.rows ? rec.rows[name] || {} : {};
+  const slot = justifySlot(justify.key);
+  const cls = classes.find(c => c.id === (rec ? rec.classId : j && j.classId)) || classes[0];
+  const date = rec ? rec.date : j && j.date;
+  const kind = j ? j.kind : justifyKindFor(marks);
+  const fade = justify.fresh ? 'fade-up' : '';
+  justify.fresh = false;
+
+  const lessonCard = `
+    <div class="jlesson" style="--c:${cls.color}">
+      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${localize(cls.subject)[0]}</div>
+      <div class="min-w-0">
+        <div class="w7">${localize(cls.name)}</div>
+        <div class="xs muted">${lessonWhen(slot, date)}</div>
+        <div class="xs muted">${classTeachers(cls.id).map(n => esc(localize(n))).join(', ')}${rec && rec.by ? ' · ' + L('משוב נרשם ע״י ', 'Mashov by ') + esc(localize(rec.by)) : ''}</div>
+        <div class="flex wrap gap-1 mt-2">${statusChips(marks)}</div>
+      </div>
+    </div>`;
+  const fileLink = f => f ? `<a class="jfile" href="${f.data}" download="${esc(f.name)}" target="_blank" rel="noopener">📎 ${esc(f.name)}</a>` : '';
+
+  let title, body, foot;
+  if (justify.mode === 'form') {
+    const d = justify.draft;
+    title = `📨 ${L('בקשת הצדקה', 'Justification request')} · ${mashovLabel(kind)}`;
+    body = `
+      ${lessonCard}
+      <div>
+        <span class="label">${L('מה הסיבה?', 'What was the reason?')}</span>
+        <div class="jreasons">
+          ${JUSTIFY_REASONS.map(r => `<button type="button" class="jreason ${d.reason === r.key ? 'on' : ''}" aria-pressed="${d.reason === r.key}" onclick="justifyField('reason','${r.key}')">${r.icon} ${L(r.he, r.en)}</button>`).join('')}
+        </div>
+      </div>
+      <div>
+        <label class="label" for="justify-text">${kind === 'absent' ? L('למה נעדרת מהשיעור?', 'Why did you miss the lesson?') : L('למה איחרת לשיעור?', 'Why were you late to the lesson?')}</label>
+        <textarea id="justify-text" class="input" dir="auto" rows="4" maxlength="600" oninput="justify.draft.text=this.value"
+          placeholder="${L('כתבו כאן הסבר קצר למורה…', 'Write a short explanation for your teacher…')}">${esc(d.text)}</textarea>
+      </div>
+      <div>
+        <span class="label">${L('אישור מצורף (לא חובה)', 'Supporting document (optional)')}</span>
+        <input type="file" id="justify-file" hidden accept="image/*,.pdf,.doc,.docx,.txt" onchange="justifyFile(this)">
+        <div class="flex items-center gap-2 wrap">
+          <button type="button" class="btn btn-soft btn-sm" onclick="document.getElementById('justify-file').click()">📎 ${d.file ? L('החלפת קובץ', 'Replace file') : L('צירוף קובץ', 'Attach a file')}</button>
+          ${d.file ? `<span class="xs w6 truncate">${esc(d.file.name)}</span><button type="button" class="link-btn xs" onclick="justify.draft.file=null;renderJustify()">${L('הסרה', 'Remove')}</button>` : `<span class="xs muted">${L('למשל אישור רפואי · עד 1MB', 'e.g. a doctor’s note · up to 1 MB')}</span>`}
+        </div>
+      </div>
+      ${justify.error ? `<p class="jerror" role="alert">${justify.error}</p>` : ''}`;
+    foot = `
+      <button class="btn surface" onclick="${j ? `justify.mode='view';renderJustify()` : 'closeJustify()'}">${L('ביטול', 'Cancel')}</button>
+      <button class="btn btn-primary" onclick="submitJustify()">📨 ${L('שליחה למורה', 'Send to teacher')}</button>`;
+  } else {
+    if (!j) { justify.mode = null; return ''; }
+    const reason = justifyReason(j.reason);
+    const review = justify.mode === 'review';
+    title = review
+      ? `📨 ${L('בקשת הצדקה מ', 'Justification request from ')}${esc(localize(j.studentName))}`
+      : `📨 ${L('בקשת ההצדקה שלך', 'Your justification request')}`;
+    body = `
+      ${review ? `<div class="flex items-center gap-2"><span class="letter-tile xs" style="width:2rem;height:2rem;border-radius:0.625rem;background:${cls.color}">${initials(j.studentName)}</span><span class="w7">${esc(localize(j.studentName))}</span><span class="jtag ${j.status}" style="margin-inline-start:auto">${justifyStatusLabel(j.status)}</span></div>` : ''}
+      ${lessonCard}
+      <div class="jbox">
+        <div class="flex items-center justify-between gap-2 wrap">
+          <span class="xs w7 muted">${L('הסיבה', 'Reason')}: ${reason.icon} ${L(reason.he, reason.en)}</span>
+          <span class="xs muted">${L('נשלחה', 'Sent')} ${fmtDate(j.createdAt, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+        <p class="sm mt-2 jtext" dir="auto">${esc(j.text)}</p>
+        ${j.file ? `<div class="mt-2">${fileLink(j.file)}</div>` : ''}
+      </div>
+      ${!review ? `<div class="flex items-center gap-2"><span class="xs w7 muted">${L('סטטוס', 'Status')}:</span><span class="jtag ${j.status}">${justifyStatusLabel(j.status)}</span></div>` : ''}
+      ${j.status !== 'pending' ? `
+      <div class="jbox reply">
+        <div class="xs w7 muted">💬 ${L('תשובת המורה', 'Teacher’s reply')}${j.reviewedBy ? ' · ' + esc(localize(j.reviewedBy)) : ''}${j.reviewedAt ? ' · ' + fmtDate(j.reviewedAt, { day: 'numeric', month: 'short' }) : ''}</div>
+        <p class="sm mt-1 jtext" dir="auto">${j.reply ? esc(j.reply) : `<span class="muted">${L('ללא הערה.', 'No comment.')}</span>`}</p>
+      </div>` : ''}
+      ${review ? `
+      <div>
+        <label class="label" for="justify-reply">${L('תשובה לתלמיד/ה (לא חובה)', 'Reply to the student (optional)')}</label>
+        <textarea id="justify-reply" class="input" dir="auto" rows="2" maxlength="400" placeholder="${L('למשל: תודה על העדכון, הרגש/י טוב!', 'e.g. Thanks for letting me know – feel better!')}">${esc(j.status !== 'pending' && j.reply ? j.reply : '')}</textarea>
+      </div>` : ''}`;
+    foot = review
+      ? `<button class="btn surface" onclick="closeJustify()">${L('סגירה', 'Close')}</button>
+         <button class="btn" style="background:#F43F5E1f;color:#F43F5E" onclick="decideJustify(false)">✗ ${L('דחייה', 'Decline')}</button>
+         <button class="btn" style="background:#10B981;color:#fff" onclick="decideJustify(true)">✓ ${L('אישור', 'Approve')}</button>`
+      : `${j.status === 'pending' ? `<button class="link-btn xs" style="color:#F43F5E;margin-inline-end:auto" onclick="withdrawJustify()">${L('ביטול הבקשה', 'Withdraw request')}</button>` : ''}
+         ${j.status !== 'approved' ? `<button class="btn btn-soft" onclick="editJustify()">${j.status === 'rejected' ? L('שליחה מחדש', 'Send again') : L('עריכה', 'Edit')}</button>` : ''}
+         <button class="btn btn-primary" onclick="closeJustify()">${L('סגירה', 'Close')}</button>`;
+  }
+  return `
+  <div class="jmodal-bg" onmousedown="if(event.target===this)closeJustify()">
+    <div class="card r-3xl jmodal ${fade}" role="dialog" aria-modal="true" aria-labelledby="justify-title">
+      <div class="jmodal-head">
+        <h2 id="justify-title" class="display w8 lg">${title}</h2>
+        <button class="icon-btn" style="width:2rem;height:2rem;flex-shrink:0" onclick="closeJustify()" aria-label="${L('סגירה', 'Close')}">${ICONS.close}</button>
+      </div>
+      <div class="jmodal-body">${body}</div>
+      <div class="jmodal-foot">${foot}</div>
+    </div>
+  </div>`;
+}
+function renderJustify() {
+  let host = document.getElementById('justify-slot');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'justify-slot';
+    document.body.appendChild(host);
+  }
+  const text = document.getElementById('justify-text');
+  if (text && justify.draft) justify.draft.text = text.value;
+  host.innerHTML = justifyDialogHtml();
+  document.body.classList.toggle('jmodal-open', !!justify.mode);
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && justify.mode) closeJustify(); });
+// Links such as home.html#justify=<id> (from a notification) open that request
+function openJustifyFromHash() {
+  const m = location.hash.match(/^#justify=([\w-]+)/);
+  if (m && CURRENT_USER) openJustifyReview(m[1]);
+}
+window.addEventListener('hashchange', openJustifyFromHash);
 
 /* ================= Render loop ================= */
 function renderHeaderOnly() {
@@ -1401,11 +1826,16 @@ if (PHONE_QUERY && PHONE_QUERY.addEventListener) {
 const initialHash = decodeURIComponent(location.hash.slice(1));
 let hashOpened = false;
 
+// On phones every section starts closed on each visit; what the user opens stays open
+// only while they are on the page. Bigger screens remember the choice.
+const phoneOpen = {};
 function sectionOpen(key, fallbackOpen) {
+  if (isPhoneScreen()) return !!phoneOpen[key];
   const saved = load(COLLAPSE_KEY, {});
   return key in saved ? saved[key] : fallbackOpen;
 }
 function rememberSection(key, open) {
+  if (isPhoneScreen()) { phoneOpen[key] = open; return; }
   const saved = load(COLLAPSE_KEY, {});
   saved[key] = open;
   save(COLLAPSE_KEY, saved);
@@ -1432,6 +1862,7 @@ function enhanceCollapsibles() {
     if (!hashOpened && initialHash && (sec.id === initialHash || sec.querySelector('#' + CSS.escape(initialHash)))) {
       open = true;
       hashOpened = true;
+      if (isPhoneScreen()) phoneOpen[key] = true;
       requestAnimationFrame(() => sec.scrollIntoView({ block: 'start' }));
     }
     sec.classList.add('collapsible');
@@ -1484,6 +1915,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 document.addEventListener('DOMContentLoaded', renderAll);
+document.addEventListener('DOMContentLoaded', () => { if (!window.AUTH_PAGE) openJustifyFromHash(); });
 </script>
 <script>
 /* ===================== Sign-in pages: shared pieces ===================== */
