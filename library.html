@@ -404,6 +404,26 @@ body.jmodal-open { overflow: hidden; }
 .jalert-row:hover, .jalert-row:focus-visible { border-color: #0EA5E9; outline: none; }
 .block { display: block; }
 
+/* Grade review requests */
+.greq-btn { flex-shrink: 0; font-size: 0.6875rem; font-weight: 700; color: var(--primary); padding: 0.1875rem 0.5rem; border-radius: 9999px;
+  border: 1.5px dashed color-mix(in srgb, var(--primary) 45%, transparent); background: transparent; cursor: pointer; white-space: nowrap; }
+.greq-btn:hover, .greq-btn:focus-visible { background: color-mix(in srgb, var(--primary) 10%, transparent); outline: none; }
+.greq-tag { border: 0; cursor: pointer; flex-shrink: 0; padding: 0.125rem 0.5rem; }
+.greq-grade { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; padding: 0.375rem 0.625rem; border-radius: 0.875rem;
+  background: color-mix(in srgb, var(--g) 14%, transparent); color: var(--g); line-height: 1.1; }
+.greq-grade .display { font-size: 1.375rem; }
+
+/* Home: student requests */
+.req-row { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.625rem 0.75rem; border-radius: 0.875rem; text-align: start;
+  background: var(--surface); cursor: pointer; border: 1.5px solid transparent; color: var(--text); }
+.req-row:hover, .req-row:focus-visible { border-color: var(--primary); outline: none; }
+.req-row.pending { border-inline-start: 0.25rem solid #0EA5E9; }
+.req-kind { flex-shrink: 0; font-size: 0.625rem; font-weight: 800; padding: 0.0625rem 0.4375rem; border-radius: 9999px; }
+.req-kind.grade { color: #7C3AED; background: #7C3AED1f; }
+.req-kind.justify { color: #0369A1; background: #0EA5E91f; }
+.dark .req-kind.justify { color: #7DD3FC; } .dark .req-kind.grade { color: #C4B5FD; }
+.count-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; height: 1.5rem; padding: 0 0.4375rem; margin-inline-start: 0.375rem; border-radius: 9999px; background: #F43F5E; color: #fff; font-size: 0.8125rem; font-weight: 800; vertical-align: middle; }
+
 /* ===================== Page styles ===================== */
 /* Search */
 .search-box { position: relative; }
@@ -845,6 +865,20 @@ function inboxNotifs() {
           ? L(`${name} אישר/ה את בקשת ההצדקה שלך: ${what}`, `${name} approved your justification request: ${what}`)
           : L(`${name} דחה/תה את בקשת ההצדקה שלך: ${what}`, `${name} declined your justification request: ${what}`) };
     }
+    if (m.kind === 'grade-request' || m.kind === 'grade-request-result') {
+      const x = m.extra || {};
+      const cls = classes.find(c => c.id === x.classId);
+      const what = `"${localize(x.title || '')}" · ${cls ? localize(cls.name) : ''}`;
+      const link = 'home.html#request=' + x.id;
+      if (m.kind === 'grade-request') {
+        return { ...base, type: 'grade-req', link, jid: x.id,
+          text: L(`${name} ביקש/ה בדיקה חוזרת של ציון: ${what} (${x.grade})`, `${name} asked for a grade review: ${what} (${x.grade})`) };
+      }
+      return { ...base, type: x.status === 'approved' ? 'justify-ok' : 'justify-no', link, jid: x.id,
+        text: x.status === 'approved'
+          ? L(`${name} עדכן/ה את הציון שלך ב${what}: ${x.oldGrade} ← ${x.newGrade}`, `${name} updated your grade for ${what}: ${x.oldGrade} → ${x.newGrade}`)
+          : L(`${name} השאיר/ה את הציון שלך ב${what} ללא שינוי`, `${name} kept your grade for ${what} unchanged`) };
+    }
     if (m.kind === 'teacher-approved') {
       return { ...base, type: 'approved', text: L('המנהל/ת אישר/ה את החשבון שלך. ברוכים הבאים!', 'The principal approved your account. Welcome!') };
     }
@@ -945,7 +979,7 @@ const NAV = [
 
 /* ================= Header ================= */
 function notifIcon(type) {
-  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
+  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'grade-req': '📝', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
 }
 
 function renderHeader() {
@@ -1477,6 +1511,17 @@ function lessonWhen(slot, date) {
   return slot ? `${when} · ${timeRange(slot.startHour, slot.startHour + slot.duration)}${slot.room ? ' · ' + esc(localize(slot.room)) : ''}` : when;
 }
 
+// Teacher accounts that receive requests for a class
+function requestRecipients(classId) {
+  return loadUsers().filter(u => u.role === 'teacher' && u.status === 'active' && (u.classIds || []).includes(classId));
+}
+function recipientNote(classId) {
+  const to = requestRecipients(classId);
+  if (to.length) return `<p class="xs muted">📬 ${L('הבקשה תישלח אל', 'This goes to')} ${to.map(u => esc(localize(fullName(u)))).join(', ')}</p>`;
+  const listed = classTeachers(classId).map(n => esc(localize(n))).join(', ');
+  return `<p class="xs" style="color:#B45309">⚠️ ${L(`ל${listed} עדיין אין חשבון ב־CoolSchool. הבקשה תישמר ותופיע אצל המורה כשיתחבר/תתחבר.`, `${listed} doesn't have a CoolSchool account yet. The request is saved and will appear when they join.`)}</p>`;
+}
+
 /* ----- Student: open the form (or the request already sent) ----- */
 function openJustify(key) {
   if (!CURRENT_USER || state.role !== 'student') return;
@@ -1539,7 +1584,7 @@ function submitJustify() {
     renderJustify();
     return;
   }
-  loadUsers().filter(u => u.role === 'teacher' && u.status === 'active' && (u.classIds || []).includes(j.classId))
+  requestRecipients(j.classId)
     .forEach(u => sendInbox(u.id, 'justification', CURRENT_USER.id, { id: j.id, classId: j.classId, date: j.date, kind: j.kind }));
   justify.id = j.id;
   justify.mode = 'view';
@@ -1607,7 +1652,7 @@ function followJustifyLink(e, id, link) {
     e.preventDefault();
     ui.notifs = false;
     renderHeaderOnly();
-    openJustifyReview(id);
+    openAnyRequest(id);
     return false;
   }
   return true;
@@ -1615,7 +1660,7 @@ function followJustifyLink(e, id, link) {
 function closeJustify() {
   justify.mode = null;
   renderJustify();
-  if (location.hash.startsWith('#justify=')) history.replaceState(null, '', location.pathname + location.search);
+  if (/^#(justify|request)=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search);
 }
 function refreshAfterJustify() {
   if (typeof window.renderPage === 'function') {
@@ -1676,6 +1721,7 @@ function justifyDialogHtml() {
           ${d.file ? `<span class="xs w6 truncate">${esc(d.file.name)}</span><button type="button" class="link-btn xs" onclick="justify.draft.file=null;renderJustify()">${L('הסרה', 'Remove')}</button>` : `<span class="xs muted">${L('למשל אישור רפואי · עד 1MB', 'e.g. a doctor’s note · up to 1 MB')}</span>`}
         </div>
       </div>
+      ${recipientNote(cls.id)}
       ${justify.error ? `<p class="jerror" role="alert">${justify.error}</p>` : ''}`;
     foot = `
       <button class="btn surface" onclick="${j ? `justify.mode='view';renderJustify()` : 'closeJustify()'}">${L('ביטול', 'Cancel')}</button>
@@ -1739,15 +1785,335 @@ function renderJustify() {
   const text = document.getElementById('justify-text');
   if (text && justify.draft) justify.draft.text = text.value;
   host.innerHTML = justifyDialogHtml();
-  document.body.classList.toggle('jmodal-open', !!justify.mode);
+  document.body.classList.toggle('jmodal-open', !!(justify.mode || greq.mode));
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && justify.mode) closeJustify(); });
 // Links such as home.html#justify=<id> (from a notification) open that request
 function openJustifyFromHash() {
-  const m = location.hash.match(/^#justify=([\w-]+)/);
-  if (m && CURRENT_USER) openJustifyReview(m[1]);
+  const m = location.hash.match(/^#(?:justify|request)=([\w-]+)/);
+  if (m && CURRENT_USER) openAnyRequest(m[1]);
+}
+function openAnyRequest(id) {
+  if (id.startsWith('g-')) openGradeRequestById(id); else openJustifyReview(id);
 }
 window.addEventListener('hashchange', openJustifyFromHash);
+
+/* ================= Grade review requests =================
+   A student who thinks an exam or assignment grade is wrong asks the teacher to check
+   it again. The teacher sees the request on Home (and gets a notification), can change
+   the grade right there, and the student is told the result. */
+const GRADE_REQ_KEY = 'cs-grade-requests';
+const GRADE_REQ_REASONS = [
+  { key: 'calc', he: 'טעות בחישוב / בסיכום הנקודות', en: 'Points added up wrong', icon: '🧮' },
+  { key: 'answer', he: 'תשובה נכונה סומנה כשגויה', en: 'A correct answer was marked wrong', icon: '✏️' },
+  { key: 'missing', he: 'חלק מהעבודה לא נבדק', en: 'Part of my work wasn’t checked', icon: '📄' },
+  { key: 'criteria', he: 'לא מסכים/ה עם אופן הבדיקה', en: 'I disagree with how it was marked', icon: '⚖️' },
+  { key: 'other', he: 'אחר', en: 'Other', icon: '📝' },
+];
+const greq = { mode: null, id: null, item: null, draft: null, error: '' };
+
+function loadGradeRequests() { return load(GRADE_REQ_KEY, []); }
+function saveGradeRequests(list) { save(GRADE_REQ_KEY, list); }
+function gradeReqReason(key) { return GRADE_REQ_REASONS.find(r => r.key === key) || GRADE_REQ_REASONS[GRADE_REQ_REASONS.length - 1]; }
+function gradeRequestFor(itemType, itemId, name) {
+  return loadGradeRequests().find(r => r.itemType === itemType && r.itemId === itemId && r.studentName === name) || null;
+}
+// The grade as it stands now (exam table or graded assignments)
+function currentItemGrade(itemType, itemId, classId, name) {
+  if (itemType === 'exam') {
+    const e = classExams(classId).find(x => x.id === itemId);
+    return e && typeof e.grades[name] === 'number' ? { title: e.title, date: e.date, grade: e.grades[name] } : null;
+  }
+  const w = assignmentScores(classId, name).find(x => x.assignmentId === itemId);
+  const a = findAssignment(itemId);
+  return w ? { title: w.title, date: a ? a.dueDate : null, grade: w.grade, feedback: w.feedback } : null;
+}
+function setItemGrade(r, grade) {
+  if (r.itemType === 'exam') {
+    const exams = load(EXAMS_KEY, []);
+    const e = exams.find(x => x.id === r.itemId);
+    if (!e) return false;
+    e.grades[r.studentName] = grade;
+    save(EXAMS_KEY, exams);
+    return true;
+  }
+  const graded = load('cs-graded', []);
+  const mine = graded.filter(g => g.assignmentId === r.itemId && g.student === r.studentName).pop();
+  if (mine) { mine.grade = grade; mine.gradedAt = new Date().toISOString(); mine.gradedBy = currentUserName(); }
+  else {
+    const w = currentItemGrade('assignment', r.itemId, r.classId, r.studentName);
+    graded.push({ id: 'regrade-' + r.id, assignmentId: r.itemId, student: r.studentName, grade, feedback: w ? w.feedback || '' : '',
+      gradedAt: new Date().toISOString(), gradedBy: currentUserName() });
+  }
+  save('cs-graded', graded);
+  return true;
+}
+function myGradeRequests() {
+  if (state.role !== 'student') return [];
+  return loadGradeRequests().filter(r => r.studentName === currentUserName());
+}
+
+/* Small control next to a grade: "Request review", or the request's status */
+function gradeReqButton(itemType, itemId, classId) {
+  if (state.role !== 'student') return '';
+  const r = gradeRequestFor(itemType, itemId, currentUserName());
+  const go = `event.stopPropagation();openGradeRequest('${itemType}','${itemId}','${classId}')`;
+  if (r) return `<button class="jtag ${r.status} greq-tag" onclick="${go}" title="${L('צפייה בבקשה', 'View request')}">📝 ${r.status === 'approved' ? L('עודכן', 'Updated') : r.status === 'rejected' ? L('ללא שינוי', 'Unchanged') : L('בבדיקה', 'Under review')}</button>`;
+  return `<button class="greq-btn" onclick="${go}">↺ ${L('בקשת בדיקה חוזרת', 'Request review')}</button>`;
+}
+
+function openGradeRequest(itemType, itemId, classId) {
+  if (state.role !== 'student') return;
+  const now = currentItemGrade(itemType, itemId, classId, currentUserName());
+  if (!now) return;
+  const existing = gradeRequestFor(itemType, itemId, currentUserName());
+  greq.item = { itemType, itemId, classId, ...now };
+  greq.id = existing ? existing.id : null;
+  greq.mode = existing ? 'view' : 'form';
+  greq.draft = { reason: '', text: '', wanted: '', file: null };
+  greq.error = '';
+  greq.fresh = true;
+  renderGradeRequest();
+}
+function openGradeRequestById(id) {
+  const r = loadGradeRequests().find(x => x.id === id);
+  if (!r) { toast(L('הבקשה כבר לא קיימת', 'That request no longer exists')); return; }
+  if (state.role === 'student') {
+    if (r.studentName !== currentUserName()) return;
+    greq.mode = 'view';
+  } else {
+    if (!teacherClasses().some(c => c.id === r.classId)) return;
+    greq.mode = 'review';
+  }
+  greq.id = id;
+  greq.item = { itemType: r.itemType, itemId: r.itemId, classId: r.classId, title: r.title, date: r.date, grade: r.currentGrade };
+  greq.error = '';
+  greq.fresh = true;
+  markJustifyRead(id);
+  renderGradeRequest();
+}
+function editGradeRequest() {
+  const r = loadGradeRequests().find(x => x.id === greq.id);
+  const now = currentItemGrade(greq.item.itemType, greq.item.itemId, greq.item.classId, currentUserName());
+  if (now) Object.assign(greq.item, now);
+  greq.mode = 'form';
+  greq.draft = { reason: r ? r.reason : '', text: r ? r.text : '', wanted: r && r.requestedGrade != null ? String(r.requestedGrade) : '', file: r ? r.file : null };
+  greq.error = '';
+  renderGradeRequest();
+}
+function greqField(field, value) {
+  greq.draft[field] = value;
+  if (field === 'reason') { greq.error = ''; renderGradeRequest(); }
+}
+async function greqFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (file.size > JUSTIFY_FILE_MAX) { greq.error = L('הקובץ גדול מדי (עד 1MB).', 'That file is too big (1 MB max).'); renderGradeRequest(); return; }
+  greq.draft.file = { name: file.name, type: file.type, size: file.size, data: await readAsDataUrl(file) };
+  greq.error = '';
+  renderGradeRequest();
+}
+function submitGradeRequest() {
+  const d = greq.draft;
+  const textEl = document.getElementById('greq-text');
+  if (textEl) d.text = textEl.value;
+  const wantedEl = document.getElementById('greq-wanted');
+  if (wantedEl) d.wanted = wantedEl.value.trim();
+  const wanted = d.wanted === '' ? null : Number(d.wanted);
+  if (!d.reason) greq.error = L('נא לבחור סיבה.', 'Please choose a reason.');
+  else if (d.text.trim().length < 5) greq.error = L('נא להסביר מה לדעתך צריך לבדוק שוב (לפחות 5 תווים).', 'Please explain what should be checked again (at least 5 characters).');
+  else if (wanted !== null && (!Number.isFinite(wanted) || wanted < 0 || wanted > 100)) greq.error = L('הציון המבוקש צריך להיות בין 0 ל־100.', 'The grade you ask for must be between 0 and 100.');
+  else greq.error = '';
+  if (greq.error) { renderGradeRequest(); return; }
+
+  const it = greq.item;
+  const list = loadGradeRequests().filter(r => !(r.itemType === it.itemType && r.itemId === it.itemId && r.studentName === currentUserName()));
+  const r = {
+    id: 'g-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), itemType: it.itemType, itemId: it.itemId, classId: it.classId,
+    title: it.title, date: it.date, currentGrade: it.grade, requestedGrade: wanted === null ? null : Math.round(wanted),
+    studentId: CURRENT_USER.id, studentName: currentUserName(), reason: d.reason, text: d.text.trim(), file: d.file,
+    status: 'pending', createdAt: new Date().toISOString(),
+  };
+  list.unshift(r);
+  try { saveGradeRequests(list); }
+  catch (e) { greq.error = L('אין מספיק מקום לשמור את הקובץ. נסו קובץ קטן יותר.', 'Not enough room to save that file. Try a smaller one.'); renderGradeRequest(); return; }
+  requestRecipients(r.classId).forEach(u => sendInbox(u.id, 'grade-request', CURRENT_USER.id, { id: r.id, classId: r.classId, title: r.title, grade: r.currentGrade }));
+  greq.id = r.id;
+  greq.mode = 'view';
+  renderGradeRequest();
+  refreshAfterJustify();
+  toast(L('הבקשה נשלחה למורה', 'Request sent to your teacher'));
+}
+function withdrawGradeRequest() {
+  if (!confirm(L('לבטל את הבקשה?', 'Withdraw this request?'))) return;
+  saveGradeRequests(loadGradeRequests().filter(r => r.id !== greq.id));
+  saveInbox(loadInbox().filter(m => !(m.kind === 'grade-request' && m.extra && m.extra.id === greq.id)));
+  closeGradeRequest();
+  refreshAfterJustify();
+}
+function decideGradeRequest(approve) {
+  const list = loadGradeRequests();
+  const r = list.find(x => x.id === greq.id);
+  if (!r) return;
+  const before = currentItemGrade(r.itemType, r.itemId, r.classId, r.studentName);
+  const oldGrade = before ? before.grade : r.currentGrade;
+  let newGrade = oldGrade;
+  if (approve) {
+    const el = document.getElementById('greq-new');
+    const v = Number(el ? el.value.trim() : '');
+    if (!el || el.value.trim() === '' || !Number.isFinite(v) || v < 0 || v > 100) {
+      greq.error = L('נא להזין ציון חדש בין 0 ל־100.', 'Enter the new grade (0–100).');
+      renderGradeRequest();
+      return;
+    }
+    newGrade = Math.round(v);
+    if (!setItemGrade(r, newGrade)) { greq.error = L('הפריט כבר לא קיים.', 'That item no longer exists.'); renderGradeRequest(); return; }
+  }
+  const replyEl = document.getElementById('greq-reply');
+  Object.assign(r, { status: approve ? 'approved' : 'rejected', oldGrade, newGrade, reply: replyEl ? replyEl.value.trim() : '',
+    reviewedBy: currentUserName(), reviewedAt: new Date().toISOString() });
+  saveGradeRequests(list);
+  if (r.studentId) sendInbox(r.studentId, 'grade-request-result', CURRENT_USER.id, { id: r.id, classId: r.classId, title: r.title, status: r.status, oldGrade, newGrade });
+  markJustifyRead(r.id);
+  closeGradeRequest();
+  refreshAfterJustify();
+  toast(approve ? L(`הציון עודכן ל־${newGrade}`, `Grade updated to ${newGrade}`) : L('הבקשה נדחתה – הציון לא השתנה', 'Request declined – grade unchanged'));
+}
+function closeGradeRequest() {
+  greq.mode = null;
+  renderGradeRequest();
+  if (/^#(justify|request)=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search);
+}
+
+function gradeRequestDialogHtml() {
+  if (!greq.mode) return '';
+  const r = greq.id ? loadGradeRequests().find(x => x.id === greq.id) : null;
+  const it = greq.item;
+  const cls = classes.find(c => c.id === it.classId) || classes[0];
+  const fade = greq.fresh ? 'fade-up' : '';
+  greq.fresh = false;
+  const kindLabel = it.itemType === 'exam' ? L('מבחן', 'Exam') : L('מטלה', 'Assignment');
+  const shownGrade = r && r.status === 'approved' ? r.newGrade : (r ? r.currentGrade : it.grade);
+  const itemCard = `
+    <div class="jlesson" style="--c:${cls.color}">
+      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${localize(cls.subject)[0]}</div>
+      <div class="flex-1 min-w-0">
+        <div class="w7">${esc(localize(it.title))}</div>
+        <div class="xs muted">${kindLabel} · ${localize(cls.name)}${it.date ? ' · ' + fmtDate(it.date, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</div>
+        <div class="xs muted">${classTeachers(cls.id).map(n => esc(localize(n))).join(', ')}</div>
+      </div>
+      <div class="greq-grade" style="--g:${gradeColor(shownGrade)}"><span class="xs w7">${r && r.status === 'approved' ? L('ציון חדש', 'New grade') : L('ציון', 'Grade')}</span><span class="display w9">${shownGrade}</span></div>
+    </div>`;
+  const fileLink = f => f ? `<a class="jfile" href="${f.data}" download="${esc(f.name)}" target="_blank" rel="noopener">📎 ${esc(f.name)}</a>` : '';
+  let title, body, foot;
+  if (greq.mode === 'form') {
+    const d = greq.draft;
+    title = `📝 ${L('בקשת בדיקה חוזרת של ציון', 'Grade review request')}`;
+    body = `
+      ${itemCard}
+      <div>
+        <span class="label">${L('מה לדעתך לא נכון?', 'What do you think is wrong?')}</span>
+        <div class="jreasons">
+          ${GRADE_REQ_REASONS.map(x => `<button type="button" class="jreason ${d.reason === x.key ? 'on' : ''}" aria-pressed="${d.reason === x.key}" onclick="greqField('reason','${x.key}')">${x.icon} ${L(x.he, x.en)}</button>`).join('')}
+        </div>
+      </div>
+      <div>
+        <label class="label" for="greq-text">${L('הסבר למורה', 'Explain to your teacher')}</label>
+        <textarea id="greq-text" class="input" dir="auto" rows="4" maxlength="800" oninput="greq.draft.text=this.value"
+          placeholder="${L('למשל: בשאלה 4 כתבתי את התשובה הנכונה אבל קיבלתי 0 נקודות.', 'e.g. In question 4 I wrote the right answer but got 0 points.')}">${esc(d.text)}</textarea>
+      </div>
+      <div class="grid g-2" style="gap:0.75rem;align-items:end">
+        <div>
+          <label class="label" for="greq-wanted">${L('איזה ציון לדעתך מגיע? (לא חובה)', 'What grade do you think is fair? (optional)')}</label>
+          <input id="greq-wanted" class="input" type="number" min="0" max="100" inputmode="numeric" value="${esc(d.wanted)}" oninput="greq.draft.wanted=this.value" placeholder="${it.grade}">
+        </div>
+        <div>
+          <span class="label">${L('קובץ מצורף (לא חובה)', 'Attachment (optional)')}</span>
+          <input type="file" id="greq-file" hidden accept="image/*,.pdf,.doc,.docx,.txt" onchange="greqFile(this)">
+          <button type="button" class="btn btn-soft btn-sm" style="max-width:100%" onclick="document.getElementById('greq-file').click()">📎 <span class="truncate">${d.file ? esc(d.file.name) : L('צירוף קובץ', 'Attach a file')}</span></button>
+        </div>
+      </div>
+      ${recipientNote(it.classId)}
+      ${greq.error ? `<p class="jerror" role="alert">${greq.error}</p>` : ''}`;
+    foot = `
+      <button class="btn surface" onclick="${r ? `greq.mode='view';renderGradeRequest()` : 'closeGradeRequest()'}">${L('ביטול', 'Cancel')}</button>
+      <button class="btn btn-primary" onclick="submitGradeRequest()">📝 ${L('שליחה למורה', 'Send to teacher')}</button>`;
+  } else {
+    if (!r) { greq.mode = null; return ''; }
+    const reason = gradeReqReason(r.reason);
+    const review = greq.mode === 'review';
+    title = review ? `📝 ${L('בקשת בדיקה חוזרת מ', 'Grade review request from ')}${esc(localize(r.studentName))}` : `📝 ${L('הבקשה שלך לבדיקה חוזרת', 'Your grade review request')}`;
+    body = `
+      ${review ? `<div class="flex items-center gap-2"><span class="letter-tile xs" style="width:2rem;height:2rem;border-radius:0.625rem;background:${cls.color}">${initials(r.studentName)}</span><span class="w7">${esc(localize(r.studentName))}</span><span class="jtag ${r.status}" style="margin-inline-start:auto">${justifyStatusLabel(r.status)}</span></div>` : ''}
+      ${itemCard}
+      <div class="jbox">
+        <div class="flex items-center justify-between gap-2 wrap">
+          <span class="xs w7 muted">${reason.icon} ${L(reason.he, reason.en)}</span>
+          <span class="xs muted">${L('נשלחה', 'Sent')} ${fmtDate(r.createdAt, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+        <p class="sm mt-2 jtext" dir="auto">${esc(r.text)}</p>
+        <p class="xs w7 mt-2">${L('ציון בזמן הבקשה', 'Grade when asked')}: <span class="mono">${r.currentGrade}</span>${r.requestedGrade != null ? ` · ${L('ציון מבוקש', 'Asked for')}: <span class="mono">${r.requestedGrade}</span>` : ''}</p>
+        ${r.file ? `<div class="mt-2">${fileLink(r.file)}</div>` : ''}
+      </div>
+      ${!review ? `<div class="flex items-center gap-2"><span class="xs w7 muted">${L('סטטוס', 'Status')}:</span><span class="jtag ${r.status}">${r.status === 'approved' ? '✅ ' + L(`הציון עודכן: ${r.oldGrade} ← ${r.newGrade}`, `Grade updated: ${r.oldGrade} → ${r.newGrade}`) : r.status === 'rejected' ? '❌ ' + L('הציון נשאר ללא שינוי', 'Grade unchanged') : justifyStatusLabel('pending')}</span></div>` : ''}
+      ${r.status !== 'pending' ? `
+      <div class="jbox reply">
+        <div class="xs w7 muted">💬 ${L('תשובת המורה', 'Teacher’s reply')}${r.reviewedBy ? ' · ' + esc(localize(r.reviewedBy)) : ''}${r.reviewedAt ? ' · ' + fmtDate(r.reviewedAt, { day: 'numeric', month: 'short' }) : ''}</div>
+        <p class="sm mt-1 jtext" dir="auto">${r.reply ? esc(r.reply) : `<span class="muted">${L('ללא הערה.', 'No comment.')}</span>`}</p>
+      </div>` : ''}
+      ${review && r.status === 'pending' ? `
+      <div class="grid g-2" style="gap:0.75rem;align-items:start">
+        <div>
+          <label class="label" for="greq-new">${L('ציון חדש (אם מאשרים)', 'New grade (if you approve)')}</label>
+          <input id="greq-new" class="input mono" type="number" min="0" max="100" inputmode="numeric" value="${r.requestedGrade != null ? r.requestedGrade : r.currentGrade}">
+          <p class="xs muted mt-1">${L('הציון הנוכחי', 'Current grade')}: ${(currentItemGrade(r.itemType, r.itemId, r.classId, r.studentName) || { grade: r.currentGrade }).grade}</p>
+        </div>
+        <div>
+          <label class="label" for="greq-reply">${L('תשובה לתלמיד/ה (לא חובה)', 'Reply to the student (optional)')}</label>
+          <textarea id="greq-reply" class="input" dir="auto" rows="2" maxlength="400" placeholder="${L('למשל: צדקת, תיקנתי את שאלה 4.', 'e.g. You were right – I fixed question 4.')}"></textarea>
+        </div>
+      </div>
+      ${greq.error ? `<p class="jerror" role="alert">${greq.error}</p>` : ''}` : ''}`;
+    foot = review && r.status === 'pending'
+      ? `<button class="btn surface" onclick="closeGradeRequest()">${L('סגירה', 'Close')}</button>
+         <button class="btn" style="background:#F43F5E1f;color:#F43F5E" onclick="decideGradeRequest(false)">✗ ${L('דחייה (ללא שינוי)', 'Decline (no change)')}</button>
+         <button class="btn" style="background:#10B981;color:#fff" onclick="decideGradeRequest(true)">✓ ${L('אישור ועדכון הציון', 'Approve & update grade')}</button>`
+      : review
+        ? `<button class="btn btn-primary" onclick="closeGradeRequest()">${L('סגירה', 'Close')}</button>`
+        : `${r.status === 'pending' ? `<button class="link-btn xs" style="color:#F43F5E;margin-inline-end:auto" onclick="withdrawGradeRequest()">${L('ביטול הבקשה', 'Withdraw request')}</button>` : ''}
+           ${r.status !== 'approved' ? `<button class="btn btn-soft" onclick="editGradeRequest()">${r.status === 'rejected' ? L('שליחה מחדש', 'Send again') : L('עריכה', 'Edit')}</button>` : ''}
+           <button class="btn btn-primary" onclick="closeGradeRequest()">${L('סגירה', 'Close')}</button>`;
+  }
+  return `
+  <div class="jmodal-bg" onmousedown="if(event.target===this)closeGradeRequest()">
+    <div class="card r-3xl jmodal ${fade}" role="dialog" aria-modal="true" aria-labelledby="greq-title">
+      <div class="jmodal-head">
+        <h2 id="greq-title" class="display w8 lg">${title}</h2>
+        <button class="icon-btn" style="width:2rem;height:2rem;flex-shrink:0" onclick="closeGradeRequest()" aria-label="${L('סגירה', 'Close')}">${ICONS.close}</button>
+      </div>
+      <div class="jmodal-body">${body}</div>
+      <div class="jmodal-foot">${foot}</div>
+    </div>
+  </div>`;
+}
+function renderGradeRequest() {
+  let host = document.getElementById('greq-slot');
+  if (!host) { host = document.createElement('div'); host.id = 'greq-slot'; document.body.appendChild(host); }
+  const text = document.getElementById('greq-text');
+  if (text && greq.draft && greq.mode === 'form') greq.draft.text = text.value;
+  host.innerHTML = gradeRequestDialogHtml();
+  document.body.classList.toggle('jmodal-open', !!(greq.mode || justify.mode));
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && greq.mode) closeGradeRequest(); });
+
+/* ----- Everything students asked the signed-in teacher (Home) ----- */
+function teacherRequests() {
+  if (state.role !== 'teacher') return [];
+  const mine = teacherClasses().map(c => c.id);
+  const grade = loadGradeRequests().filter(r => mine.includes(r.classId)).map(r => ({ type: 'grade', r }));
+  const just = loadJustifications().filter(j => mine.includes(j.classId)).map(j => ({ type: 'justify', r: j }));
+  return grade.concat(just).sort((a, b) => (a.r.createdAt < b.r.createdAt ? 1 : -1));
+}
 
 /* ================= Render loop ================= */
 function renderHeaderOnly() {
