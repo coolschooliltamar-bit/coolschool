@@ -826,7 +826,7 @@ function inboxNotifs() {
   return loadInbox().filter(m => m.to === CURRENT_USER.id).map(m => {
     const about = users.find(u => u.id === m.about);
     const name = about ? localize(fullName(about)) : '';
-    const base = { id: m.id, inbox: true, read: m.read, time: fmtDate(m.date, { day: 'numeric', month: 'short' }) };
+    const base = { id: m.id, inbox: true, read: m.read, readAt: m.readAt, time: fmtDate(m.date, { day: 'numeric', month: 'short' }) };
     if (m.kind === 'teacher-pending') {
       return { ...base, type: 'approval', pendingUser: about && about.status === 'pending' ? about.id : null,
         text: L(`${name} נרשם/ה כמורה וממתין/ה לאישורך`, `${name} registered as a teacher and is waiting for your approval`) };
@@ -887,9 +887,24 @@ function inboxNotifs() {
     return { ...base, type: 'info', text: L('ברוכים הבאים ל־CoolSchool!', 'Welcome to CoolSchool!') };
   });
 }
+// A notification stays in the list on the day it was opened and is gone from the next day on
+// (a teacher sign-up waiting for approval stays until the principal decides)
+function startOfToday() { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
+function notifExpired(n) { return !!n.readAt && !n.pendingUser && new Date(n.readAt).getTime() < startOfToday(); }
 function myNotifs() {
   const demo = isDemoUser() ? (state.notifs[state.role] || []) : [];
-  return inboxNotifs().concat(demo);
+  return inboxNotifs().concat(demo).filter(n => !notifExpired(n));
+}
+// Opening the bell counts as seeing everything in it: the count goes away
+function markNotifsSeen() {
+  if (!CURRENT_USER) return;
+  const now = new Date().toISOString();
+  ui.fresh = new Set(myNotifs().filter(n => !n.read).map(n => String(n.id)));
+  saveInbox(loadInbox().map(m => (m.to === CURRENT_USER.id ? { ...m, read: true, readAt: m.readAt || now } : m)));
+  if (isDemoUser()) {
+    state.notifs = { ...state.notifs, [state.role]: (state.notifs[state.role] || []).map(n => ({ ...n, read: true, readAt: n.readAt || now })) };
+    save('cs-notifs', state.notifs);
+  }
 }
 
 // A teacher only ever works inside the classes they teach
@@ -1043,7 +1058,7 @@ function renderHeader() {
         </div>
         <div style="max-height:18rem;overflow-y:auto">
           ${myNotifs().length ? myNotifs().map(n => `
-            <div class="notif ${n.read ? '' : 'unread'}">
+            <div class="notif ${!n.read || (ui.fresh && ui.fresh.has(String(n.id))) ? 'unread' : ''}">
               <span class="base">${notifIcon(n.type)}</span>
               <div class="flex-1 min-w-0">
                 ${n.link ? `<a href="${n.link}" class="sm w5 leading-tight primary" style="display:block"${n.jid ? ` onclick="return followJustifyLink(event, '${n.jid}', '${n.link}')"` : ''}>${esc(n.text)}</a>` : `<p class="sm w5 leading-tight">${n.inbox ? esc(n.text) : localize(n.text)}</p>`}
@@ -1054,7 +1069,7 @@ function renderHeader() {
                   <button class="btn btn-sm" style="background:#F43F5E1f;color:#F43F5E" onclick="declineTeacher('${n.pendingUser}')">${L('דחייה', 'Decline')}</button>
                 </div>` : ''}
               </div>
-              ${n.read ? '' : '<span class="dot mt-1" style="background:var(--primary)"></span>'}
+              ${!n.read || (ui.fresh && ui.fresh.has(String(n.id))) ? '<span class="dot mt-1" style="background:var(--primary)"></span>' : ''}
             </div>`).join('') : `<p class="sm muted p-4">${L('אין התראות חדשות', 'No notifications yet')}</p>`}
         </div>
       </div>` : ''}
@@ -1134,6 +1149,7 @@ function toggleDd(name) {
   const open = !ui[name];
   ui.classes = ui.notifs = ui.profile = false;
   ui[name] = open;
+  if (name === 'notifs' && open) markNotifsSeen();
   renderHeaderOnly();
 }
 function closeDropdowns() {
@@ -1144,8 +1160,9 @@ function closeDropdowns() {
 }
 function pickClass(id) { ui.classes = false; setState({ classId: id }); }
 function markAllRead() {
-  if (CURRENT_USER) saveInbox(loadInbox().map(m => (m.to === CURRENT_USER.id ? { ...m, read: true } : m)));
-  setState({ notifs: { ...state.notifs, [state.role]: (state.notifs[state.role] || []).map(n => ({ ...n, read: true })) } });
+  markNotifsSeen();
+  ui.fresh = new Set();
+  renderHeaderOnly();
 }
 function profileAction(item) {
   ui.profile = false;
@@ -1698,7 +1715,7 @@ function excuseMarks(row, kind) {
 function markJustifyRead(id) {
   const inbox = loadInbox();
   let changed = false;
-  inbox.forEach(m => { if (m.to === (CURRENT_USER && CURRENT_USER.id) && m.extra && m.extra.id === id && !m.read) { m.read = true; changed = true; } });
+  inbox.forEach(m => { if (m.to === (CURRENT_USER && CURRENT_USER.id) && m.extra && m.extra.id === id && !m.read) { m.read = true; m.readAt = new Date().toISOString(); changed = true; } });
   if (changed) { saveInbox(inbox); renderHeaderOnly(); }
 }
 // A notification link to the page you are already on only changes the hash, so open it here
