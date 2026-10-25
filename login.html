@@ -730,7 +730,7 @@ const CURRENT_USER = (() => {
 })();
 // App pages need a signed-in, approved account; the login pages send signed-in users onward
 if (!window.AUTH_PAGE && !CURRENT_USER) location.replace('login.html');
-if (window.AUTH_PAGE && CURRENT_USER) location.replace('index.html');
+if (window.AUTH_PAGE && CURRENT_USER) location.replace('home.html');
 
 function currentUserName() { return CURRENT_USER ? fullName(CURRENT_USER) : ''; }
 function isDemoUser() { return !!CURRENT_USER && DEMO_USER_IDS.includes(CURRENT_USER.id); }
@@ -872,7 +872,7 @@ const ICONS = {
 };
 
 const NAV = [
-  { href: 'index.html', key: 'home' },
+  { href: 'home.html', key: 'home' },
   { href: 'schedule.html', key: 'schedule' },
   { href: 'grades.html', key: 'grades' },
   { href: 'tasks.html', key: 'tasks' },
@@ -895,7 +895,7 @@ function renderHeader() {
 
   return `
   <header class="header">
-    <a href="index.html" class="logo">
+    <a href="home.html" class="logo">
       <div class="logo-mark">C</div>
       <span class="logo-text sm-up">CoolSchool</span>
     </a>
@@ -1330,10 +1330,10 @@ function renderAll() {
     return;
   }
   if (!CURRENT_USER) return;
-  if (isPrincipal() && !PRINCIPAL_PAGES.includes(window.PAGE_KEY)) { location.replace('index.html'); return; }
+  if (isPrincipal() && !PRINCIPAL_PAGES.includes(window.PAGE_KEY)) { location.replace('home.html'); return; }
   if (!isPrincipal() && window.PAGE_KEY === 'timetable') { location.replace('schedule.html'); return; }
   if (state.role === 'student' && window.PAGE_KEY === 'path') { location.replace('tasks.html'); return; }
-  if (state.role === 'teacher' && window.PAGE_KEY === 'tasks') { location.replace('index.html'); return; }
+  if (state.role === 'teacher' && window.PAGE_KEY === 'tasks') { location.replace('home.html'); return; }
   applyDocument();
   renderHeaderOnly();
   document.getElementById('sidebar-slot').innerHTML = renderSidebar(window.PAGE_KEY);
@@ -1369,7 +1369,7 @@ function authBrand() {
   return `
   <aside class="auth-brand">
     <div class="blob b1"></div><div class="blob b2"></div>
-    <div class="auth-logo"><div class="logo-mark">C</div><span>CoolSchool</span></div>
+    <a href="index.html" class="auth-logo" title="${L('לדף הבית של CoolSchool', 'CoolSchool home page')}"><div class="logo-mark">C</div><span>CoolSchool</span></a>
     <div class="auth-tagline">
       <h2>${L('המקום שבו כל בית הספר לומד יחד', 'Where the whole school learns together')}</h2>
       <p>${L('שיעורים חיים, מערכת שעות, ציונים ומסלולי למידה – לתלמידים, למורים ולהנהלה.', 'Live classes, schedules, grades and learning paths – for students, teachers and school leaders.')}</p>
@@ -1504,7 +1504,7 @@ async function login() {
   if (user.status === 'pending') { auth.notice = 'pending'; renderPage(); return; }
   if (user.status === 'rejected') { auth.notice = 'rejected'; renderPage(); return; }
   startSession(user);
-  location.href = 'index.html';
+  location.href = 'home.html';
 }
 
 ensureSeedUsers();

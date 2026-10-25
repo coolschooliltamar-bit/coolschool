@@ -2,15 +2,16 @@
 
 A school learning platform for students, teachers and principals, built as standalone HTML pages (HTML, CSS and JavaScript in each file — no build step, no dependencies).
 
-Open `login.html` in a browser to start.
+Open `index.html` (the public landing page) in a browser to start.
 
 ## Pages
 
 | Page | File | Who |
 |---|---|---|
+| Landing page (3D scrolling, leads to sign in / sign up) | `index.html` | Public |
 | Sign in | `login.html` | Everyone |
 | Register (student / teacher / principal) | `register.html` | Everyone |
-| Home | `index.html` | Everyone (principals get the approvals dashboard) |
+| Home (dashboard) | `home.html` | Everyone (principals get the approvals dashboard) |
 | Schedule & calendar | `schedule.html` | Students, teachers |
 | Grades & submissions | `grades.html` | Students, teachers |
 | My tasks (to do, awaiting grade, completed with feedback) | `tasks.html` | Students |
