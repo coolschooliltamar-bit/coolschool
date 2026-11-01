@@ -966,7 +966,6 @@ const NAV = [
   { href: 'tasks.html', key: 'tasks' },
   { href: 'path.html', key: 'path' },
   { href: 'library.html', key: 'library' },
-  { href: 'timetable.html', key: 'timetable' },
   { href: 'classes.html', key: 'classes' },
   { href: 'settings.html', key: 'settings' },
 ];
@@ -1091,7 +1090,7 @@ function renderSidebar(active) {
   </aside>`;
 }
 
-const PRINCIPAL_PAGES = ['home', 'classes', 'timetable', 'settings'];
+const PRINCIPAL_PAGES = ['home', 'classes', 'settings'];
 // Students get Tasks instead of the learning path; teachers keep the path
 function navAllowed(item) {
   if (isPrincipal()) return PRINCIPAL_PAGES.includes(item.key);

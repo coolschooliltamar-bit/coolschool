@@ -497,6 +497,21 @@ body.jmodal-open { overflow: hidden; }
 .gen-row.ok { background: #10B98114; } .gen-row.warn { background: #F59E0B1a; }
 .modal-bg { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(0,0,0,.5); }
 .modal { width: 100%; max-width: 28rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,.25); }
+.cs-grid td.brk { text-align: center; color: #B45309; background: repeating-linear-gradient(135deg, #F59E0B14 0 6px, #F59E0B26 6px 8px); }
+.brk-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem 0.625rem; margin-bottom: 0.5rem; border-radius: 0.75rem; background: #F59E0B12; }
+.brk-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.25rem 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; background: var(--card); border: 1px solid #F59E0B55; }
+.brk-chip button { width: 1.25rem; height: 1.25rem; border-radius: 9999px; border: 0; background: none; color: var(--muted); cursor: pointer; font-weight: 800; }
+.brk-chip button:hover { color: #F43F5E; }
+.time-pair { display: flex; align-items: center; gap: 0.125rem; }
+.hours-table { min-width: 52rem; }
+.cs-grid td.brk { text-align: center; color: #B45309; background: repeating-linear-gradient(135deg, #F59E0B14 0 6px, #F59E0B26 6px 8px); }
+.brk-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem 0.625rem; margin-bottom: 0.5rem; border-radius: 0.75rem; background: #F59E0B12; }
+.brk-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.25rem 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; background: var(--card); border: 1px solid #F59E0B55; }
+.brk-chip button { width: 1.25rem; height: 1.25rem; border-radius: 9999px; border: 0; background: none; color: var(--muted); cursor: pointer; font-weight: 800; }
+.brk-chip button:hover { color: #F43F5E; }
+.time-pair { display: flex; align-items: center; gap: 0.125rem; }
+.hours-table { min-width: 52rem; }
+.cs-lesson.together { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 55%, transparent); }
 </style>
 </head>
 <body>
@@ -1025,7 +1040,6 @@ const NAV = [
   { href: 'tasks.html', key: 'tasks' },
   { href: 'path.html', key: 'path' },
   { href: 'library.html', key: 'library' },
-  { href: 'timetable.html', key: 'timetable' },
   { href: 'classes.html', key: 'classes' },
   { href: 'settings.html', key: 'settings' },
 ];
@@ -1150,7 +1164,7 @@ function renderSidebar(active) {
   </aside>`;
 }
 
-const PRINCIPAL_PAGES = ['home', 'classes', 'timetable', 'settings'];
+const PRINCIPAL_PAGES = ['home', 'classes', 'settings'];
 // Students get Tasks instead of the learning path; teachers keep the path
 function navAllowed(item) {
   if (isPrincipal()) return PRINCIPAL_PAGES.includes(item.key);
@@ -2395,6 +2409,8 @@ const GRADES = [7, 8, 9, 10, 11, 12];
 const GRADE_HE = { 7: 'ז׳', 8: 'ח׳', 9: 'ט׳', 10: 'י׳', 11: 'י״א', 12: 'י״ב' };
 const DAY_START = 8;
 const END_CHOICES = [11, 12, 13, 14, 15, 16, 17];
+const START_CHOICES = [7, 8, 9, 10, 11];
+const BREAK_CHOICES = [9, 10, 11, 12, 13, 14, 15, 16];
 const MAX_SECTIONS = 15;
 
 const SUBJECT_GROUPS = {
@@ -2444,6 +2460,10 @@ function seedSchool() {
   return { sections, plans, schedules: {}, customSubjects: [], prefs: { doubles: true, groupRelated: true, maxPerDay: 2 } };
 }
 let school = load(SC_KEY, null) || seedSchool();
+// older saves: no breaks or same-time subjects yet
+school.breaks = school.breaks || {};
+school.prefs = { doubles: true, groupRelated: true, maxPerDay: 2, ...(school.prefs || {}) };
+if (!Array.isArray(school.prefs.syncSubjects)) school.prefs.syncSubjects = ['math', 'english'];
 function saveSchool() { save(SC_KEY, school); }
 
 const cm = {
@@ -2469,10 +2489,21 @@ function plan(id) {
     const s = section(id);
     school.plans[id] = { subjects: Object.entries(templateFor(s ? s.grade : 10)).map(([key, hours]) => ({ key, hours, teacher: '' })), ends: defaultEnds(s ? s.grade : 10) };
   }
-  return school.plans[id];
+  const p = school.plans[id];
+  if (!p.starts) p.starts = [DAY_START, DAY_START, DAY_START, DAY_START, DAY_START];
+  return p;
+}
+/* Breaks belong to a whole grade: { day: 'all' | 0–4, hour } – that hour has no lessons */
+function gradeBreaks(g) { return school.breaks[g] || []; }
+function isBreak(g, d, h) { return gradeBreaks(g).some(b => b.hour === h && (b.day === 'all' || b.day === d)); }
+// The hours a class can have lessons on a day: from its start to its end, without the grade's breaks
+function lessonHours(id, d) {
+  const p = plan(id), s = section(id), out = [];
+  for (let h = p.starts[d]; h < p.ends[d]; h++) if (!s || !isBreak(s.grade, d, h)) out.push(h);
+  return out;
 }
 function schedule(id) { return school.schedules[id] || []; }
-function capacity(id) { return plan(id).ends.reduce((sum, end) => sum + Math.max(0, end - DAY_START), 0); }
+function capacity(id) { return [0, 1, 2, 3, 4].reduce((sum, d) => sum + lessonHours(id, d).length, 0); }
 function requiredHours(id) { return plan(id).subjects.reduce((sum, x) => sum + (Number(x.hours) || 0), 0); }
 function lessonAt(id, day, hour) { return schedule(id).find(l => l.day === day && l.hour === hour) || null; }
 function teacherOf(id, key) { const x = plan(id).subjects.find(p => p.key === key); return x ? x.teacher || '' : ''; }
@@ -2547,10 +2578,12 @@ function classesTab() {
 function classView(id) {
   const s = section(id);
   const p = plan(id);
-  const lastEnd = Math.max(...p.ends, DAY_START + 1);
+  const firstStart = Math.min(...p.starts);
+  const lastEnd = Math.max(...p.ends, firstStart + 1);
   const hours = [];
-  for (let h = DAY_START; h < lastEnd; h++) hours.push(h);
-  const outside = schedule(id).filter(l => l.hour >= p.ends[l.day]);
+  for (let h = firstStart; h < lastEnd; h++) hours.push(h);
+  const outsideHours = (d, h) => h < p.starts[d] || h >= p.ends[d];
+  const outside = schedule(id).filter(l => outsideHours(l.day, l.hour) || isBreak(s.grade, l.day, l.hour));
   const placed = {};
   schedule(id).forEach(l => { placed[l.subject] = (placed[l.subject] || 0) + 1; });
   const keys = [...new Set(p.subjects.filter(x => x.hours > 0).map(x => x.key).concat(Object.keys(placed)))];
@@ -2559,29 +2592,31 @@ function classView(id) {
     <div class="flex items-start justify-between wrap gap-3 mb-4">
       <div>
         <h2 class="display w8 xl">${L('מערכת שעות', 'Timetable')} · ${sectionLabel(s)}</h2>
-        <p class="xs muted mt-1">${L(`${schedule(id).length} שיעורים בשבוע · ${capacity(id)} שעות פנויות לפי שעות הסיום`, `${schedule(id).length} lessons a week · ${capacity(id)} hours available by end times`)}</p>
+        <p class="xs muted mt-1">${L(`${schedule(id).length} שיעורים בשבוע · ${capacity(id)} שעות לימוד לפי שעות ההתחלה, הסיום וההפסקות`, `${schedule(id).length} lessons a week · ${capacity(id)} teaching hours by start, end and break times`)}</p>
       </div>
       <div class="flex gap-2 wrap">
-        <button class="btn btn-soft btn-sm" onclick="cm.tab='hours';renderPage()">🕒 ${L('שעות סיום', 'End times')}</button>
+        <button class="btn btn-soft btn-sm" onclick="cm.tab='hours';renderPage()">🕒 ${L('שעות והפסקות', 'Hours & breaks')}</button>
         <button class="btn btn-primary btn-sm" onclick="startGeneratorFor('${id}')">⚙️ ${L('יצירה אוטומטית', 'Generate')}</button>
         ${schedule(id).length ? `<button class="btn btn-sm" style="background:#F43F5E1a;color:#F43F5E" onclick="clearSchedule('${id}')">${L('ניקוי', 'Clear')}</button>` : ''}
       </div>
     </div>
-    ${outside.length ? `<div class="warn-box mb-3">⚠️ ${L(`${outside.length} שיעורים נמצאים אחרי שעת הסיום של הכיתה`, `${outside.length} lesson${outside.length === 1 ? ' is' : 's are'} after the class's end time`)}</div>` : ''}
+    ${outside.length ? `<div class="warn-box mb-3">⚠️ ${L(`${outside.length} שיעורים נמצאים מחוץ לשעות הלימודים או בהפסקה`, `${outside.length} lesson${outside.length === 1 ? ' is' : 's are'} outside school hours or in a break`)}</div>` : ''}
     <div class="cs-grid-wrap">
       <table class="cs-grid">
-        <thead><tr><th></th>${DAY_NAMES.en.map((_, d) => `<th>${dayName(d)}<div class="xs muted w6">${L('עד', 'until')} ${p.ends[d]}:00</div></th>`).join('')}</tr></thead>
+        <thead><tr><th></th>${DAY_NAMES.en.map((_, d) => `<th>${dayName(d)}<div class="xs muted w6 mono">${p.starts[d]}:00–${p.ends[d]}:00</div></th>`).join('')}</tr></thead>
         <tbody>
           ${hours.map(h => `<tr>
             <th class="mono xs muted">${h}:00</th>
             ${DAY_NAMES.en.map((_, d) => {
               const l = lessonAt(id, d, h);
-              const after = h >= p.ends[d];
+              const brk = isBreak(s.grade, d, h);
+              const after = outsideHours(d, h) || brk;
+              if (!l && brk && !outsideHours(d, h)) return `<td class="brk"><span class="xs w7">🔔 ${L('הפסקה', 'Break')}</span></td>`;
               if (!l) return `<td class="${after ? 'after' : ''}">${after ? '' : `<button class="cs-empty" onclick="editCell('${id}', ${d}, ${h})" aria-label="${dayName(d)} ${h}:00 – ${L('הוספת שיעור', 'add a lesson')}">＋</button>`}</td>`;
               const x = subj(l.subject);
               const teacher = l.teacher || teacherOf(id, l.subject);
-              return `<td class="${after ? 'after' : ''}"><button class="cs-lesson ${after ? 'bad' : ''}" style="--c:${x.color}" onclick="editCell('${id}', ${d}, ${h})">
-                <span class="w7 xs">${x.icon} ${esc(subjName(l.subject))}</span>${teacher ? `<span class="xs muted truncate">${esc(teacher)}</span>` : ''}</button></td>`;
+              return `<td class="${after ? 'after' : ''}"><button class="cs-lesson ${after ? 'bad' : ''} ${l.together ? 'together' : ''}" style="--c:${x.color}" onclick="editCell('${id}', ${d}, ${h})" ${l.together ? `title="${L('באותה שעה בכל השכבה', 'Same time for the whole grade')}"` : ''}>
+                <span class="w7 xs">${x.icon} ${esc(subjName(l.subject))}${l.together ? ' 👥' : ''}</span>${teacher ? `<span class="xs muted truncate">${esc(teacher)}</span>` : ''}</button></td>`;
             }).join('')}
           </tr>`).join('')}
         </tbody>
@@ -2614,7 +2649,7 @@ function cellEditor(id) {
   const l = lessonAt(id, day, hour);
   const p = plan(id);
   const options = [...new Set(p.subjects.map(x => x.key).concat(allSubjects().map(x => x.key)))];
-  const busy = l ? teacherClash(id, l.teacher || teacherOf(id, l.subject), day, hour) : null;
+  const busy = l ? lessonClash(id, l.subject, l.teacher || teacherOf(id, l.subject), day, hour) : null;
   return `
   <div class="modal-bg" onmousedown="if(event.target===this){cm.cell=null;renderPage()}">
     <div class="card r-3xl p-6 modal fade-up" role="dialog" aria-label="${L('עריכת שיעור', 'Edit lesson')}">
@@ -2629,7 +2664,7 @@ function cellEditor(id) {
       </select>
       <label class="label" for="cell-teacher">${L('מורה (לא חובה)', 'Teacher (optional)')}</label>
       <input id="cell-teacher" class="input" value="${esc(l ? l.teacher || '' : '')}" placeholder="${l ? esc(teacherOf(id, l.subject)) : ''}">
-      ${busy ? `<div class="warn-box mt-3">⚠️ ${L(`${esc(busy.teacher)} מלמד/ת באותה שעה ב־${sectionLabel(section(busy.id))}`, `${esc(busy.teacher)} is teaching ${sectionLabel(section(busy.id))} at this time`)}</div>` : ''}
+      ${busy ? `<div class="warn-box mt-3">⚠️ ${clashText(busy)}</div>` : ''}
       <div class="flex justify-end gap-2 mt-5">
         <button class="btn surface" onclick="cm.cell=null;renderPage()">${L('ביטול', 'Cancel')}</button>
         <button class="btn btn-primary" onclick="saveCell()">${L('שמירה', 'Save')}</button>
@@ -2637,14 +2672,26 @@ function cellEditor(id) {
     </div>
   </div>`;
 }
-function teacherClash(id, teacher, day, hour) {
-  if (!teacher) return null;
+/* Two classes can't have the same lesson at the same hour – unless different teachers are named.
+   Subjects set to "same time for the whole grade" are the exception inside that grade. */
+function sameTimeSubject(key) { return school.prefs.syncSubjects.includes(key); }
+function lessonClash(id, subject, teacher, day, hour) {
+  const me = section(id);
+  const t = (teacher || '').trim().toLowerCase();
   for (const s of school.sections) {
     if (s.id === id) continue;
     const l = lessonAt(s.id, day, hour);
-    if (l && (l.teacher || teacherOf(s.id, l.subject)).trim().toLowerCase() === teacher.trim().toLowerCase()) return { id: s.id, teacher };
+    if (!l) continue;
+    const other = (l.teacher || teacherOf(s.id, l.subject)).trim().toLowerCase();
+    if (t && other === t) return { id: s.id, teacher: teacher.trim(), kind: 'teacher' };
+    if (l.subject === subject && (!t || !other) && !(sameTimeSubject(subject) && me && s.grade === me.grade)) return { id: s.id, subject, kind: 'subject' };
   }
   return null;
+}
+function clashText(c) {
+  return c.kind === 'teacher'
+    ? L(`${esc(c.teacher)} מלמד/ת באותה שעה ב־${sectionLabel(section(c.id))}`, `${esc(c.teacher)} is teaching ${sectionLabel(section(c.id))} at this time`)
+    : L(`ל־${sectionLabel(section(c.id))} יש ${esc(subjName(c.subject))} באותה שעה. אותו שיעור בשתי כיתות במקביל – רק עם מורים שונים (רשמו מורה).`, `${sectionLabel(section(c.id))} has ${esc(subjName(c.subject))} at this time. The same lesson in two classes at once needs different teachers (add a teacher).`);
 }
 function saveCell() {
   const { id, day, hour } = cm.cell;
@@ -2656,37 +2703,78 @@ function saveCell() {
   saveSchool();
   cm.cell = null;
   renderPage();
-  const clash = key ? teacherClash(id, teacher || teacherOf(id, key), day, hour) : null;
-  toast(clash ? L(`נשמר – שימו לב: ${clash.teacher} כבר מלמד/ת אז`, `Saved – note: ${clash.teacher} is already teaching then`) : L('נשמר', 'Saved'));
+  const clash = key ? lessonClash(id, key, teacher || teacherOf(id, key), day, hour) : null;
+  toast(clash ? L('נשמר – שימו לב להתנגשות', 'Saved – note the clash') : L('נשמר', 'Saved'));
+  if (clash) { cm.cell = { id, day, hour }; renderPage(); }
 }
 
-/* ================= End times for each class ================= */
-function setEnd(id, day, value) {
-  plan(id).ends[day] = Number(value);
+/* ================= Start/end times and breaks ================= */
+function setTime(id, field, day, value) {
+  const p = plan(id);
+  p[field][day] = Number(value);
+  if (p.starts[day] >= p.ends[day]) {
+    if (field === 'starts') p.ends[day] = p.starts[day] + 1; else p.starts[day] = p.ends[day] - 1;
+  }
   saveSchool();
   renderPage();
 }
-function setGradeEnds(grade) {
-  const v = Number(document.getElementById('bulk-' + grade).value);
-  gradeSections(grade).forEach(s => { plan(s.id).ends = plan(s.id).ends.map((e, d) => (d === 4 ? Math.min(e, v) : v)); });
+function setGradeHours(grade) {
+  const start = Number(document.getElementById('bulk-start-' + grade).value);
+  const end = Number(document.getElementById('bulk-end-' + grade).value);
+  if (start >= end) { toast(L('שעת ההתחלה חייבת להיות לפני שעת הסיום', 'The start must be before the end')); return; }
+  gradeSections(grade).forEach(s => {
+    const p = plan(s.id);
+    p.starts = p.starts.map(() => start);
+    p.ends = p.ends.map((e, d) => (d === 4 ? Math.max(start + 1, Math.min(e, end)) : end));
+  });
   saveSchool();
   renderPage();
-  toast(L(`שעת הסיום של ${gradeLabel(grade)} עודכנה ל־${v}:00 (יום שישי לא מתארך)`, `${gradeLabel(grade)} now ends at ${v}:00 (Friday is not made longer)`));
+  toast(L(`${gradeLabel(grade)}: ${start}:00–${end}:00 (יום שישי לא מתארך)`, `${gradeLabel(grade)}: ${start}:00–${end}:00 (Friday is not made longer)`));
+}
+function addBreak(grade) {
+  const hour = Number(document.getElementById('brk-hour-' + grade).value);
+  const dv = document.getElementById('brk-day-' + grade).value;
+  const day = dv === 'all' ? 'all' : Number(dv);
+  const list = school.breaks[grade] || (school.breaks[grade] = []);
+  if (list.some(b => b.hour === hour && (b.day === day || b.day === 'all'))) { toast(L('ההפסקה הזו כבר קיימת', 'That break already exists')); return; }
+  list.push({ day, hour });
+  list.sort((a, b) => a.hour - b.hour);
+  saveSchool();
+  renderPage();
+}
+function removeBreak(grade, i) {
+  (school.breaks[grade] || []).splice(i, 1);
+  saveSchool();
+  renderPage();
 }
 function hoursTab() {
+  const timeSel = (id, field, d, value, choices) => `<select class="input input-sm" aria-label="${sectionLabel(section(id))} ${dayName(d)} ${field === 'starts' ? L('התחלה', 'start') : L('סיום', 'end')}" onchange="setTime('${id}', '${field}', ${d}, this.value)">
+    ${choices.map(h => `<option value="${h}" ${h === value ? 'selected' : ''}>${h}:00</option>`).join('')}</select>`;
   return `
   <div class="card r-3xl p-5">
-    <h2 class="display w8 lg">🕒 ${L('שעת סיום הלימודים לכל כיתה', 'Daily end time for each class')}</h2>
-    <p class="xs muted mt-1 mb-4">${L(`הלימודים מתחילים ב־${DAY_START}:00. קבעו עד מתי כל כיתה לומדת בכל יום – המחולל לא ישבץ שיעורים אחרי השעה הזו.`, `Lessons start at ${DAY_START}:00. Set when each class finishes on each day – the generator never places lessons after it.`)}</p>
+    <h2 class="display w8 lg">🕒 ${L('שעות לימוד והפסקות', 'School hours & breaks')}</h2>
+    <p class="xs muted mt-1 mb-4">${L('לכל כיתה – שעת התחלה ושעת סיום בכל יום. ההפסקות נקבעות לכל השכבה, וכל שכבה יכולה לקבל שעות הפסקה אחרות. המחולל לא ישבץ שיעורים מחוץ לשעות או בהפסקה.', 'Each class has a start and an end time for each day. Breaks are set for a whole grade, and each grade can have its own break times. The generator never places lessons outside these hours or in a break.')}</p>
     ${GRADES.map(g => `
       <div class="hours-grade">
         <div class="flex items-center justify-between wrap gap-2 mb-2">
           <h3 class="w8">${gradeLabel(g)}</h3>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 wrap">
             <span class="xs muted">${L('לכל השכבה:', 'Whole grade:')}</span>
-            <select id="bulk-${g}" class="input input-sm" aria-label="${L('שעת סיום לכל השכבה', 'End time for the whole grade')}">${END_CHOICES.map(h => `<option value="${h}" ${h === 15 ? 'selected' : ''}>${h}:00</option>`).join('')}</select>
-            <button class="btn btn-soft btn-sm" onclick="setGradeEnds(${g})">${L('החלה', 'Apply')}</button>
+            <select id="bulk-start-${g}" class="input input-sm" aria-label="${L('שעת התחלה לכל השכבה', 'Start time for the whole grade')}">${START_CHOICES.map(h => `<option value="${h}" ${h === 8 ? 'selected' : ''}>${h}:00</option>`).join('')}</select>
+            <span class="xs muted">–</span>
+            <select id="bulk-end-${g}" class="input input-sm" aria-label="${L('שעת סיום לכל השכבה', 'End time for the whole grade')}">${END_CHOICES.map(h => `<option value="${h}" ${h === 15 ? 'selected' : ''}>${h}:00</option>`).join('')}</select>
+            <button class="btn btn-soft btn-sm" onclick="setGradeHours(${g})">${L('החלה', 'Apply')}</button>
           </div>
+        </div>
+        <div class="brk-bar">
+          <span class="xs w8">🔔 ${L('הפסקות השכבה:', 'Grade breaks:')}</span>
+          ${gradeBreaks(g).map((b, i) => `<span class="brk-chip">${timeRange(b.hour, b.hour + 1)} · ${b.day === 'all' ? L('כל יום', 'every day') : dayName(b.day)}
+            <button onclick="removeBreak(${g}, ${i})" aria-label="${L('מחיקת הפסקה', 'Remove break')}">×</button></span>`).join('') || `<span class="xs muted">${L('אין הפסקות', 'No breaks')}</span>`}
+          <span class="flex items-center gap-1 wrap" style="margin-inline-start:auto">
+            <select id="brk-hour-${g}" class="input input-sm" aria-label="${L('שעת ההפסקה', 'Break time')}">${BREAK_CHOICES.map(h => `<option value="${h}" ${h === 10 ? 'selected' : ''}>${h}:00–${h + 1}:00</option>`).join('')}</select>
+            <select id="brk-day-${g}" class="input input-sm" aria-label="${L('יום', 'Day')}"><option value="all">${L('כל יום', 'Every day')}</option>${[0, 1, 2, 3, 4].map(d => `<option value="${d}">${dayName(d)}</option>`).join('')}</select>
+            <button class="btn btn-soft btn-sm" onclick="addBreak(${g})">＋ ${L('הפסקה', 'Break')}</button>
+          </span>
         </div>
         <div class="hours-table-wrap">
           <table class="hours-table">
@@ -2694,8 +2782,7 @@ function hoursTab() {
             <tbody>
               ${gradeSections(g).map(s => `<tr>
                 <th><button class="link-btn sm w7" onclick="cm.tab='classes';selectClass('${s.id}')">${sectionLabel(s)}</button></th>
-                ${plan(s.id).ends.map((e, d) => `<td><select class="input input-sm" aria-label="${sectionLabel(s)} ${dayName(d)}" onchange="setEnd('${s.id}', ${d}, this.value)">
-                  ${END_CHOICES.map(h => `<option value="${h}" ${h === e ? 'selected' : ''}>${h}:00</option>`).join('')}</select></td>`).join('')}
+                ${[0, 1, 2, 3, 4].map(d => `<td><div class="time-pair">${timeSel(s.id, 'starts', d, plan(s.id).starts[d], START_CHOICES)}<span class="xs muted">–</span>${timeSel(s.id, 'ends', d, plan(s.id).ends[d], END_CHOICES)}</div></td>`).join('')}
                 <td class="mono w7 ${requiredHours(s.id) > capacity(s.id) ? 'bad-text' : ''}" title="${L('נדרש / פנוי', 'required / available')}">${requiredHours(s.id)}/${capacity(s.id)}</td>
               </tr>`).join('') || `<tr><td colspan="7" class="xs muted">${L('אין כיתות בשכבה.', 'No classes in this grade.')}</td></tr>`}
             </tbody>
@@ -2807,6 +2894,12 @@ function newSubjectDialog() {
 }
 
 function setPref(key, value) { school.prefs[key] = value; saveSchool(); renderPage(); }
+function toggleSync(key) {
+  const list = school.prefs.syncSubjects;
+  school.prefs.syncSubjects = list.includes(key) ? list.filter(k => k !== key) : list.concat(key);
+  saveSchool();
+  renderPage();
+}
 
 function generateTab() {
   const chosen = [...cm.genSel].map(section).filter(Boolean);
@@ -2870,7 +2963,7 @@ function generateTab() {
       </select>
       <button class="btn btn-soft btn-sm" onclick="openNewSubject()">✚ ${L('מקצוע חדש', 'New subject')}</button>
     </div>
-    <p class="xs muted mt-2">${L('מורה שמופיע/ה בכמה כיתות לא ישובץ/תשובץ בשתי כיתות באותה שעה.', 'A teacher listed in several classes is never placed in two classes at the same hour.')}</p>` : ''}`}
+    <p class="xs muted mt-2">${L('אותו שיעור לא ישובץ בשתי כיתות באותה שעה – אלא אם רשומים מורים שונים. מורה לא ישובץ/תשובץ בשתי כיתות במקביל.', 'The same lesson is never placed in two classes at the same hour unless different teachers are named. A teacher is never in two classes at once.')}</p>` : ''}`}
   </div>
 
   <div class="card r-3xl p-5">
@@ -2882,6 +2975,11 @@ function generateTab() {
       <label class="pref"><input type="checkbox" ${prefs.doubles ? 'checked' : ''} onchange="setPref('doubles', this.checked)">
         <span><span class="sm w7 block">${L('שיעורים כפולים', 'Double lessons')}</span>
         <span class="xs muted">${L('מקצוע עם 3 שעות ומעלה יקבל שעתיים רצופות כשאפשר.', 'A subject with 3+ hours a week gets two back-to-back hours where possible.')}</span></span></label>
+      <div class="pref" style="flex-direction:column">
+        <span><span class="sm w7 block">👥 ${L('באותה שעה לכל השכבה', 'Same time for the whole grade')}</span>
+        <span class="xs muted">${L('המקצועות האלה ישובצו באותו יום ובאותה שעה בכל הכיתות של השכבה (למשל להקבצות). כל כיתה צריכה מורה משלה.', 'These subjects are placed on the same day and hour in every class of the grade (e.g. for ability groups). Each class needs its own teacher.')}</span></span>
+        <div class="flex wrap gap-2">${allSubjects().filter(x => x.group !== 'other' || school.prefs.syncSubjects.includes(x.key)).map(x => `<label class="pick-chip ${school.prefs.syncSubjects.includes(x.key) ? 'on' : ''}"><input type="checkbox" ${school.prefs.syncSubjects.includes(x.key) ? 'checked' : ''} onchange="toggleSync('${x.key}')"> ${x.icon} ${esc(subjName(x.key))}</label>`).join('')}</div>
+      </div>
       <div class="pref">
         <span><span class="sm w7 block">${L('מקסימום שעות של אותו מקצוע ביום', 'Most hours of one subject per day')}</span></span>
         <div class="seg small" style="margin-inline-start:auto">${[1, 2, 3].map(n => `<button class="${prefs.maxPerDay === n ? 'on' : ''}" onclick="setPref('maxPerDay', ${n})">${n}</button>`).join('')}</div>
@@ -2906,77 +3004,131 @@ function generateTab() {
 function rng(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function shuffle(arr, rand) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
 
-function buildUnits(id, prefs) {
+function unitsFor(subject, n, teacher, hours, prefs) {
+  const units = [];
+  if (prefs.doubles && n >= 3 && prefs.maxPerDay >= 2) {
+    const pairs = Math.floor(n / 2);
+    for (let i = 0; i < pairs; i++) units.push({ subject, len: 2, teacher, hours });
+    n -= pairs * 2;
+  }
+  for (let i = 0; i < n; i++) units.push({ subject, len: 1, teacher, hours });
+  return units;
+}
+function buildUnits(id, prefs, reserved) {
   const units = [];
   plan(id).subjects.forEach(r => {
-    let n = Number(r.hours) || 0;
-    const teacher = (r.teacher || '').trim();
-    if (prefs.doubles && n >= 3 && prefs.maxPerDay >= 2) {
-      const pairs = Math.floor(n / 2);
-      for (let i = 0; i < pairs; i++) units.push({ subject: r.key, len: 2, teacher, hours: r.hours });
-      n -= pairs * 2;
-    }
-    for (let i = 0; i < n; i++) units.push({ subject: r.key, len: 1, teacher, hours: r.hours });
+    const n = (Number(r.hours) || 0) - ((reserved && reserved[r.key]) || 0);
+    if (n > 0) units.push(...unitsFor(r.key, n, (r.teacher || '').trim(), r.hours, prefs));
   });
   return units;
 }
+// What an hour is booked under: the named teacher, or – with no teacher – the subject itself
+function bookingKey(subject, teacher, d, h) { return teacher ? `t:${teacher.toLowerCase()}|${d}|${h}` : `s:${subject}|${d}|${h}`; }
 
+/* Grade-wide subjects (same time in every class of the grade) are placed first, then
+   each class's other lessons. Hard rules: start/end times, grade breaks, one lesson per
+   hour, no teacher in two places, and the same lesson in two classes at once only with
+   different teachers. Preferences only change the score; the best of many attempts wins. */
 function attempt(ids, prefs, seed, busyFixed) {
   const rand = rng(seed);
   const busy = new Set(busyFixed);
-  const result = {}, missing = {};
+  const grids = {}, result = {}, allowed = {}, reserved = {};
+  const syncReport = [];
   let penalty = 0;
+  ids.forEach(id => {
+    grids[id] = [0, 1, 2, 3, 4].map(() => ({}));
+    allowed[id] = [0, 1, 2, 3, 4].map(d => lessonHours(id, d));
+    result[id] = [];
+    reserved[id] = {};
+  });
+  const dayFits = (id, d, h, u) => {
+    for (let k = 0; k < u.len; k++) if (!allowed[id][d].includes(h + k) || grids[id][d][h + k]) return false;
+    return Object.values(grids[id][d]).filter(x => x === u.subject).length + u.len <= prefs.maxPerDay;
+  };
+  const free = (subject, teacher, d, h, len) => {
+    for (let k = 0; k < len; k++) if (busy.has(bookingKey(subject, teacher, d, h + k))) return false;
+    return true;
+  };
+  const scoreFor = (id, d, h, u) => {
+    const grid = grids[id][d];
+    const dayLessons = Object.values(grid);
+    const open = allowed[id][d].filter(x => !grid[x]);
+    let score = Math.max(0, open.indexOf(h)) * 3;                          // keep the day without holes
+    score += (dayLessons.length / Math.max(1, allowed[id][d].length)) * 4;  // spread over the week
+    if (dayLessons.includes(u.subject)) score += 5;
+    if (prefs.groupRelated) {
+      const group = subj(u.subject).group;
+      if (dayLessons.some(k => k !== u.subject && subj(k).group === group)) score -= 3;
+      if ([grid[h - 1], grid[h + u.len]].some(k => k && k !== u.subject && subj(k).group === group)) score -= 2;
+    }
+    return score;
+  };
+  const put = (id, d, h, u) => {
+    for (let k = 0; k < u.len; k++) {
+      grids[id][d][h + k] = u.subject;
+      result[id].push({ day: d, hour: h + k, subject: u.subject, ...(u.together ? { together: true } : {}) });
+      busy.add(bookingKey(u.subject, u.teacher, d, h + k));
+    }
+  };
+
+  // 1. grade-wide subjects: one slot for every class of the grade at once
+  [...new Set(ids.map(id => section(id).grade))].forEach(g => {
+    const secs = ids.filter(id => section(id).grade === g);
+    prefs.syncSubjects.forEach(key => {
+      const rows = secs.map(id => ({ id, row: plan(id).subjects.find(r => r.key === key && r.hours > 0) })).filter(x => x.row);
+      if (rows.length < 2) return;
+      const teachers = rows.map(x => (x.row.teacher || '').trim());
+      const named = teachers.map(t => t.toLowerCase()).filter(Boolean);
+      const dup = named.find((t, i) => named.indexOf(t) !== i);
+      if (dup) { syncReport.push({ grade: g, key, problem: 'teacher', teacher: teachers.find(t => t.toLowerCase() === dup) }); return; }
+      const n = Math.min(...rows.map(x => Number(x.row.hours) || 0));
+      let placed = 0;
+      shuffle(unitsFor(key, n, '', n, prefs), rand).sort((a, b) => b.len - a.len).forEach(base => {
+        let best = null;
+        for (let d = 0; d < 5; d++) {
+          [...new Set(rows.flatMap(x => allowed[x.id][d]))].forEach(h => {
+            // every class must have the hour free, and its own teacher (or, with none named, the subject) must be free
+            const ok = rows.every((x, i) => dayFits(x.id, d, h, base) && free(key, teachers[i], d, h, base.len));
+            if (!ok) return;
+            const score = rows.reduce((sum, x) => sum + scoreFor(x.id, d, h, base), 0) / rows.length + rand() * 0.4;
+            if (!best || score < best.score) best = { d, h, score };
+          });
+        }
+        if (!best) return;
+        rows.forEach((x, i) => put(x.id, best.d, best.h, { ...base, teacher: teachers[i], together: true }));
+        placed += base.len;
+        penalty += best.score;
+      });
+      rows.forEach(x => { reserved[x.id][key] = n; });
+      syncReport.push({ grade: g, key, hours: n, placed, extra: rows.some(x => x.row.hours > n) });
+    });
+  });
+
+  // 2. everything else, class by class
   shuffle(ids.slice(), rand).forEach(id => {
-    const ends = plan(id).ends;
-    const grid = ends.map(() => ({}));            // day → hour → subject
-    const out = [];
-    const units = buildUnits(id, prefs);
+    const units = buildUnits(id, prefs, reserved[id]);
     shuffle(units, rand).sort((a, b) => (b.len - a.len) || (b.hours - a.hours) || ((a.teacher ? 0 : 1) - (b.teacher ? 0 : 1)));
     units.forEach(u => {
       let best = null;
       for (let d = 0; d < 5; d++) {
-        const dayLessons = Object.values(grid[d]);
-        const sameSubject = dayLessons.filter(k => k === u.subject).length;
-        if (sameSubject + u.len > prefs.maxPerDay) continue;
-        const used = Object.keys(grid[d]).map(Number);
-        const firstFree = (() => { let h = DAY_START; while (grid[d][h]) h++; return h; })();
-        for (let h = DAY_START; h + u.len <= ends[d]; h++) {
-          let ok = true;
-          for (let k = 0; k < u.len; k++) {
-            if (grid[d][h + k] || (u.teacher && busy.has(`${u.teacher.toLowerCase()}|${d}|${h + k}`))) { ok = false; break; }
-          }
-          if (!ok) continue;
-          let score = rand() * 0.4;
-          score += (h - firstFree) * 3;                                  // keep the day without holes
-          score += (used.length / Math.max(1, ends[d] - DAY_START)) * 4; // spread the load over the week
-          if (sameSubject) score += 5;                                   // the same subject twice a day only if needed
-          const group = subj(u.subject).group;
-          const neighbours = [grid[d][h - 1], grid[d][h + u.len]].filter(Boolean);
-          const sameGroupDay = dayLessons.some(k => k !== u.subject && subj(k).group === group);
-          if (prefs.groupRelated) {
-            if (sameGroupDay) score -= 3;
-            if (neighbours.some(k => k !== u.subject && subj(k).group === group)) score -= 2;
-          }
+        allowed[id][d].forEach(h => {
+          if (!dayFits(id, d, h, u) || !free(u.subject, u.teacher, d, h, u.len)) return;
+          const score = scoreFor(id, d, h, u) + rand() * 0.4;
           if (!best || score < best.score) best = { d, h, score };
-        }
+        });
       }
-      if (!best) { missing[u.subject] = (missing[u.subject] || 0) + u.len; penalty += 1000 * u.len; return; }
-      for (let k = 0; k < u.len; k++) {
-        grid[best.d][best.h + k] = u.subject;
-        out.push({ day: best.d, hour: best.h + k, subject: u.subject });
-        if (u.teacher) busy.add(`${u.teacher.toLowerCase()}|${best.d}|${best.h + k}`);
-      }
+      if (!best) { penalty += 1000 * u.len; return; }
+      put(id, best.d, best.h, u);
       penalty += best.score;
     });
-    // gaps inside a day
-    grid.forEach(day => {
-      const hs = Object.keys(day).map(Number);
-      if (hs.length) penalty += (Math.max(...hs) - DAY_START + 1 - hs.length) * 20;
-    });
-    result[id] = out;
-    if (Object.keys(missing).length) missing.__ids = (missing.__ids || []).concat(id);
   });
-  return { result, penalty };
+  // holes inside a day
+  ids.forEach(id => grids[id].forEach((day, d) => {
+    const hs = Object.keys(day).map(Number);
+    if (hs.length) penalty += allowed[id][d].filter(h => h < Math.max(...hs) && !day[h]).length * 20;
+  }));
+  syncReport.forEach(r => { if (r.hours != null) penalty += (r.hours - r.placed) * 1000; });
+  return { result, penalty, syncReport };
 }
 
 function runGenerator() {
@@ -2988,8 +3140,7 @@ function runGenerator() {
   // teachers of classes that are not being regenerated are busy at their lessons
   const busyFixed = [];
   school.sections.filter(s => !ids.includes(s.id)).forEach(s => schedule(s.id).forEach(l => {
-    const t = (l.teacher || teacherOf(s.id, l.subject)).trim().toLowerCase();
-    if (t) busyFixed.push(`${t}|${l.day}|${l.hour}`);
+    busyFixed.push(bookingKey(l.subject, (l.teacher || teacherOf(s.id, l.subject)).trim(), l.day, l.hour));
   }));
   const tries = Math.max(12, Math.min(60, Math.round(600 / ids.length)));
   let best = null;
@@ -3002,6 +3153,7 @@ function runGenerator() {
   saveSchool();
   cm.lastRun = {
     at: Date.now(),
+    sync: best.syncReport,
     rows: ids.map(id => {
       const placed = {};
       best.result[id].forEach(l => { placed[l.subject] = (placed[l.subject] || 0) + 1; });
@@ -3020,6 +3172,17 @@ function runGenerator() {
     load[k].slots = Math.max(load[k].slots, capacity(s.id));
   }));
   cm.lastRun.overloaded = Object.values(load).filter(x => x.hours > x.slots);
+  // subjects with no teacher named run in one class at a time, so they need that many separate hours
+  const need = {}, byGrade = {};
+  ids.forEach(id => plan(id).subjects.forEach(r => {
+    if ((r.teacher || '').trim() || !(r.hours > 0)) return;
+    const g = section(id).grade;
+    if (sameTimeSubject(r.key)) { byGrade[r.key + '|' + g] = Math.max(byGrade[r.key + '|' + g] || 0, Number(r.hours)); return; }
+    need[r.key] = (need[r.key] || 0) + Number(r.hours);
+  }));
+  Object.entries(byGrade).forEach(([k, h]) => { const key = k.split('|')[0]; need[key] = (need[key] || 0) + h; });
+  const week = Math.max(...ids.map(capacity));
+  cm.lastRun.noTeacher = Object.entries(need).filter(([, h]) => h > week).map(([key, hours]) => ({ key, hours, week }));
   renderPage();
   const bad = cm.lastRun.rows.filter(r => r.short.length).length;
   toast(bad ? L(`נוצרו מערכות – ב־${bad} כיתות לא נכנסו כל השעות`, `Schedules created – ${bad} class${bad === 1 ? '' : 'es'} could not fit every hour`) : L('המערכות נוצרו ונשמרו', 'Schedules created and saved'));
@@ -3038,6 +3201,12 @@ function genReport() {
         <button class="link-btn xs" onclick="cm.tab='classes';cm.selected='${r.id}';renderPage();document.getElementById('class-view')?.scrollIntoView({ block: 'start' })">${L('לצפייה ←', 'View →')}</button>
       </div>`;
     }).join('')}
+    ${(cm.lastRun.sync || []).map(r => r.problem
+      ? `<div class="warn-box">👥 ${L(`${esc(subjName(r.key))} ב${gradeLabel(r.grade)}: ${esc(r.teacher)} רשום/ה ביותר מכיתה אחת, ולכן אי אפשר ללמד את כל השכבה באותה שעה. רשמו מורה אחר/ת לכל כיתה.`, `${esc(subjName(r.key))} in ${gradeLabel(r.grade)}: ${esc(r.teacher)} is listed for more than one class, so the grade can't have it at the same time. Name a different teacher for each class.`)}</div>`
+      : `<div class="gen-row ${r.placed === r.hours ? 'ok' : 'warn'}"><span class="w8">${gradeLabel(r.grade)}</span><span class="xs flex-1">👥 ${subj(r.key).icon} ${esc(subjName(r.key))} – ${r.placed === r.hours
+          ? L(`כל ${r.hours} השעות באותו זמן בכל הכיתות`, `all ${r.hours} hours at the same time in every class`)
+          : L(`רק ${r.placed} מתוך ${r.hours} שעות נכנסו יחד`, `only ${r.placed} of ${r.hours} hours fit together`)}${r.extra ? L(' (שעות נוספות של כיתות מסוימות שובצו בנפרד)', ' (extra hours of some classes placed separately)') : ''}</span></div>`).join('')}
+    ${(cm.lastRun.noTeacher || []).map(x => `<div class="warn-box">📚 ${L(`ל${esc(subjName(x.key))} לא רשום מורה, ולכן הוא נלמד בכיתה אחת בכל פעם: צריך ${x.hours} שעות נפרדות, ובשבוע יש רק ${x.week}. רשמו מורים שונים לכיתות.`, `${esc(subjName(x.key))} has no teacher named, so only one class can have it at a time: it needs ${x.hours} separate hours but the week has ${x.week}. Name different teachers for the classes.`)}</div>`).join('')}
     ${(cm.lastRun.overloaded || []).map(x => `<div class="warn-box">👩‍🏫 ${L(`ל${esc(x.name)} יש ${x.hours} שעות בשבוע, אבל בשבוע יש רק ${x.slots} שעות לימוד – אי אפשר לשבץ את כולן. כדאי לחלק את השיעורים בין כמה מורים.`, `${esc(x.name)} has ${x.hours} hours a week, but the week only has ${x.slots} teaching hours – they cannot all fit. Split these lessons between teachers.`)}</div>`).join('')}
     ${cm.lastRun.rows.some(r => r.short.length) ? `<p class="xs muted">${L('כדי שהכול ייכנס: האריכו את שעות הסיום, הפחיתו שעות, אפשרו יותר שעות מאותו מקצוע ביום, או בדקו מורים שמלמדים בהרבה כיתות.', 'To fit everything: extend the end times, reduce hours, allow more hours of a subject per day, or check teachers who teach many classes.')}</p>` : ''}
   </div>`;
@@ -3045,7 +3214,7 @@ function genReport() {
 
 /* ================= Page ================= */
 function renderPage() {
-  const tabs = [['classes', '🏫 ' + L('כיתות ומערכות', 'Classes')], ['generate', '⚙️ ' + L('מחולל מערכות', 'Schedule generator')], ['hours', '🕒 ' + L('שעות סיום', 'End times')]];
+  const tabs = [['classes', '🏫 ' + L('כיתות ומערכות', 'Classes')], ['generate', '⚙️ ' + L('מחולל מערכות', 'Schedule generator')], ['hours', '🕒 ' + L('שעות והפסקות', 'Hours & breaks')]];
   document.getElementById('main').innerHTML = `
     <div>
       <h1 class="display w8 x2">🗂️ ${L('ניהול כיתות ומערכות שעות', 'Classes & schedules')}</h1>

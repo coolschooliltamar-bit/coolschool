@@ -17,7 +17,6 @@ Open `index.html` in a browser to start – it takes you to sign in (or to your 
 | My tasks (to do, awaiting grade, completed with feedback) | `tasks.html` | Students |
 | Learning path | `path.html` | Teachers |
 | Library | `library.html` | Students, teachers |
-| Weekly timetable editor | `timetable.html` | Principals |
 | Classes & schedules (grades 7–12, generator, end times) | `classes.html` | Principals |
 | Live lesson (Jitsi) with automatic attendance | `live.html` | Teachers, students |
 | Settings | `settings.html` | Everyone |
@@ -37,7 +36,6 @@ Password for all: `demo1234`
 
 - Hebrew / English / Arabic with right-to-left layout, light and dark themes, three font sizes
 - Teachers who register must be approved by a principal (the principal is notified)
-- Principals edit the weekly timetable for the whole school year; teachers and students are notified of changes
 - Teachers grade submissions and view student files; grade weights (per class) can be typed freely and are scaled to exactly 100% on save
 - Grades (in this order): **Exams** = average of exam grades the teacher enters, **Assignments** = average of graded submissions, **Conduct & Engagement (תלמידאות)** = a grade the teacher sets, shown next to each student's Mashov tally (e.g. 14 on time, 5 late, 1 absent)
 - Students see the Mashov status of each lesson (on time / late / absent / equipment / disruption / commendation) on their schedule and Grades page – but not the conduct & engagement grade – and get notified of new marks and grades
@@ -48,7 +46,7 @@ Password for all: `demo1234`
 - Students see all their tasks in one place – what is still due, what is awaiting a grade, and completed work with the teacher's grade and feedback
 - Students hand in work, build and share personal learning paths in the library
 - Works on phones, tablets and desktops
-- **Classes & schedules** (principal): grades 7–12 with as many parallel classes as needed (11-1, 11-2 …); click a class to see and edit its weekly timetable; set each class's daily end time; an automatic generator takes the chosen classes, their subjects and weekly hours (and optional teachers), and preferences – group similar subjects together, double lessons, a daily cap per subject – and never puts a teacher in two classes at once or a lesson after a class's end time
+- **Classes & schedules** (principal): grades 7–12 with as many parallel classes as needed (11-1, 11-2 …); click a class to see and edit its weekly timetable; set each class's start and end time for every day, and breaks for each grade (different times per grade); an automatic generator takes the chosen classes, their subjects and weekly hours (and optional teachers), and preferences – subjects taught at the same time across the whole grade (Math and English by default), group similar subjects together, double lessons, a daily cap per subject. It never puts a lesson outside a class's hours or in a break, never puts a teacher in two classes at once, and never runs the same lesson in two classes at once unless different teachers are named
 - **Live lessons** (Jitsi): the teacher opens a live lesson and students join from their own device. The teacher's page follows the call: joining marks a student present in Mashov, leaving for longer than the set time (5 minutes by default) marks **הברזה** (skipped class) and notifies the student, and at the end students who never joined are marked absent. The video server is set in `JITSI_DOMAIN` in `common.js` – meet.jit.si is fine for a quick try, but it cuts embedded calls after 5 minutes and needs a signed-in moderator, so real classes need a school-run Jitsi server or Jitsi as a Service
 - Every class shows a subject icon next to its name (🧬 Biology, 🧪 Chemistry, ➗ Math, 🏛️ History, 📖 English)
 - Clicking a day in the calendar (or the Upcoming button) opens the upcoming-events list from that date

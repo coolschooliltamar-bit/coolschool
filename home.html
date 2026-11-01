@@ -1008,7 +1008,6 @@ const NAV = [
   { href: 'tasks.html', key: 'tasks' },
   { href: 'path.html', key: 'path' },
   { href: 'library.html', key: 'library' },
-  { href: 'timetable.html', key: 'timetable' },
   { href: 'classes.html', key: 'classes' },
   { href: 'settings.html', key: 'settings' },
 ];
@@ -1133,7 +1132,7 @@ function renderSidebar(active) {
   </aside>`;
 }
 
-const PRINCIPAL_PAGES = ['home', 'classes', 'timetable', 'settings'];
+const PRINCIPAL_PAGES = ['home', 'classes', 'settings'];
 // Students get Tasks instead of the learning path; teachers keep the path
 function navAllowed(item) {
   if (isPrincipal()) return PRINCIPAL_PAGES.includes(item.key);
@@ -2753,13 +2752,13 @@ function principalHome() {
         </${s.href ? 'a' : 'div'}>`).join('')}
     </div>
 
-    <a href="timetable.html" class="card r-3xl p-5 flex items-center gap-4 stat-link">
-      <div class="icon-tile" style="width:3rem;height:3rem;font-size:1.5rem;background:#3B82F618">🗓️</div>
+    <a href="classes.html" class="card r-3xl p-5 flex items-center gap-4 stat-link">
+      <div class="icon-tile" style="width:3rem;height:3rem;font-size:1.5rem;background:#3B82F618">🗂️</div>
       <div class="flex-1 min-w-0">
-        <div class="display w8 base">${L('עריכת מערכת השעות השבועית', 'Edit the weekly timetable')}</div>
-        <div class="xs muted">${timetableMeta() ? L('פורסם לאחרונה ', 'Last published ') + fmtDate(timetableMeta().updatedAt, { day: 'numeric', month: 'short' }) : L('המערכת חלה על כל שנת הלימודים', 'The timetable applies to the whole school year')}</div>
+        <div class="display w8 base">${L('ניהול כיתות ומערכות שעות', 'Classes & schedules')}</div>
+        <div class="xs muted">${L('כיתות ז׳–י״ב, מערכת לכל כיתה, שעות, הפסקות ויצירה אוטומטית', 'Grades 7–12, a timetable per class, hours, breaks and automatic generation')}</div>
       </div>
-      <span class="primary w7 sm">${L('לעריכה ←', 'Edit →')}</span>
+      <span class="primary w7 sm">${L('לניהול ←', 'Manage →')}</span>
     </a>
 
     <div id="approvals" class="card r-3xl" style="overflow:hidden" data-collapse="home-approvals" data-collapse-default="open">
