@@ -438,6 +438,7 @@ body.jmodal-open { overflow: hidden; }
 .grade-pill .display { font-size: 1.25rem; }
 .feedback-box { padding: 0.75rem 0.875rem; border-radius: 0.875rem; background: var(--surface); }
 .feedback-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.path-task { text-decoration: none; color: var(--text); } .path-task:hover { border-color: #58CC02; }
 </style>
 </head>
 <body>
@@ -857,6 +858,11 @@ function inboxNotifs() {
           ? L(`${name} עדכן/ה את הציון שלך ב${what}: ${x.oldGrade} ← ${x.newGrade}`, `${name} updated your grade for ${what}: ${x.oldGrade} → ${x.newGrade}`)
           : L(`${name} השאיר/ה את הציון שלך ב${what} ללא שינוי`, `${name} kept your grade for ${what} unchanged`) };
     }
+    if (m.kind === 'path-published') {
+      const x = m.extra || {};
+      return { ...base, type: 'path', link: 'path.html?id=' + encodeURIComponent(x.id || ''),
+        text: L(`${name} פרסם/ה מסלול למידה חדש: ${x.title || ''}`, `${name} published a new learning path: ${x.title || ''}`) };
+    }
     if (m.kind === 'teacher-approved') {
       return { ...base, type: 'approved', text: L('המנהל/ת אישר/ה את החשבון שלך. ברוכים הבאים!', 'The principal approved your account. Welcome!') };
     }
@@ -973,7 +979,7 @@ const NAV = [
 
 /* ================= Header ================= */
 function notifIcon(type) {
-  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'grade-req': '📝', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
+  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'grade-req': '📝', path: '🗺️', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
 }
 
 function renderHeader() {
@@ -2208,7 +2214,6 @@ function renderAll() {
   if (!CURRENT_USER) return;
   if (isPrincipal() && !PRINCIPAL_PAGES.includes(window.PAGE_KEY)) { location.replace('home.html'); return; }
   if (!isPrincipal() && (window.PAGE_KEY === 'timetable' || window.PAGE_KEY === 'classes')) { location.replace('schedule.html'); return; }
-  if (state.role === 'student' && window.PAGE_KEY === 'path') { location.replace('tasks.html'); return; }
   if (state.role === 'teacher' && window.PAGE_KEY === 'tasks') { location.replace('home.html'); return; }
   applyDocument();
   renderHeaderOnly();
@@ -2424,6 +2429,33 @@ function section(title, icon, items, empty, key, def) {
   </section>`;
 }
 
+/* ---------- Learning paths the teachers published ---------- */
+function learningPaths() {
+  const paths = load('cs-ai-paths', []).filter(p => p.published);
+  if (!paths.length) return '';
+  const progress = load('cs-path-progress', {});
+  return `
+  <section class="col gap-3">
+    <h2 class="display w8 lg">🗺️ ${L('מסלולי למידה', 'Learning paths')}</h2>
+    <div class="grid g-1 lg-2">${paths.map(p => {
+      const nodes = p.units.flatMap(u => u.nodes);
+      const mine = (progress[p.id] || {})[currentUserName()] || { done: {}, xp: 0 };
+      const done = nodes.filter(n => mine.done[n.id]).length;
+      const cls = classes.find(c => c.id === p.classId);
+      return `
+      <a class="card r-2xl p-4 flex items-center gap-3 path-task" href="path.html?id=${encodeURIComponent(p.id)}">
+        <div class="icon-tile" style="background:${cls ? cls.color : '#58CC02'}1f">${subjectIcon(cls)}</div>
+        <div class="flex-1 min-w-0">
+          <div class="w7 truncate" dir="auto">${esc(p.title)}</div>
+          <div class="bar mt-2" style="height:0.45rem"><span style="width:${(done / Math.max(1, nodes.length)) * 100}%;background:#58CC02"></span></div>
+          <div class="xs muted mt-1">${done === nodes.length ? '🏆 ' + L('הושלם', 'Completed') : L(`${done} מתוך ${nodes.length} שלבים`, `${done} of ${nodes.length} steps`)}${mine.xp ? ` · ⚡ ${mine.xp} XP` : ''}</div>
+        </div>
+        <span class="btn btn-sm" style="background:#58CC02;color:#fff">${done ? L('המשך', 'Continue') : L('התחלה', 'Start')}</span>
+      </a>`;
+    }).join('')}</div>
+  </section>`;
+}
+
 /* ---------- Page ---------- */
 function renderPage() {
   const all = myTasks();
@@ -2449,6 +2481,7 @@ function renderPage() {
       <h1 class="display w8 x2">📋 ${L('המשימות שלי', 'My tasks')}</h1>
       <p class="sm muted mt-1">${L('כל המשימות שלך – מה עוד צריך להגיש, ומה כבר נבדק עם המשוב מהמורה.', 'All your tasks – what still needs handing in, and what was graded with your teacher\'s feedback.')}</p>
     </div>
+    ${learningPaths()}
     <div class="grid g-2 lg-4">
       ${stats.map(s => `
         <div class="card r-2xl p-4 flex items-center gap-3 stat-tile">

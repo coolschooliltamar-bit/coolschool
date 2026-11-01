@@ -9,4 +9,11 @@
  */
 window.COOLSCHOOL_CONFIG = {
   jitsiDomain: 'meet.jit.si',
+
+  /* aiProxyUrl: the school's AI server for the learning-path generator (see ai-proxy/README.md).
+   *   Empty: each teacher can paste their own Anthropic API key in their browser to try it,
+   *   and the built-in generator (no AI) always works. Example:
+   *     aiProxyUrl: 'https://coolschool-ai.yourschool.workers.dev',
+   */
+  aiProxyUrl: '',
 };

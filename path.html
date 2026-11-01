@@ -425,38 +425,130 @@ body.jmodal-open { overflow: hidden; }
 .count-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; height: 1.5rem; padding: 0 0.4375rem; margin-inline-start: 0.375rem; border-radius: 9999px; background: #F43F5E; color: #fff; font-size: 0.8125rem; font-weight: 800; vertical-align: middle; }
 
 /* ===================== Page styles ===================== */
-/* Node map — padded so nodes at 0%/100% never clip */
-.node-map { position: relative; width: 100%; max-width: 24rem; height: 32.5rem; margin: 3.5rem 0; direction: ltr; }
-.node-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.node {
-  position: absolute; transform: translate(-50%, -50%); z-index: 5; cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
-}
-.node.current { z-index: 10; }
-.node-ring {
-  position: absolute; top: -0.5rem; left: 50%; width: 4.5rem; height: 4.5rem; margin-left: -2.25rem; border-radius: 50%;
-  background: #7C3AED33; animation: pulse-ring 1.8s ease-out infinite;
-}
-.node-circle {
-  position: relative; width: 3.5rem; height: 3.5rem; border-radius: 50%; border: 0.1875rem solid;
-  display: flex; align-items: center; justify-content: center; font-size: 1.5rem; transition: transform .15s;
-}
-.node:hover .node-circle, .node.selected .node-circle { transform: scale(1.15); }
-.node.selected .node-circle { outline: 0.1875rem solid var(--primary); outline-offset: 0.1875rem; }
-.node-label {
-  padding: 2px 0.5rem; border-radius: 0.5rem; font-size: 0.625rem; font-weight: 700; line-height: 1.3; white-space: nowrap;
-  background: var(--card); border: 1px solid var(--border);
-}
-.node-xp { padding: 2px 0.375rem; border-radius: 624.9375rem; font-size: 0.5625rem; font-weight: 700; background: #F59E0B20; color: #F59E0B; }
-.node-tip {
-  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 0.5rem; z-index: 20;
-  padding: 0.5rem 0.75rem; border-radius: 0.75rem; font-size: 0.75rem; white-space: nowrap; pointer-events: none;
-  background: var(--text); color: var(--card); box-shadow: 0 0.625rem 1.5625rem rgba(0,0,0,.2);
-  opacity: 0; transition: opacity .15s;
-}
-.node-tip * { color: var(--card); }
-.node:hover .node-tip { opacity: 1; }
-html[lang='he'] .node-map, html[lang='ar'] .node-map { direction: ltr; }
+/* ---------- Generator ---------- */
+.pstep { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.625rem; }
+.step-dot { width: 1.5rem; height: 1.5rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; color: #fff; background: var(--primary); }
+.pdrop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.375rem; padding: 1.75rem 1rem; border-radius: 1.25rem; text-align: center; cursor: pointer;
+  border: 2px dashed color-mix(in srgb, var(--primary) 40%, var(--border)); background: color-mix(in srgb, var(--primary) 4%, transparent); transition: background .15s, border-color .15s; }
+.pdrop:hover, .pdrop.over { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.pdrop.busy { cursor: progress; }
+.pdoc { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.875rem; border-radius: 1rem; background: var(--surface); }
+.pdoc-icon { font-size: 1.75rem; line-height: 1; }
+.pdoc-topics { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.375rem; }
+.pdoc-topics span { font-size: 0.6875rem; font-weight: 700; padding: 0.0625rem 0.5rem; border-radius: 9999px; background: var(--card); border: 1px solid var(--border); max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.perror { margin-top: 0.75rem; font-size: 0.8125rem; font-weight: 600; color: #E11D48; }
+.pdiff { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.pdiff button, .pengine button { display: flex; flex-direction: column; align-items: flex-start; gap: 0.125rem; padding: 0.625rem 0.75rem; border-radius: 0.875rem; text-align: start; cursor: pointer;
+  background: var(--card); border: 2px solid var(--border); color: var(--text); }
+.pdiff button.on, .pengine button.on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, var(--card)); }
+.pdiff button > span:first-child { font-size: 1.25rem; }
+.pengine { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+@media (max-width: 600px) { .pengine { grid-template-columns: 1fr; } .pdiff button .xs { display: none; } }
+.ptime { padding: 0.375rem 0.75rem; border-radius: 9999px; font-size: 0.8125rem; font-weight: 700; cursor: pointer; background: var(--card); border: 1.5px solid var(--border); color: var(--text); }
+.ptime.on { border-color: var(--primary); color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, var(--card)); }
+.pkey { padding: 0.75rem 0.875rem; border-radius: 0.875rem; background: color-mix(in srgb, var(--primary) 6%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent); }
+.input.input-sm { padding: 0.375rem 0.625rem; border-radius: 0.625rem; font-size: 0.8125rem; }
+
+/* ---------- Path list ---------- */
+.pcard { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border-radius: 1rem; background: var(--surface); border: 2px solid transparent; color: var(--text); text-decoration: none; }
+.pcard:hover, .pcard.on { border-color: var(--primary); }
+.pcard-icon { width: 2.75rem; height: 2.75rem; border-radius: 0.875rem; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; }
+.pcard .bar { display: block; }
+.pbadge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.0625rem 0.5rem; border-radius: 9999px; font-size: 0.6875rem; font-weight: 800; background: var(--surface); color: var(--muted); }
+.pbadge.live { background: #58CC0222; color: #3E8E00; }
+.pbadge.draft { background: #F59E0B22; color: #B45309; }
+.dark .pbadge.live { color: #9BE15D; } .dark .pbadge.draft { color: #FCD34D; }
+.pprog-row { display: flex; align-items: flex-start; gap: 0.625rem; }
+.pprog-row .bar { display: block; }
+
+/* ---------- The map ---------- */
+.pmap { display: flex; flex-direction: column; gap: 1.75rem; max-width: 34rem; margin: 0 auto; }
+.punit-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.875rem 1.125rem; border-radius: 1rem; color: #fff;
+  background: var(--u); box-shadow: 0 0.3rem 0 color-mix(in srgb, var(--u) 70%, #000); }
+.punit-head h3 { color: #fff; }
+.punit-kicker { opacity: .85; letter-spacing: .04em; text-transform: uppercase; }
+.punit-meta { flex-shrink: 0; padding: 0.25rem 0.625rem; border-radius: 9999px; background: rgba(255,255,255,.2); }
+.pnodes { display: flex; flex-direction: column; align-items: center; gap: 1.1rem; padding: 1.5rem 0 0.25rem; }
+.pnode-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.375rem; width: 9rem; }
+.pnode { width: 4.5rem; height: 4.1rem; border-radius: 50%; border: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  background: var(--u); box-shadow: 0 0.4rem 0 color-mix(in srgb, var(--u) 65%, #000); transition: transform .1s, box-shadow .1s; }
+.pnode:hover { transform: translateY(-2px); }
+.pnode:active { transform: translateY(0.3rem); box-shadow: 0 0.1rem 0 color-mix(in srgb, var(--u) 65%, #000); }
+.pnode:focus-visible { outline: 3px solid var(--primary); outline-offset: 4px; }
+.pnode-icon { font-size: 1.75rem; filter: drop-shadow(0 1px 0 rgba(0,0,0,.15)); }
+.pnode.boss { width: 5.5rem; height: 5rem; background: #FFC800; box-shadow: 0 0.45rem 0 #CC9F00; }
+.pnode.checkpoint { background: color-mix(in srgb, var(--u) 75%, #000); }
+.pnode.practice { background: color-mix(in srgb, var(--u) 82%, #fff); }
+.pnode.done { background: #FFC800; box-shadow: 0 0.4rem 0 #CC9F00; }
+.pnode.locked { background: #E5E5E5; box-shadow: 0 0.4rem 0 #AFAFAF; cursor: not-allowed; }
+.dark .pnode.locked { background: #37464F; box-shadow: 0 0.4rem 0 #202F36; }
+.pnode.current { animation: pnode-pulse 1.6s ease-in-out infinite; }
+@keyframes pnode-pulse { 0%, 100% { box-shadow: 0 0.4rem 0 color-mix(in srgb, var(--u) 65%, #000), 0 0 0 0 color-mix(in srgb, var(--u) 45%, transparent); }
+  50% { box-shadow: 0 0.4rem 0 color-mix(in srgb, var(--u) 65%, #000), 0 0 0 0.6rem color-mix(in srgb, var(--u) 0%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .pnode.current { animation: none; } }
+.pnode-start { position: absolute; top: -1.9rem; padding: 0.25rem 0.625rem; border-radius: 0.625rem; font-size: 0.75rem; font-weight: 800; color: var(--u); background: var(--card);
+  border: 2px solid var(--border); white-space: nowrap; animation: pstart 1.2s ease-in-out infinite; }
+@keyframes pstart { 50% { transform: translateY(-3px); } }
+.pnode-label { display: flex; flex-direction: column; align-items: center; text-align: center; line-height: 1.25; max-width: 9rem; }
+.pnode-label .w7 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+@media (max-width: 420px) { .pnode-wrap { width: 7.5rem; } }
+
+/* ---------- Editor ---------- */
+.modal-bg { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(0,0,0,.5); }
+.pedit { width: 100%; max-width: 40rem; max-height: calc(100dvh - 2rem); display: flex; flex-direction: column; overflow: hidden; }
+.pedit-head, .pedit-foot { display: flex; align-items: center; gap: 0.5rem; padding: 1rem 1.25rem; }
+.pedit-head { justify-content: space-between; border-bottom: 1px solid var(--border); }
+.pedit-foot { justify-content: flex-end; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.pedit-body { padding: 1rem 1.25rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.875rem; }
+.pedit textarea.input { font: inherit; resize: vertical; }
+@media (min-width: 640px) { .sm-span-2 { grid-column: span 2; } }
+.pq { padding: 0.75rem; border-radius: 0.875rem; background: var(--surface); }
+.pq-opt { display: flex; align-items: center; gap: 0.5rem; padding: 0.125rem 0.375rem; border-radius: 0.625rem; }
+.pq-opt.right { background: #58CC0222; }
+.pq-opt input[type=radio] { accent-color: #58CC02; width: 1rem; height: 1rem; flex-shrink: 0; }
+.del-q { width: 1.75rem; height: 1.75rem; flex-shrink: 0; border-radius: 0.5rem; border: 0; background: none; color: var(--muted); font-weight: 800; cursor: pointer; }
+.del-q:hover { color: #F43F5E; background: #F43F5E12; }
+
+/* ---------- Player ---------- */
+.play-bg { position: fixed; inset: 0; z-index: 95; background: var(--bg, var(--card)); display: flex; justify-content: center; }
+.play { width: 100%; max-width: 46rem; display: flex; flex-direction: column; min-height: 100dvh; }
+.play-top { display: flex; align-items: center; gap: 0.875rem; padding: 1rem 1.25rem; }
+.play-bar { flex: 1; height: 1rem; border-radius: 9999px; background: var(--surface); overflow: hidden; }
+.play-bar span { display: block; height: 100%; border-radius: 9999px; background: #58CC02; transition: width .35s ease; box-shadow: inset 0 -0.2rem 0 rgba(0,0,0,.08); }
+.play-body { flex: 1; overflow-y: auto; padding: 1rem 1.5rem 2rem; display: flex; flex-direction: column; gap: 1rem; }
+.play-kicker { font-size: 0.8125rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: .04em; }
+.play-text { font-size: 1.0625rem; line-height: 1.65; }
+.play-points { display: flex; flex-direction: column; gap: 0.625rem; }
+.play-point { display: flex; gap: 0.75rem; padding: 0.875rem 1rem; border-radius: 1rem; border: 2px solid var(--border); line-height: 1.55; animation: fade-up .35s ease both; }
+.play-q { line-height: 1.45; }
+.play-q .blank { color: var(--primary); }
+.play-options { display: flex; flex-direction: column; gap: 0.625rem; }
+.play-options.tf { flex-direction: row; } .play-options.tf .play-opt { flex: 1; justify-content: center; }
+.play-opt { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 1rem; border-radius: 1rem; text-align: start; font-size: 1rem; font-weight: 600; cursor: pointer;
+  background: var(--card); color: var(--text); border: 2px solid var(--border); box-shadow: 0 0.25rem 0 var(--border); transition: transform .08s; }
+.play-opt:hover:not(:disabled) { background: var(--surface); }
+.play-opt:active:not(:disabled) { transform: translateY(0.2rem); box-shadow: none; }
+.play-key { width: 1.6rem; height: 1.6rem; flex-shrink: 0; border-radius: 0.5rem; border: 2px solid var(--border); display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; color: var(--muted); }
+.play-opt.right { border-color: #58CC02; background: #D7FFB8; color: #3E8E00; box-shadow: 0 0.25rem 0 #58CC02; }
+.play-opt.wrong { border-color: #FF4B4B; background: #FFDFE0; color: #C42222; box-shadow: 0 0.25rem 0 #FF4B4B; }
+.dark .play-opt.right { background: #2C4A1A; color: #9BE15D; } .dark .play-opt.wrong { background: #4A1F22; color: #FF8C8C; }
+.play-opt.dim { opacity: .55; }
+.play-opt:disabled { cursor: default; }
+.play-foot { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem; padding: 1rem 1.5rem calc(1rem + env(safe-area-inset-bottom)); border-top: 2px solid var(--border); background: var(--bg, var(--card)); flex-wrap: wrap; }
+.play-feedback { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.play-feedback.right b { color: #3E8E00; } .play-feedback.wrong b { color: #C42222; }
+.dark .play-feedback.right b { color: #9BE15D; } .dark .play-feedback.wrong b { color: #FF8C8C; }
+.play-btn { min-width: 9rem; padding: 0.8rem 1.4rem; border-radius: 1rem; font-size: 0.9375rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; border: 0; cursor: pointer; color: #fff; }
+.play-btn.go { background: #58CC02; box-shadow: 0 0.25rem 0 #46A302; }
+.play-btn.bad { background: #FF4B4B; box-shadow: 0 0.25rem 0 #EA2B2B; }
+.play-btn.soft { background: var(--card); color: var(--muted); border: 2px solid var(--border); box-shadow: 0 0.25rem 0 var(--border); }
+.play-btn:active { transform: translateY(0.2rem); box-shadow: none; }
+.play-end { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 0.75rem; padding-top: 2rem; }
+.play-trophy { font-size: 4.5rem; animation: pop .5s cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes pop { from { transform: scale(.3); opacity: 0; } }
+.play-xp { padding: 0.5rem 1rem; border-radius: 1rem; font-weight: 800; color: #B45309; background: #FFC80033; border: 2px solid #FFC800; }
+@media (max-width: 600px) { .play-body { padding: 0.75rem 1rem 1.5rem; } .play-foot { padding-inline: 1rem; } .play-btn { flex: 1; } }
+.pnode-wrap.has-start { margin-top: 1.6rem; }
 </style>
 </head>
 <body>
@@ -876,6 +968,11 @@ function inboxNotifs() {
           ? L(`${name} עדכן/ה את הציון שלך ב${what}: ${x.oldGrade} ← ${x.newGrade}`, `${name} updated your grade for ${what}: ${x.oldGrade} → ${x.newGrade}`)
           : L(`${name} השאיר/ה את הציון שלך ב${what} ללא שינוי`, `${name} kept your grade for ${what} unchanged`) };
     }
+    if (m.kind === 'path-published') {
+      const x = m.extra || {};
+      return { ...base, type: 'path', link: 'path.html?id=' + encodeURIComponent(x.id || ''),
+        text: L(`${name} פרסם/ה מסלול למידה חדש: ${x.title || ''}`, `${name} published a new learning path: ${x.title || ''}`) };
+    }
     if (m.kind === 'teacher-approved') {
       return { ...base, type: 'approved', text: L('המנהל/ת אישר/ה את החשבון שלך. ברוכים הבאים!', 'The principal approved your account. Welcome!') };
     }
@@ -992,7 +1089,7 @@ const NAV = [
 
 /* ================= Header ================= */
 function notifIcon(type) {
-  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'grade-req': '📝', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
+  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'grade-req': '📝', path: '🗺️', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
 }
 
 function renderHeader() {
@@ -2227,7 +2324,6 @@ function renderAll() {
   if (!CURRENT_USER) return;
   if (isPrincipal() && !PRINCIPAL_PAGES.includes(window.PAGE_KEY)) { location.replace('home.html'); return; }
   if (!isPrincipal() && (window.PAGE_KEY === 'timetable' || window.PAGE_KEY === 'classes')) { location.replace('schedule.html'); return; }
-  if (state.role === 'student' && window.PAGE_KEY === 'path') { location.replace('tasks.html'); return; }
   if (state.role === 'teacher' && window.PAGE_KEY === 'tasks') { location.replace('home.html'); return; }
   applyDocument();
   renderHeaderOnly();
@@ -2351,308 +2447,1111 @@ document.addEventListener('DOMContentLoaded', () => { if (!window.AUTH_PAGE) ope
 /* ===================== Page code ===================== */
 window.PAGE_KEY = 'path';
 
-const NODE_COLORS = {
-  completed: { bg: '#10B981', border: '#059669' },
-  current: { bg: '#7C3AED', border: '#6D28D9' },
-  locked: { bg: 'var(--surface)', border: 'var(--border)' },
+/* ================= Learning paths from a teacher's document =================
+   The teacher uploads a PDF / Word / PowerPoint / text file (or pastes text), picks the
+   difficulty and the time the path should take, and gets a Duolingo-style path: units of
+   lessons, practice rounds, a checkpoint at the end of each unit and a final challenge.
+   Two engines: Claude (AI) through the school's proxy or the teacher's own API key, and a
+   built-in generator that works offline from the document's own sentences.
+   Teachers edit and publish paths to a class; students play them and earn XP. */
+const AI_PATHS_KEY = 'cs-ai-paths';
+const PATH_PROGRESS_KEY = 'cs-path-progress';
+const AI_KEY_STORE = 'cs-anthropic-key';
+const VENDOR = 'vendor/';
+const AI_MODEL = 'claude-opus-5-5';
+const AI_MAX_CHARS = 600000;          // about 150k tokens of text – longer documents should be split
+const PDF_MAX_BYTES = 24 * 1024 * 1024;
+
+const DIFFICULTY = {
+  easy:   { he: 'קל', en: 'Easy', icon: '🌱', lessonMin: 8, questions: 3, options: 3, pass: 0.6, points: 3 },
+  medium: { he: 'בינוני', en: 'Medium', icon: '🌿', lessonMin: 12, questions: 4, options: 4, pass: 0.7, points: 4 },
+  hard:   { he: 'מאתגר', en: 'Hard', icon: '🌳', lessonMin: 15, questions: 6, options: 4, pass: 0.8, points: 5 },
 };
-const NODE_ICONS = { lesson: '📖', quiz: '⚡', boss: '🏆', checkpoint: '🏁' };
-const NODE_TYPE_LABELS_HE = { lesson: 'שיעור', quiz: 'בוחן', boss: 'אתגר מסכם', checkpoint: 'נקודת ביקורת' };
-const NODE_DESCRIPTIONS = {
-  lesson: ['תוכן הלימוד המרכזי', 'Core learning content'],
-  quiz: ['בדיקת ידע', 'Knowledge check'],
-  boss: ['אתגר סיום היחידה', 'Unit final challenge'],
-  checkpoint: ['סקירת אבן דרך', 'Milestone review'],
+const NODE_KIND = {
+  lesson:     { icon: '📖', he: 'שיעור', en: 'Lesson', xp: 10, weight: 1 },
+  practice:   { icon: '✏️', he: 'תרגול', en: 'Practice', xp: 15, weight: 0.6 },
+  checkpoint: { icon: '🏁', he: 'נקודת ביקורת', en: 'Checkpoint', xp: 25, weight: 0.8 },
+  boss:       { icon: '👑', he: 'אתגר מסכם', en: 'Final challenge', xp: 50, weight: 1.2 },
+};
+const UNIT_COLORS = ['#58CC02', '#1CB0F6', '#CE82FF', '#FF9600', '#FF4B4B', '#2B70C9', '#00CD9C'];
+const TIME_CHOICES = [30, 45, 60, 90, 120, 180, 300];
+const ZIGZAG = [0, 2.6, 4.2, 2.6, 0, -2.6, -4.2, -2.6];   // rem, the winding path
+
+const pg = {
+  doc: null, extracting: false, error: '', pasted: '',
+  title: '', classId: null, difficulty: 'medium', minutes: 60, engine: null,
+  generating: false, progress: '', abort: null,
+  viewId: new URLSearchParams(location.search).get('id'),
+  edit: null,            // { nodeId } in the teacher's editor
+  play: null,            // the player state
+  keyDraft: '',
 };
 
-const STUDENT_PROGRESS = [
-  { name: 'Noa Ben-David', node: 6, progress: 74, state: 'active' },
-  { name: 'Yosef Avraham', node: 4, progress: 48, state: 'active' },
-  { name: 'Maya Goldstein', node: 8, progress: 100, state: 'done' },
-  { name: 'Lior Cohen', node: 3, progress: 31, state: 'needs-help' },
-  { name: 'Tamar Levy', node: 5, progress: 62, state: 'active' },
-  { name: 'Eitan Mizrahi', node: 2, progress: 18, state: 'needs-help' },
-];
+function loadPaths() { return load(AI_PATHS_KEY, []); }
+function savePaths(list) { save(AI_PATHS_KEY, list); }
+function findPath(id) { return loadPaths().find(p => p.id === id) || null; }
+function updatePath(id, fn) { const list = loadPaths(); const p = list.find(x => x.id === id); if (p) { fn(p); savePaths(list); } return p; }
+function allNodes(p) { return p.units.flatMap(u => u.nodes.map(n => ({ ...n, unit: u }))); }
+function totalMinutes(p) { return allNodes(p).reduce((s, n) => s + (n.minutes || 0), 0); }
+function fmtMinutes(m) { return m >= 60 ? L(`${Math.floor(m / 60)} ש׳${m % 60 ? ` ${m % 60} ד׳` : ''}`, `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`) : L(`${m} דק׳`, `${m} min`); }
+function newId(prefix) { return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function aiProxyUrl() { return (window.COOLSCHOOL_CONFIG && window.COOLSCHOOL_CONFIG.aiProxyUrl) || ''; }
+function aiKey() { return load(AI_KEY_STORE, '') || ''; }
+function aiReady() { return !!(aiProxyUrl() || aiKey()); }
+function textDir(s) { return /[֐-׿؀-ۿ]/.test(s || '') ? 'rtl' : 'ltr'; }
 
-const pathUi = {
-  selectedNode: null,
-  generating: false,
-  generated: false,
-  audienceType: 'class',
-  audience: teacherClasses()[0].id,
-  filter: 'all',
-};
-
-function nodeTypeLabel(type) { return isHe() ? NODE_TYPE_LABELS_HE[type] : type; }
-
-/* ---------- Node map ---------- */
-function nodeMap() {
-  const nodes = bioPathNodes;
-  const earned = nodes.filter(n => n.status === 'completed').reduce((s, n) => s + n.xp, 0);
-  const possible = nodes.reduce((s, n) => s + n.xp, 0);
-  const pct = (earned / possible) * 100;
-
-  const lines = nodes.slice(1).map((node, i) => {
-    const prev = nodes[i];
-    const stroke = node.status === 'locked' ? 'var(--border)' : node.status === 'current' ? '#7C3AED' : '#10B981';
-    return `<line x1="${prev.x}%" y1="${prev.y}%" x2="${node.x}%" y2="${node.y}%" stroke="${stroke}" stroke-width="3"
-      stroke-dasharray="${node.status === 'locked' ? '6 5' : 'none'}" stroke-linecap="round"/>`;
-  }).join('');
-
-  const nodeEls = nodes.map(node => {
-    const c = NODE_COLORS[node.status];
-    const current = node.status === 'current';
-    const locked = node.status === 'locked';
-    return `
-    <div class="node ${current ? 'current' : ''} ${pathUi.selectedNode === node.id ? 'selected' : ''}"
-      style="left:${node.x}%;top:${node.y}%" onclick="selectNode('${node.id}')">
-      ${current ? '<div class="node-ring"></div>' : ''}
-      <div class="node-circle" style="background:${c.bg};border-color:${c.border};opacity:${locked ? 0.5 : 1};
-        box-shadow:${current ? `0 0 1.25rem ${c.bg}66` : 'none'}">
-        ${locked
-          ? '<svg style="width:1.25rem;height:1.25rem" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>'
-          : NODE_ICONS[node.type]}
-      </div>
-      <div class="node-label" style="color:${locked ? 'var(--muted)' : 'var(--text)'}">${localize(node.title)}</div>
-      ${!locked ? `<div class="node-xp mono">+${node.xp} XP</div>` : ''}
-      <div class="node-tip">
-        <div class="w7">${localize(node.title)}</div>
-        <div style="opacity:.7">${nodeTypeLabel(node.type)} · ${node.xp} XP</div>
-      </div>
-    </div>`;
-  }).join('');
-
-  return `
-  <div class="col items-center gap-6">
-    <div class="card r-2xl p-4" style="width:100%;max-width:28rem">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center gap-2">
-          <span class="lg">⭐</span>
-          <span class="display w7 sm">${L('התקדמות XP', 'XP Progress')}</span>
-        </div>
-        <span class="mono w7 sm" style="color:#F59E0B">${earned} / ${possible} XP</span>
-      </div>
-      <div class="bar" style="height:0.75rem">
-        <span class="xp-fill" style="width:${pct}%;background:linear-gradient(90deg,#F59E0B,#FBBF24)"></span>
-      </div>
-    </div>
-    <div class="node-map">
-      <svg class="node-lines" preserveAspectRatio="none">${lines}</svg>
-      ${nodeEls}
-    </div>
-    ${nodeDetails()}
-  </div>`;
+/* ================= Reading the document ================= */
+const scriptsLoading = {};
+function loadScriptOnce(src) {
+  if (!scriptsLoading[src]) {
+    scriptsLoading[src] = new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = src;
+      el.onload = resolve;
+      el.onerror = () => { delete scriptsLoading[src]; reject(new Error('Could not load ' + src)); };
+      document.head.appendChild(el);
+    });
+  }
+  return scriptsLoading[src];
 }
 
-function nodeDetails() {
-  const node = bioPathNodes.find(n => n.id === pathUi.selectedNode);
-  if (!node) return `<p class="xs muted">${L('לחצו על שלב כדי לראות פרטים', 'Tap a node to see its details')}</p>`;
-  const action = node.status === 'completed' ? L('חזרה על השלב', 'Review node')
-    : node.status === 'current' ? L('המשך ללמוד', 'Continue learning') : null;
-  return `
-  <div class="card r-2xl p-4 fade-up flex items-center gap-3" style="width:100%;max-width:28rem">
-    <div class="icon-tile" style="background:${NODE_COLORS[node.status].bg}22">${NODE_ICONS[node.type]}</div>
-    <div class="flex-1 min-w-0">
-      <div class="w7">${localize(node.title)}</div>
-      <div class="xs muted">${nodeTypeLabel(node.type)} · ${node.xp} XP</div>
-    </div>
-    ${action
-      ? `<button class="btn btn-primary btn-sm" onclick="toast('${action}')">${action}</button>`
-      : `<span class="xs w7 muted">🔒 ${L('נעול', 'Locked')}</span>`}
-  </div>`;
+async function readFile(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const buf = await file.arrayBuffer();
+  if (ext === 'pdf') return { kind: 'pdf', blocks: await pdfBlocks(buf), pdfBase64: file.size <= PDF_MAX_BYTES ? await toBase64(file) : null };
+  if (ext === 'docx') return { kind: 'docx', blocks: await docxBlocks(buf) };
+  if (ext === 'pptx') return { kind: 'pptx', blocks: await pptxBlocks(buf) };
+  if (['txt', 'md', 'markdown', 'text'].includes(ext)) return { kind: 'text', blocks: textBlocks(new TextDecoder().decode(buf)) };
+  if (['doc', 'ppt'].includes(ext)) throw new Error(L('קבצי Word / PowerPoint ישנים (‎.doc / .ppt) לא נתמכים. שמרו אותם בתור ‎.docx / .pptx או PDF.', 'Old Word / PowerPoint files (.doc / .ppt) are not supported. Save as .docx / .pptx or PDF.'));
+  throw new Error(L('סוג קובץ לא נתמך. אפשר: PDF, Word (‎.docx), PowerPoint (‎.pptx) או טקסט.', 'Unsupported file type. Use PDF, Word (.docx), PowerPoint (.pptx) or text.'));
+}
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+// PDF: lines rebuilt from positioned text; larger-than-usual lines become headings
+async function pdfBlocks(buf) {
+  await loadScriptOnce(VENDOR + 'pdf.min.js');
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = VENDOR + 'pdf.worker.min.js';
+  const doc = await window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+  const lines = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    let cur = null;
+    content.items.forEach(it => {
+      const y = Math.round(it.transform[5]);
+      const size = Math.round(Math.hypot(it.transform[2], it.transform[3]) || it.height || 0);
+      if (!cur || Math.abs(cur.y - y) > 2) { if (cur && cur.text.trim()) lines.push(cur); cur = { y, size, text: '' }; }
+      cur.text += it.str;
+      cur.size = Math.max(cur.size, size);
+      if (it.hasEOL) { if (cur.text.trim()) lines.push(cur); cur = null; }
+    });
+    if (cur && cur.text.trim()) lines.push(cur);
+  }
+  const sizes = lines.map(l => l.size).sort((a, b) => a - b);
+  const body = sizes[Math.floor(sizes.length / 2)] || 0;
+  const blocks = [];
+  lines.forEach(l => {
+    const text = l.text.replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    if (body && l.size >= body * 1.15 && text.length < 90 && !/[.:;,]$/.test(text)) blocks.push({ type: 'h', level: l.size >= body * 1.6 ? 0 : 1, text });
+    else {
+      const last = blocks[blocks.length - 1];
+      if (last && last.type === 'p' && !/[.!?]["”']?$/.test(last.text)) last.text += ' ' + text; else blocks.push({ type: 'p', text });
+    }
+  });
+  return blocks;
+}
+// Word: headings and paragraphs from mammoth's HTML
+async function docxBlocks(buf) {
+  await loadScriptOnce(VENDOR + 'mammoth.browser.min.js');
+  const { value } = await window.mammoth.convertToHtml({ arrayBuffer: buf }, {
+    styleMap: ["p[style-name='Title'] => h1.doc-title:fresh", "p[style-name='Subtitle'] => h2:fresh"] });
+  const dom = new DOMParser().parseFromString(value, 'text/html');
+  const blocks = [];
+  dom.body.querySelectorAll('h1,h2,h3,h4,p,li').forEach(el => {
+    const text = el.textContent.replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    if (el.classList.contains('doc-title')) blocks.push({ type: 'h', level: -1, text });
+    else if (/^H\d$/.test(el.tagName)) blocks.push({ type: 'h', level: Number(el.tagName[1]) - 1, text });
+    else blocks.push({ type: 'p', text });
+  });
+  return blocks;
+}
+// PowerPoint: every slide title is a heading, its other text the content
+async function pptxBlocks(buf) {
+  await loadScriptOnce(VENDOR + 'jszip.min.js');
+  const zip = await window.JSZip.loadAsync(buf);
+  const slides = Object.keys(zip.files).filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n))
+    .sort((a, b) => Number(a.match(/(\d+)\.xml$/)[1]) - Number(b.match(/(\d+)\.xml$/)[1]));
+  const blocks = [];
+  for (const name of slides) {
+    const xml = new DOMParser().parseFromString(await zip.file(name).async('string'), 'application/xml');
+    const shapes = [...xml.getElementsByTagName('p:sp')];
+    const paras = sp => [...sp.getElementsByTagName('a:p')].map(p => [...p.getElementsByTagName('a:t')].map(t => t.textContent).join('').trim()).filter(Boolean);
+    const phType = sp => [...sp.getElementsByTagName('p:ph')].map(ph => ph.getAttribute('type') || '')[0];
+    const isTitle = sp => ['title', 'ctrTitle'].includes(phType(sp));
+    const title = shapes.filter(isTitle).flatMap(paras).join(' ');
+    const cover = shapes.some(sp => phType(sp) === 'ctrTitle');
+    if (title) blocks.push({ type: 'h', level: cover ? -1 : 1, text: title });
+    if (cover) continue;                                  // the cover slide's subtitle is not lesson content
+    shapes.filter(sp => !isTitle(sp)).flatMap(paras).forEach(text => blocks.push({ type: 'p', text }));
+  }
+  return blocks;
+}
+function textBlocks(text) {
+  const blocks = [];
+  text.split(/\n\s*\n|\n(?=#)/).forEach(chunk => {
+    const t = chunk.trim();
+    if (!t) return;
+    const m = t.match(/^(#{1,4})\s+(.+?)(?:\n([\s\S]*))?$/);
+    if (m) { blocks.push({ type: 'h', level: m[1].length - 1, text: m[2].trim() }); if (m[3] && m[3].trim()) blocks.push({ type: 'p', text: m[3].replace(/\s+/g, ' ').trim() }); }
+    else blocks.push({ type: 'p', text: t.replace(/\s+/g, ' ') });
+  });
+  return blocks;
+}
+function splitSentences(text) {
+  return (text.match(/[^.!?]+[.!?]+["”')\]]*|[^.!?]+$/g) || []).map(s => s.trim()).filter(s => s.split(/\s+/).length >= 4);
+}
+// Blocks → { title, sections: [{ title, text, sentences }] }
+function buildDoc(name, kind, blocks) {
+  let title = '';
+  const sections = [];
+  let cur = null;
+  const sameLevelLater = (i, level) => blocks.slice(i + 1).some(x => x.type === 'h' && x.level === level);
+  blocks.forEach((b, i) => {
+    if (b.type === 'h') {
+      const next = blocks[i + 1];
+      // the title: a Title-style heading, a heading straight followed by another one,
+      // or a top heading that no other heading matches
+      if (!title && !sections.length && (b.level < 0 || (next && next.type === 'h') || (b.level === 0 && !sameLevelLater(i, 0)))) { title = b.text; return; }
+      cur = { title: b.text, text: '' };
+      sections.push(cur);
+    } else {
+      if (!cur) { cur = { title: '', text: '' }; sections.push(cur); }
+      cur.text += (cur.text ? ' ' : '') + b.text;
+    }
+  });
+  let list = sections.filter(s => s.text.trim().split(/\s+/).length >= 5);
+  // no headings at all: cut the text into chunks of about 160 words
+  if (list.length <= 1 && list[0] && list[0].text.split(/\s+/).length > 260) {
+    const sents = splitSentences(list[0].text);
+    list = [];
+    let chunk = [];
+    sents.forEach(s => {
+      chunk.push(s);
+      if (chunk.join(' ').split(/\s+/).length >= 160) { list.push({ title: '', text: chunk.join(' ') }); chunk = []; }
+    });
+    if (chunk.length) list.push({ title: '', text: chunk.join(' ') });
+  }
+  list.forEach((s, i) => {
+    s.sentences = splitSentences(s.text);
+    if (!s.title) s.title = (s.sentences[0] || s.text).split(/\s+/).slice(0, 6).join(' ').replace(/[,.;:]$/, '') + '…';
+    s.index = i;
+  });
+  const words = list.reduce((n, s) => n + s.text.split(/\s+/).length, 0);
+  return { name, kind, title: title || name.replace(/\.[^.]+$/, ''), sections: list, words };
 }
 
-function selectNode(id) {
-  pathUi.selectedNode = pathUi.selectedNode === id ? null : id;
+async function onFileChosen(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  pg.extracting = true; pg.error = ''; pg.doc = null;
+  renderPage();
+  try {
+    const { kind, blocks, pdfBase64 } = await readFile(file);
+    const doc = buildDoc(file.name, kind, blocks);
+    doc.size = file.size;
+    if (pdfBase64) doc.pdfBase64 = pdfBase64;
+    if (!doc.words && !doc.pdfBase64) throw new Error(L('לא נמצא טקסט בקובץ.', 'No text was found in the file.'));
+    pg.doc = doc;
+    pg.title = doc.title;
+    if (!doc.words) pg.error = L('לא נמצא טקסט ב־PDF (אולי זה קובץ סרוק). מחולל ה־AI יכול לקרוא אותו; המחולל המובנה צריך טקסט.', 'No text was found in this PDF (it may be scanned). The AI generator can read it; the built-in one needs text.');
+  } catch (e) {
+    pg.error = e.message || String(e);
+  }
+  pg.extracting = false;
+  renderPage();
+}
+function usePasted() {
+  const text = (document.getElementById('pg-paste') || {}).value || '';
+  if (text.trim().split(/\s+/).length < 30) { pg.error = L('הדביקו לפחות כמה פסקאות (30 מילים ומעלה).', 'Paste at least a few paragraphs (30+ words).'); renderPage(); return; }
+  pg.doc = buildDoc(L('טקסט מודבק', 'Pasted text'), 'text', textBlocks(text));
+  pg.title = pg.doc.title === L('טקסט מודבק', 'Pasted text') ? (pg.doc.sections[0] ? pg.doc.sections[0].title.replace('…', '') : '') : pg.doc.title;
+  pg.error = '';
+  renderPage();
+}
+function useSample() {
+  pg.doc = buildDoc(isHe() ? 'דוגמה – קרומים.txt' : 'sample – membranes.txt', 'text', textBlocks(isHe() ? SAMPLE_HE : SAMPLE_EN));
+  pg.title = pg.doc.title;
+  pg.error = '';
   renderPage();
 }
 
-/* ---------- Teacher: AI generator ---------- */
-function teacherPathEditor() {
-  const tc = teacherClasses();
-  const audienceName = pathUi.audienceType === 'class'
-    ? localize(tc.find(c => c.id === pathUi.audience)?.name || '')
-    : L(`שכבה ${pathUi.audience}`, `Grade ${pathUi.audience}`);
+/* ================= Built-in generator (no AI) =================
+   Lessons come from the document's sections, key points from its most informative
+   sentences, and questions from the same sentences: fill-in-the-blank on key terms,
+   true/false (a key term swapped for another one), and "which statement is true". */
+const STOP = new Set(('the and for are but not you all any can had her was one our out day get has him his how man new now old see two way who boy did its let put say she too use that with have this will your from they know want been good much some time very when come here just like long make many more only over such take than them well were what which their there these those other into also each most then because about would could should through between while where after before being does both same such using used make made upon within without first second third ' +
+  'של את על עם זה זו זאת הוא היא הם הן גם כל לא אם כי או אבל רק יש אין כמו כך מה מי אשר שבו שבה כאשר כדי בין לפי אל עד לכל עוד מאוד היה היו להיות יותר פחות בכל ידי אחד אחת שני שתי').split(/\s+/));
+function tokens(text) { return (text.match(/[\p{L}\p{N}][\p{L}\p{N}'’\-]*/gu) || []); }
+function keyTerms(doc) {
+  const freq = {}, spread = {};
+  doc.sections.forEach(s => {
+    const seen = new Set();
+    tokens(s.text).forEach(w => {
+      const k = w.toLowerCase();
+      if (k.length < 4 || STOP.has(k) || /^\d+$/.test(k)) return;
+      freq[k] = (freq[k] || 0) + 1;
+      if (!seen.has(k)) { seen.add(k); spread[k] = (spread[k] || 0) + 1; }
+    });
+  });
+  const n = doc.sections.length || 1;
+  // frequent, but concentrated in few sections → specific to a topic
+  return Object.keys(freq).map(k => ({ k, score: freq[k] * Math.log(1 + n / spread[k]) * Math.min(1.6, k.length / 6) }))
+    .sort((a, b) => b.score - a.score).slice(0, 80).map(x => x.k);
+}
+function rngFrom(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function shuffled(arr, rand) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function sentenceScore(s, terms) { const t = tokens(s).map(w => w.toLowerCase()); return t.filter(w => terms.has(w)).length / Math.sqrt(t.length || 1); }
+// The word as it appears in the sentence (keeps capitals)
+function termIn(sentence, term) { return tokens(sentence).find(w => w.toLowerCase() === term) || null; }
 
+// Words that appear after "the / a / of …" somewhere are probably nouns – better blanks and wrong options
+function nounishTerms(doc) {
+  const set = new Set();
+  doc.sections.forEach(s => {
+    const t = tokens(s.text);
+    t.forEach((w, i) => { if (i && /^(the|a|an|of|called|these|this|its|their|each|every)$/i.test(t[i - 1])) set.add(w.toLowerCase()); });
+  });
+  return set;
+}
+function makeQuestions(sentences, allTerms, D, count, rand, opts) {
+  const termSet = new Set(allTerms);
+  const nounish = opts.nounish || new Set();
+  const shapeScore = (a, b) => (nounish.has(a) === nounish.has(b) ? 2 : 0) + (a.slice(-2) === b.slice(-2) ? 1 : 0) + ((a.endsWith('s') === b.endsWith('s')) ? 1 : 0) - Math.abs(a.length - b.length) * 0.15;
+  const pool = shuffled(sentences, rand);
+  const out = [];
+  const used = new Set();
+  const usedTerms = new Set();          // vary the answers inside one step
+  const tf = isHe() ? ['נכון', 'לא נכון'] : ['True', 'False'];
+  const distract = (term, sentence, n) => shuffled(allTerms.filter(t => t !== term && !sentence.toLowerCase().includes(t)), rand)
+    .map(t => ({ t, score: shapeScore(term, t) + rand() * 0.8 })).sort((a, b) => b.score - a.score).slice(0, n).map(x => x.t);
+  for (let i = 0; i < pool.length * 2 && out.length < count; i++) {
+    const s = pool[i % pool.length];
+    if (used.has(s)) continue;
+    const terms = tokens(s).map(w => w.toLowerCase()).filter(w => termSet.has(w));
+    if (!terms.length) continue;
+    const fresh = terms.filter(t => !usedTerms.has(t));
+    const term = (fresh.length ? fresh : terms).sort((a, b) => (nounish.has(b) - nounish.has(a)) || (allTerms.indexOf(a) - allTerms.indexOf(b)))[0];
+    usedTerms.add(term);
+    const word = termIn(s, term);
+    const kindRoll = rand();
+    const wantTf = opts.allowTf && (D === DIFFICULTY.easy ? kindRoll < 0.4 : D === DIFFICULTY.medium ? kindRoll < 0.3 : kindRoll < 0.15);
+    const wantStatement = !wantTf && D === DIFFICULTY.hard && kindRoll > 0.65;
+    if (wantTf) {
+      const swap = distract(term, s, 1)[0];
+      const isFalse = swap && rand() < 0.5;
+      const shown = isFalse ? s.replace(word, swap) : s;
+      out.push({ kind: 'true_false', question: L(`נכון או לא נכון? ${shown}`, `True or false? ${shown}`), options: tf, answer: isFalse ? 1 : 0, explanation: s });
+    } else if (wantStatement) {
+      const others = pool.filter(x => x !== s && !used.has(x)).slice(0, 6);
+      const wrong = [];
+      others.forEach(o => {
+        if (wrong.length >= D.options - 1) return;
+        const oterms = tokens(o).map(w => w.toLowerCase()).filter(w => termSet.has(w));
+        const ot = oterms[0];
+        const swap = ot && distract(ot, o, 1)[0];
+        if (swap) wrong.push(o.replace(termIn(o, ot), swap));
+      });
+      if (wrong.length < 2) continue;
+      const options = shuffled([s, ...wrong], rand);
+      out.push({ kind: 'choice', question: L('איזה משפט נכון?', 'Which statement is true?'), options, answer: options.indexOf(s), explanation: s });
+    } else {
+      const wrong = distract(term, s, D.options - 1);
+      if (wrong.length < 2) continue;
+      const options = shuffled([term, ...wrong], rand);
+      out.push({ kind: 'fill_blank', question: s.replace(word, '_____'), options, answer: options.indexOf(term), explanation: s });
+    }
+    used.add(s);
+  }
+  return out;
+}
+
+function builtinPath(doc, opts) {
+  const D = DIFFICULTY[opts.difficulty];
+  const rand = rngFrom(seedHash(doc.name + opts.difficulty + opts.minutes));
+  const terms = keyTerms(doc);
+  const termSet = new Set(terms);
+  const nounish = nounishTerms(doc);
+  const sections = doc.sections.filter(s => s.sentences.length >= 2);
+  if (!sections.length) throw new Error(L('אין מספיק טקסט כדי לבנות מסלול.', 'There is not enough text to build a path.'));
+  // how many lessons fit in the time: lesson + its share of practice/checkpoints
+  const perLesson = D.lessonMin * 1.55;
+  let target = Math.max(2, Math.round(opts.minutes / perLesson));
+  // sections → lessons: split long sections, merge short ones
+  let lessons = sections.map(s => ({ title: s.title, sentences: s.sentences.slice(), section: s.index }));
+  while (lessons.length < target) {
+    const i = lessons.reduce((best, l, j) => (l.sentences.length > lessons[best].sentences.length ? j : best), 0);
+    const l = lessons[i];
+    if (l.sentences.length < 4) break;
+    const half = Math.ceil(l.sentences.length / 2);
+    lessons.splice(i, 1,
+      { title: l.title.replace(/ \(\d\)$/, '') + ' (1)', sentences: l.sentences.slice(0, half), section: l.section },
+      { title: l.title.replace(/ \(\d\)$/, '') + ' (2)', sentences: l.sentences.slice(half), section: l.section });
+  }
+  while (lessons.length > target && lessons.length > 2) {
+    let i = 0;
+    for (let j = 1; j < lessons.length - 1; j++) if (lessons[j].sentences.length + lessons[j + 1].sentences.length < lessons[i].sentences.length + lessons[i + 1].sentences.length) i = j;
+    const a = lessons[i], b = lessons[i + 1];
+    lessons.splice(i, 2, { title: `${a.title} · ${b.title}`.replace(/…/g, ''), sentences: a.sentences.concat(b.sentences), section: a.section });
+  }
+  // units of 2–4 lessons, keeping lessons of one section together where possible
+  const unitSize = Math.max(2, Math.min(4, Math.round(lessons.length / Math.max(1, Math.round(lessons.length / 3)))));
+  const unitGroups = [];
+  lessons.forEach(l => {
+    const last = unitGroups[unitGroups.length - 1];
+    if (!last || last.length >= unitSize) unitGroups.push([l]); else last.push(l);
+  });
+  const units = unitGroups.map((group, ui) => {
+    const nodes = [];
+    group.forEach((l, li) => {
+      const ranked = l.sentences.map((s, i) => ({ s, i, score: sentenceScore(s, termSet) })).sort((a, b) => b.score - a.score);
+      const points = ranked.slice(0, D.points).sort((a, b) => a.i - b.i).map(x => x.s);
+      nodes.push({
+        id: newId('n'), type: 'lesson', title: l.title, summary: l.sentences.slice(0, 2).join(' '), points,
+        questions: makeQuestions(l.sentences, terms, D, Math.max(2, D.questions - 1), rand, { allowTf: true, nounish }),
+      });
+      // a practice round after every two lessons (and after the last lesson of the unit)
+      if (li % 2 === 1 || li === group.length - 1) {
+        const covered = group.slice(Math.max(0, li - 1), li + 1).flatMap(x => x.sentences);
+        nodes.push({ id: newId('n'), type: 'practice', title: L('תרגול', 'Practice'), summary: L('בואו נבדוק מה זכרתם.', 'Let’s check what you remember.'), points: [],
+          questions: makeQuestions(covered, terms, D, D.questions, rand, { allowTf: true, nounish }) });
+      }
+    });
+    nodes.push({ id: newId('n'), type: 'checkpoint', title: L(`נקודת ביקורת ${ui + 1}`, `Checkpoint ${ui + 1}`), summary: L('חזרה על כל היחידה.', 'A review of the whole unit.'), points: [],
+      questions: makeQuestions(group.flatMap(x => x.sentences), terms, D, D.questions + 2, rand, { allowTf: false, nounish }) });
+    const unitTitle = [...new Set(group.map(l => sections.find(s => s.index === l.section).title))].join(' · ').replace(/…/g, '');
+    return { id: newId('u'), title: unitTitle, nodes };
+  });
+  units[units.length - 1].nodes.push({ id: newId('n'), type: 'boss', title: L('האתגר המסכם', 'Final challenge'), summary: L('כל החומר – הראו מה למדתם!', 'Everything – show what you learned!'), points: [],
+    questions: makeQuestions(lessons.flatMap(l => l.sentences), terms, D, D.questions + 4, rand, { allowTf: false, nounish }) });
+  return finishPath({ title: opts.title || doc.title, units }, opts, 'builtin');
+}
+
+// Fills in ids, spreads the minutes over the steps, drops broken questions
+function finishPath(raw, opts, engine) {
+  const units = (raw.units || []).map(u => ({
+    id: u.id || newId('u'), title: String(u.title || '').trim(),
+    nodes: (u.nodes || []).filter(n => NODE_KIND[n.type]).map(n => ({
+      id: n.id || newId('n'), type: n.type, title: String(n.title || NODE_KIND[n.type].en).trim(), minutes: Number(n.minutes) || 0,
+      summary: String(n.summary || '').trim(), points: (n.points || []).map(String).filter(Boolean),
+      questions: (n.questions || []).filter(q => Array.isArray(q.options) && q.options.length >= 2 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer < q.options.length)
+        .map(q => ({ kind: q.kind || 'choice', question: String(q.question), options: q.options.map(String), answer: q.answer, explanation: String(q.explanation || '') })),
+    })).filter(n => n.type === 'lesson' || n.questions.length),
+  })).filter(u => u.nodes.length);
+  if (!units.length) throw new Error(L('לא נוצרו שלבים מהמסמך.', 'No steps could be made from the document.'));
+  // minutes: keep the AI's split if it is close to the target, otherwise spread by step type
+  const nodes = units.flatMap(u => u.nodes);
+  const given = nodes.reduce((s, n) => s + n.minutes, 0);
+  if (!given || Math.abs(given - opts.minutes) / opts.minutes > 0.2) {
+    const w = nodes.reduce((s, n) => s + NODE_KIND[n.type].weight, 0);
+    nodes.forEach(n => { n.minutes = Math.max(2, Math.round(opts.minutes * NODE_KIND[n.type].weight / w)); });
+  }
+  return {
+    id: newId('path'), title: String(raw.title || opts.title || '').trim() || L('מסלול חדש', 'New path'), classId: opts.classId,
+    difficulty: opts.difficulty, targetMinutes: opts.minutes, engine, source: opts.source,
+    createdAt: new Date().toISOString(), by: CURRENT_USER.id, byName: currentUserName(), published: false, units,
+  };
+}
+
+/* ================= Claude (AI) generator ================= */
+const PATH_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['title', 'units'],
+  properties: {
+    title: { type: 'string' },
+    units: { type: 'array', items: {
+      type: 'object', additionalProperties: false, required: ['title', 'nodes'],
+      properties: {
+        title: { type: 'string' },
+        nodes: { type: 'array', items: {
+          type: 'object', additionalProperties: false, required: ['type', 'title', 'minutes', 'summary', 'points', 'questions'],
+          properties: {
+            type: { type: 'string', enum: ['lesson', 'practice', 'checkpoint', 'boss'] },
+            title: { type: 'string' },
+            minutes: { type: 'integer' },
+            summary: { type: 'string' },
+            points: { type: 'array', items: { type: 'string' } },
+            questions: { type: 'array', items: {
+              type: 'object', additionalProperties: false, required: ['kind', 'question', 'options', 'answer', 'explanation'],
+              properties: {
+                kind: { type: 'string', enum: ['choice', 'true_false', 'fill_blank'] },
+                question: { type: 'string' },
+                options: { type: 'array', items: { type: 'string' } },
+                answer: { type: 'integer', description: '0-based index of the correct option' },
+                explanation: { type: 'string' },
+              },
+            } },
+          },
+        } },
+      },
+    } },
+  },
+};
+const PATH_SYSTEM = `You turn a teacher's learning material into a game-like learning path for school students, in the style of Duolingo: a sequence of units, each made of small steps the student completes in order.
+
+Step types:
+- "lesson": teaches one idea. "summary" is 2-4 short sentences in the student's voice level; "points" are the key facts to remember (short, one idea each); include 1-3 quick questions on exactly what the lesson taught.
+- "practice": comes after every one or two lessons; no new content ("points" empty); questions mix what those lessons taught.
+- "checkpoint": closes every unit; reviews the whole unit with more questions.
+- "boss": exactly one, the very last step of the last unit; reviews the whole path and is the hardest.
+
+Rules:
+- Use only facts that appear in the document. Do not invent facts, numbers or names. If the document is thin, make fewer, shorter steps rather than padding.
+- Order the steps so each builds on the previous ones, following the document's own order.
+- Every question must be answerable from the steps before it. Exactly one option is correct; wrong options are plausible but clearly wrong to someone who learned the material. "answer" is the 0-based index of the correct option; vary its position.
+- "true_false": options are exactly the words for True and False in the document's language, in that order. "fill_blank": the question is a sentence with "_____" where the missing word or phrase goes. "choice": a normal multiple-choice question.
+- "explanation" says briefly why the answer is right, so a student who got it wrong learns from it.
+- "minutes" is the realistic time for a student to finish the step; the minutes of all steps together should match the requested total.
+- Write everything in the same language as the document (Hebrew documents → Hebrew path).
+- Unit titles name the topic of the unit; step titles are short (2-6 words).`;
+
+function aiInstructions(opts) {
+  const D = DIFFICULTY[opts.difficulty];
+  const level = {
+    easy: 'Easy: short, simple steps; focus on the main ideas and definitions; mostly recall questions; 3 options per multiple-choice question.',
+    medium: 'Medium: cover the main ideas and the important details; mix recall and understanding questions; 4 options.',
+    hard: 'Hard: cover the material in depth, including details and connections between ideas; include application and "which statement is true" questions; 4 options; plausible distractors.',
+  }[opts.difficulty];
+  return `Build the learning path from the document above.
+- Path title: ${opts.title ? JSON.stringify(opts.title) : 'choose a short title from the document'}.
+- Difficulty: ${level}
+- Total time for the whole path: about ${opts.minutes} minutes (a lesson takes about ${D.lessonMin} minutes at this level). Choose the number of units and steps to fit this time.
+- Practice, checkpoint and boss steps: about ${D.questions}, ${D.questions + 2} and ${D.questions + 4} questions.`;
+}
+
+async function aiPath(doc, opts, onProgress) {
+  await loadScriptOnce(VENDOR + 'anthropic-sdk.min.js');
+  const Anthropic = window.AnthropicSDK.default;
+  const proxy = aiProxyUrl();
+  // The school's proxy holds the real key; otherwise the teacher's own key from this browser
+  const client = new Anthropic(proxy
+    ? { apiKey: 'set-by-school-proxy', baseURL: proxy, dangerouslyAllowBrowser: true }
+    : { apiKey: aiKey(), dangerouslyAllowBrowser: true });
+  const content = [];
+  if (doc.kind === 'pdf' && doc.pdfBase64) {
+    // Claude reads the PDF itself – layout, tables and scanned pages included
+    content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: doc.pdfBase64 }, title: doc.name });
+  } else {
+    const text = doc.sections.map(s => `## ${s.title}\n${s.text}`).join('\n\n');
+    if (text.length > AI_MAX_CHARS) throw new Error(L(`המסמך ארוך מדי (${Math.round(text.length / 1000)} אלף תווים). חלקו אותו לכמה מסמכים, כל אחד עד ${AI_MAX_CHARS / 1000} אלף.`, `The document is too long (${Math.round(text.length / 1000)}k characters). Split it into documents of up to ${AI_MAX_CHARS / 1000}k each.`));
+    content.push({ type: 'text', text: `<document name="${doc.name.replace(/"/g, '')}">\n${doc.title ? '# ' + doc.title + '\n\n' : ''}${text}\n</document>` });
+  }
+  content.push({ type: 'text', text: aiInstructions(opts) });
+  const stream = client.beta.messages.stream({
+    model: AI_MODEL,
+    max_tokens: 64000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',                       // if a safety check declines, another model finishes the request
+    thinking: { type: 'adaptive' },
+    output_config: { effort: 'high', format: { type: 'json_schema', schema: PATH_SCHEMA } },
+    system: PATH_SYSTEM,
+    messages: [{ role: 'user', content }],
+  });
+  pg.abort = () => stream.abort();
+  let written = '';
+  stream.on('text', delta => {
+    written += delta;
+    onProgress({ units: (written.match(/"nodes"\s*:/g) || []).length, steps: (written.match(/"type"\s*:\s*"(lesson|practice|checkpoint|boss)"/g) || []).length });
+  });
+  const msg = await stream.finalMessage();
+  if (msg.stop_reason === 'refusal') throw new Error(L('המודל סירב ליצור מסלול מהמסמך הזה.', 'The model declined to build a path from this document.'));
+  if (msg.stop_reason === 'max_tokens') throw new Error(L('המסלול יצא ארוך מדי. נסו זמן קצר יותר או מסמך קצר יותר.', 'The path came out too long. Try a shorter time or a shorter document.'));
+  const json = msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  let raw;
+  try { raw = JSON.parse(json); } catch (e) { throw new Error(L('התשובה של ה־AI לא הייתה תקינה. נסו שוב.', 'The AI’s answer was not valid. Try again.')); }
+  return finishPath(raw, opts, 'ai');
+}
+function aiErrorText(e) {
+  const A = window.AnthropicSDK && window.AnthropicSDK.default;
+  if (A && e instanceof A.AuthenticationError) return L('מפתח ה־API לא תקין.', 'The API key is not valid.');
+  if (A && e instanceof A.PermissionDeniedError) return L('למפתח אין הרשאה לשימוש במודל.', 'This key is not allowed to use the model.');
+  if (A && e instanceof A.RateLimitError) return L('יותר מדי בקשות כרגע. נסו שוב בעוד דקה.', 'Too many requests right now. Try again in a minute.');
+  if (A && e instanceof A.BadRequestError) return L('הבקשה נדחתה: ', 'The request was rejected: ') + (e.message || '');
+  if (A && e instanceof A.APIConnectionError) return L('אין חיבור לשירות ה־AI. בדקו את האינטרנט.', 'Can’t reach the AI service. Check the internet connection.');
+  if (A && e instanceof A.APIError) return L(`שגיאה בשירות ה־AI (${e.status}).`, `AI service error (${e.status}).`);
+  return e && e.message ? e.message : String(e);
+}
+
+async function generate() {
+  if (!pg.doc || pg.generating) return;
+  const engine = pg.engine || (aiReady() ? 'ai' : 'builtin');
+  const opts = { title: pg.title.trim(), classId: pg.classId || state.classId, difficulty: pg.difficulty, minutes: Math.max(10, Math.min(1200, Number(pg.minutes) || 60)),
+    source: { name: pg.doc.name, kind: pg.doc.kind, words: pg.doc.words } };
+  if (engine === 'ai' && !aiReady()) { pg.error = L('כדי להשתמש ב־AI צריך מפתח API או שרת AI של בית הספר.', 'The AI engine needs an API key or the school’s AI server.'); renderPage(); return; }
+  if (engine === 'builtin' && !pg.doc.words) { pg.error = L('המחולל המובנה צריך מסמך עם טקסט.', 'The built-in generator needs a document with text.'); renderPage(); return; }
+  pg.generating = true; pg.error = ''; pg.progress = '';
+  renderPage();
+  try {
+    const path = engine === 'ai'
+      ? await aiPath(pg.doc, opts, p => { pg.progress = L(`כותב… ${p.units} יחידות · ${p.steps} שלבים`, `Writing… ${p.units} units · ${p.steps} steps`); const el = document.getElementById('pg-progress'); if (el) el.textContent = pg.progress; })
+      : builtinPath(pg.doc, opts);
+    const list = loadPaths();
+    list.unshift(path);
+    try { savePaths(list); } catch (e) { throw new Error(L('אין מספיק מקום לשמור את המסלול בדפדפן.', 'Not enough room to save the path in this browser.')); }
+    pg.viewId = path.id;
+    pg.doc = null;
+    history.replaceState(null, '', '?id=' + path.id);
+    toast(L('המסלול נוצר! עברו עליו ופרסמו לכיתה.', 'Path created! Review it, then publish it to the class.'));
+  } catch (e) {
+    if (e && e.name === 'APIUserAbortError') pg.error = L('היצירה בוטלה.', 'Generation was cancelled.');
+    else pg.error = engine === 'ai' ? aiErrorText(e) : (e.message || String(e));
+  }
+  pg.generating = false; pg.abort = null;
+  renderPage();
+  if (pg.viewId) document.getElementById('path-map')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function cancelGenerate() { if (pg.abort) pg.abort(); }
+
+function saveKey() {
+  const v = (document.getElementById('pg-key') || {}).value || '';
+  if (!/^sk-ant-/.test(v.trim())) { toast(L('מפתח Anthropic מתחיל ב־sk-ant-', 'An Anthropic key starts with sk-ant-')); return; }
+  save(AI_KEY_STORE, v.trim());
+  pg.engine = 'ai';
+  renderPage();
+  toast(L('המפתח נשמר בדפדפן הזה בלבד', 'Key saved in this browser only'));
+}
+function removeKey() { save(AI_KEY_STORE, ''); if (pg.engine === 'ai') pg.engine = null; renderPage(); }
+
+/* ================= Progress ================= */
+function progressOf(pathId, name) {
+  const all = load(PATH_PROGRESS_KEY, {});
+  return (all[pathId] && all[pathId][name]) || { done: {}, xp: 0 };
+}
+function recordProgress(pathId, name, node, score, total) {
+  const all = load(PATH_PROGRESS_KEY, {});
+  const mine = ((all[pathId] = all[pathId] || {})[name] = all[pathId][name] || { done: {}, xp: 0 });
+  const prev = mine.done[node.id];
+  const xp = NODE_KIND[node.type].xp;
+  if (!prev) mine.xp += xp;
+  if (!prev || score / Math.max(1, total) > prev.score / Math.max(1, prev.total)) mine.done[node.id] = { score, total, at: new Date().toISOString() };
+  mine.last = new Date().toISOString();
+  save(PATH_PROGRESS_KEY, all);
+  return prev ? 0 : xp;
+}
+// Which steps a student can open: everything done, plus the first one not done
+function nodeStates(p, name) {
+  const done = progressOf(p.id, name).done;
+  let open = true;
+  const states = {};
+  allNodes(p).forEach(n => {
+    if (done[n.id]) states[n.id] = 'done';
+    else if (open) { states[n.id] = 'current'; open = false; }
+    else states[n.id] = 'locked';
+  });
+  return states;
+}
+
+/* ================= The map (Duolingo-style) ================= */
+function pathMap(p, mode) {
+  const states = mode === 'student' ? nodeStates(p, currentUserName()) : {};
+  let k = 0;
   return `
-  <div class="card r-3xl p-6" data-collapse="path-generator" data-collapse-default="closed">
-    <div class="flex items-center gap-3 mb-4">
-      <div class="icon-tile" style="background:color-mix(in srgb, var(--primary) 12%, transparent)">🤖</div>
-      <div>
-        <h3 class="display w7 base">${L('מחולל מסלולים עם AI', 'AI Path Generator')}</h3>
-        <p class="xs muted">${L('יצירת מסלול למידה אינטראקטיבי מתוך הסילבוס', 'Generate an interactive learning path from your syllabus')}</p>
-      </div>
-    </div>
+  <div class="pmap" id="path-map">
+    ${p.units.map((u, ui) => {
+      const color = UNIT_COLORS[ui % UNIT_COLORS.length];
+      const mins = u.nodes.reduce((s, n) => s + n.minutes, 0);
+      return `
+      <section class="punit" style="--u:${color}">
+        <div class="punit-head">
+          <div class="min-w-0">
+            <div class="xs w8 punit-kicker">${L(`יחידה ${ui + 1}`, `Unit ${ui + 1}`)}</div>
+            <h3 class="display w8 base" dir="auto">${esc(u.title)}</h3>
+          </div>
+          <span class="xs w7 punit-meta">⏱ ${fmtMinutes(mins)} · ${u.nodes.length} ${L('שלבים', 'steps')}</span>
+        </div>
+        <div class="pnodes">
+          ${u.nodes.map(n => {
+            const kind = NODE_KIND[n.type];
+            const st = mode === 'student' ? states[n.id] : 'open';
+            const off = ZIGZAG[k++ % ZIGZAG.length] * (isHe() ? -1 : 1);
+            const click = mode === 'student' ? (st === 'locked' ? `toast(L('השלימו קודם את השלבים הקודמים', 'Finish the earlier steps first'))` : `startPlay('${p.id}', '${n.id}', false)`) : `openEditor('${n.id}')`;
+            return `
+            <div class="pnode-wrap ${st === 'current' ? 'has-start' : ''}" style="transform:translateX(${off}rem)">
+              ${st === 'current' ? `<div class="pnode-start">${L('התחילו!', 'START')}</div>` : ''}
+              <button class="pnode ${n.type} ${st}" onclick="${click}" aria-label="${esc(kind[isHe() ? 'he' : 'en'])}: ${esc(n.title)}${st === 'locked' ? ' – ' + L('נעול', 'locked') : st === 'done' ? ' – ' + L('הושלם', 'done') : ''}">
+                <span class="pnode-icon">${st === 'locked' ? '🔒' : st === 'done' ? '⭐' : kind.icon}</span>
+              </button>
+              <div class="pnode-label"><span class="xs w7" dir="auto">${esc(n.title)}</span><span class="xs muted">${L(kind.he, kind.en)} · ${fmtMinutes(n.minutes)}</span></div>
+            </div>`;
+          }).join('')}
+        </div>
+      </section>`;
+    }).join('')}
+  </div>`;
+}
 
-    <div class="grid g-1 md-2 mb-4 p-4 r-2xl surface" style="gap:1rem">
-      <div>
-        <label class="label">${L('פרסום עבור', 'Publish for')}</label>
-        <select class="input on-card" onchange="setAudienceType(this.value)">
-          <option value="class" ${pathUi.audienceType === 'class' ? 'selected' : ''}>${L('כיתה שאני מלמד/ת', 'A class I teach')}</option>
-          <option value="grade" ${pathUi.audienceType === 'grade' ? 'selected' : ''}>${L('שכבה', 'Grade level')}</option>
-        </select>
+/* ================= Teacher: one path ================= */
+function pathHeader(p, teacher) {
+  const D = DIFFICULTY[p.difficulty] || DIFFICULTY.medium;
+  const cls = classes.find(c => c.id === p.classId);
+  const nodes = allNodes(p);
+  const q = nodes.reduce((s, n) => s + n.questions.length, 0);
+  return `
+  <div class="card r-3xl p-5 path-head">
+    <div class="flex items-start justify-between wrap gap-3">
+      <div class="min-w-0">
+        <div class="flex items-center gap-2 wrap mb-1">
+          ${teacher ? `<span class="pbadge ${p.published ? 'live' : 'draft'}">${p.published ? '● ' + L('פורסם', 'Published') : L('טיוטה', 'Draft')}</span>` : ''}
+          <span class="pbadge">${p.engine === 'ai' ? '✨ Claude AI' : '⚙️ ' + L('מחולל מובנה', 'Built-in')}</span>
+          <span class="pbadge">${D.icon} ${L(D.he, D.en)}</span>
+        </div>
+        <h2 class="display w8 xl" dir="auto">${esc(p.title)}</h2>
+        <p class="xs muted mt-1">${className(cls)} · ⏱ ${fmtMinutes(totalMinutes(p))} · ${p.units.length} ${L('יחידות', 'units')} · ${nodes.length} ${L('שלבים', 'steps')} · ${q} ${L('שאלות', 'questions')}${p.source ? ' · 📄 ' + esc(p.source.name) : ''}</p>
       </div>
-      <div>
-        <label class="label">${pathUi.audienceType === 'class' ? L('בחירת כיתה', 'Choose class') : L('בחירת שכבה', 'Choose grade')}</label>
-        <select class="input on-card" onchange="pathUi.audience=this.value">
-          ${pathUi.audienceType === 'class'
-            ? tc.map(c => `<option value="${c.id}" ${pathUi.audience === c.id ? 'selected' : ''}>${className(c)}</option>`).join('')
-            : ['9', '10', '11', '12'].map(g => `<option value="${g}" ${pathUi.audience === g ? 'selected' : ''}>${L(`שכבה ${g}`, `Grade ${g}`)}</option>`).join('')}
-        </select>
-      </div>
-    </div>
-
-    <div class="grid g-1 md-3 mb-4" style="gap:1rem">
-      <div>
-        <label class="label">${L('נושא בסילבוס', 'Syllabus Topic')}</label>
-        <input class="input" placeholder="${L('לדוגמה: ביולוגיה של התא, יחידה 2', 'e.g. Cell Biology Unit 2')}">
-      </div>
-      <div>
-        <label class="label">${L('מסגרת זמן', 'Timeframe')}</label>
-        <input class="input" placeholder="${L('לדוגמה: שבועיים', 'e.g. 2 weeks')}">
-      </div>
-      <div>
-        <label class="label">${L('רמת קושי', 'Difficulty')}</label>
-        <select class="input">
-          <option>${L('מותאמת אישית', 'Adaptive')}</option>
-          <option>${L('מתחילים', 'Beginner')}</option>
-          <option>${L('בינונית', 'Intermediate')}</option>
-          <option>${L('מתקדמת', 'Advanced')}</option>
-        </select>
-      </div>
-    </div>
-
-    <button class="btn btn-primary display" onclick="generatePath()" ${pathUi.generating ? 'disabled' : ''}>
-      ${pathUi.generating
-        ? `<span class="spinner"></span> ${L('יוצרים בעזרת AI...', 'Generating with AI...')}`
-        : `<span>✨</span> ${L('יצירת מסלול AI', 'Generate AI Path')}`}
-    </button>
-
-    ${pathUi.generated ? `
-      <div class="mt-4 p-3 r-xl sm fade-up" style="background:#10B98115;border:1px solid #10B98140;color:#10B981">
-        ${L(`המסלול נוצר ופורסם עבור ${audienceName}. נוספו 8 שלבים למשך שבועיים.`,
-            `Path generated and published to ${audienceName}. 8 nodes were added for two weeks.`)}
+      ${teacher ? `<div class="flex gap-2 wrap">
+        <button class="btn btn-soft btn-sm" onclick="previewPath('${p.id}')">👀 ${L('תצוגת תלמיד', 'Student preview')}</button>
+        <button class="btn btn-sm ${p.published ? 'surface' : 'btn-primary'}" onclick="togglePublish('${p.id}')">${p.published ? L('ביטול פרסום', 'Unpublish') : '🚀 ' + L('פרסום לכיתה', 'Publish to class')}</button>
+        <button class="btn btn-sm" style="background:#F43F5E1a;color:#F43F5E" onclick="deletePath('${p.id}')">${L('מחיקה', 'Delete')}</button>
       </div>` : ''}
+    </div>
   </div>`;
 }
-
-function setAudienceType(type) {
-  pathUi.audienceType = type;
-  pathUi.audience = type === 'class' ? teacherClasses()[0].id : '11';
+function togglePublish(id) {
+  const p = updatePath(id, x => { x.published = !x.published; x.publishedAt = x.published ? new Date().toISOString() : null; });
+  if (p && p.published) {
+    loadUsers().filter(u => u.role === 'student' && u.status === 'active').forEach(u => sendInbox(u.id, 'path-published', CURRENT_USER.id, { id: p.id, title: p.title, classId: p.classId }));
+    toast(L('המסלול פורסם לתלמידים', 'The path is published to students'));
+  }
   renderPage();
 }
-function generatePath() {
-  pathUi.generating = true;
-  pathUi.generated = false;
+function deletePath(id) {
+  const p = findPath(id);
+  if (!p || !confirm(L(`למחוק את "${p.title}"? גם ההתקדמות של התלמידים תימחק.`, `Delete "${p.title}"? Students' progress is deleted too.`))) return;
+  savePaths(loadPaths().filter(x => x.id !== id));
+  const prog = load(PATH_PROGRESS_KEY, {}); delete prog[id]; save(PATH_PROGRESS_KEY, prog);
+  pg.viewId = null; pg.edit = null;
+  history.replaceState(null, '', location.pathname);
   renderPage();
-  setTimeout(() => { pathUi.generating = false; pathUi.generated = true; renderPage(); }, 2000);
 }
-
-/* ---------- Teacher: progress tracker ---------- */
-function progressTracker() {
-  const filters = [
-    ['all', L('כולם', 'All')],
-    ['active', L('פעילים', 'Active')],
-    ['needs-help', L('צריכים עזרה', 'Needs help')],
-    ['done', L('סיימו', 'Done')],
-  ];
-  const visible = STUDENT_PROGRESS.filter(s => pathUi.filter === 'all' || s.state === pathUi.filter);
+function studentProgress(p) {
+  const roster = classRoster();
+  const total = allNodes(p).length;
+  const rows = roster.map(name => {
+    const pr = progressOf(p.id, name);
+    const done = Object.keys(pr.done).filter(id => allNodes(p).some(n => n.id === id)).length;
+    const cur = allNodes(p).find(n => !pr.done[n.id]);
+    return { name, done, xp: pr.xp, last: pr.last, cur };
+  }).sort((a, b) => b.done - a.done);
   return `
-  <div class="card r-3xl p-5" data-collapse="path-tracker" data-collapse-default="closed">
-    <div class="col sm-row justify-between gap-3 mb-4" style="align-items:flex-start">
-      <div>
-        <h2 class="display w8 lg">${L('איפה כל תלמיד נמצא במסלול', 'Student position in the path')}</h2>
-        <p class="xs muted mt-1">${L('מעקב חי לפי השלב האחרון שכל תלמיד פתח', 'Live view based on the last node each student opened')}</p>
-      </div>
-      <div class="seg small wrap" style="border-radius:0.75rem">
-        ${filters.map(([v, label]) => `<button class="${pathUi.filter === v ? 'on' : ''}" onclick="pathUi.filter='${v}';renderPage()">${label}</button>`).join('')}
-      </div>
-    </div>
-    <div class="grid g-1 md-2 lg-3">
-      ${visible.map((s, index) => {
-        const node = bioPathNodes[Math.max(0, s.node - 1)];
-        const color = s.state === 'done' ? '#10B981' : s.state === 'needs-help' ? '#F59E0B' : '#7C3AED';
-        return `
-        <div class="p-3 r-2xl surface fade-up">
-          <div class="flex items-center gap-3">
-            <div class="letter-tile sm" style="width:2.25rem;height:2.25rem;background:hsl(${index * 43 + 210},60%,50%)">${initials(s.name)}</div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center justify-between gap-2">
-                <span class="sm w7 truncate">${localize(s.name)}</span>
-                <span class="mono xs w7" style="color:${color}">${s.progress}%</span>
-              </div>
-              <div class="xs muted truncate">${L(`שלב ${s.node}: `, `Node ${s.node}: `)}${localize(node.title)}</div>
-            </div>
-          </div>
-          <div class="bar mt-3" style="height:0.375rem;background:var(--card)"><span style="width:${s.progress}%;background:${color}"></span></div>
-        </div>`;
-      }).join('')}
-      ${visible.length === 0 ? `<p class="sm muted">${L('אין תלמידים בקטגוריה זו', 'No students in this group')}</p>` : ''}
+  <div class="card r-3xl p-5" data-collapse="path-progress" data-collapse-default="open">
+    <h3 class="display w8 lg mb-3">📊 ${L('התקדמות התלמידים', 'Student progress')}</h3>
+    ${p.published ? '' : `<p class="xs muted mb-3">${L('התלמידים יראו את המסלול אחרי הפרסום.', 'Students see the path once it is published.')}</p>`}
+    <div class="col" style="gap:0.5rem">
+      ${rows.map((r, i) => `
+      <div class="pprog-row">
+        <span class="letter-tile xs" style="width:1.9rem;height:1.9rem;border-radius:0.6rem;background:hsl(${i * 47 + 200},60%,50%)">${initials(r.name)}</span>
+        <span class="flex-1 min-w-0">
+          <span class="flex items-center justify-between gap-2"><span class="sm w7 truncate">${esc(localize(r.name))}</span><span class="mono xs w7">${r.done}/${total}</span></span>
+          <span class="bar mt-1" style="height:0.4rem"><span style="width:${(r.done / total) * 100}%;background:${r.done === total ? '#58CC02' : 'var(--primary)'}"></span></span>
+          <span class="xs muted">${r.done === total ? '🏆 ' + L('סיים/ה את המסלול', 'Finished the path') : r.done ? L('עכשיו: ', 'Now: ') + esc(r.cur.title) : L('עוד לא התחיל/ה', 'Not started')}${r.xp ? ` · ⚡ ${r.xp} XP` : ''}${r.last ? ' · ' + fmtDate(r.last, { day: 'numeric', month: 'short' }) : ''}</span>
+        </span>
+      </div>`).join('')}
     </div>
   </div>`;
 }
 
-/* ---------- Sidebar legends ---------- */
-function legends() {
-  const statuses = [
-    { status: 'completed', label: L('הושלם', 'Completed'), color: '#10B981' },
-    { status: 'current', label: L('בתהליך', 'In Progress'), color: '#7C3AED' },
-    { status: 'locked', label: L('נעול', 'Locked'), color: 'var(--muted)' },
-  ];
-  return `
-  <div class="col gap-4">
-    <div class="card r-3xl p-5" data-collapse="path-node-types" data-collapse-default="closed">
-      <h3 class="display w7 sm mb-3">${L('סוגי שלבים', 'Node Types')}</h3>
-      ${Object.entries(NODE_ICONS).map(([type, icon]) => `
-        <div class="flex items-center gap-3" style="padding:0.5rem 0;border-bottom:1px solid var(--border)">
-          <span class="xl">${icon}</span>
-          <div>
-            <div class="sm w7" style="text-transform:capitalize">${nodeTypeLabel(type)}</div>
-            <div class="xs muted">${L(...NODE_DESCRIPTIONS[type])}</div>
-          </div>
-        </div>`).join('')}
-    </div>
-    <div class="card r-3xl p-5" data-collapse="path-status" data-collapse-default="closed">
-      <h3 class="display w7 sm mb-3">${L('סטטוס', 'Status')}</h3>
-      ${statuses.map(s => `
-        <div class="flex items-center gap-3" style="padding:0.5rem 0">
-          <div class="shrink-0" style="width:1.5rem;height:1.5rem;border-radius:50%;background:color-mix(in srgb, ${s.color} 20%, transparent);border:2px solid ${s.color}"></div>
-          <span class="sm w6" style="color:${s.status === 'locked' ? 'var(--muted)' : 'var(--text)'}">${s.label}</span>
-        </div>`).join('')}
-    </div>
-
-  </div>`;
+/* ---------- Editing one step ---------- */
+function openEditor(nodeId) { pg.edit = { nodeId }; renderPage(); }
+function editNode(fn) {
+  updatePath(pg.viewId, p => p.units.forEach(u => u.nodes.forEach(n => { if (n.id === pg.edit.nodeId) fn(n, u, p); })));
 }
-
-/* ---------- Page ---------- */
-function renderPage() {
-  const cls = currentClass();
-  const teacher = state.role === 'teacher';
-  const done = bioPathNodes.filter(n => n.status === 'completed').length;
-  document.getElementById('main').innerHTML = `
-    <div class="flex items-center justify-between wrap gap-3">
-      <div>
-        <h1 class="display w8 x2">${L('🗺️ מסלול למידה', '🗺️ Learning Path')}</h1>
-        <p class="sm muted mt-1">${className(cls)} · ${L('מסלול סילבוס שנוצר בעזרת AI', 'AI-Generated Syllabus Path')}</p>
+function nodeField(field, value) { editNode(n => { n[field] = field === 'minutes' ? Math.max(1, Number(value) || 1) : field === 'points' ? value.split('\n').map(s => s.trim()).filter(Boolean) : value; }); }
+function questionField(qi, field, value, oi) {
+  editNode(n => {
+    const q = n.questions[qi];
+    if (field === 'option') q.options[oi] = value;
+    else if (field === 'answer') q.answer = Number(value);
+    else q[field] = value;
+  });
+}
+function addOption(qi) { editNode(n => { if (n.questions[qi].options.length < 6) n.questions[qi].options.push(''); }); renderPage(); }
+function removeOption(qi, oi) { editNode(n => { const q = n.questions[qi]; if (q.options.length <= 2) return; q.options.splice(oi, 1); if (q.answer >= q.options.length) q.answer = 0; else if (q.answer > oi) q.answer--; }); renderPage(); }
+function addQuestion() { editNode(n => n.questions.push({ kind: 'choice', question: '', options: ['', '', ''], answer: 0, explanation: '' })); renderPage(); }
+function removeQuestion(qi) { editNode(n => n.questions.splice(qi, 1)); renderPage(); }
+function deleteNode() {
+  if (!confirm(L('למחוק את השלב?', 'Delete this step?'))) return;
+  updatePath(pg.viewId, p => { p.units.forEach(u => { u.nodes = u.nodes.filter(n => n.id !== pg.edit.nodeId); }); p.units = p.units.filter(u => u.nodes.length); });
+  pg.edit = null;
+  renderPage();
+}
+function nodeEditor(p) {
+  const n = allNodes(p).find(x => x.id === pg.edit.nodeId);
+  if (!n) { pg.edit = null; return ''; }
+  const kind = NODE_KIND[n.type];
+  return `
+  <div class="modal-bg" onmousedown="if(event.target===this){pg.edit=null;renderPage()}">
+    <div class="card r-3xl pedit fade-up" role="dialog" aria-label="${L('עריכת שלב', 'Edit step')}">
+      <div class="pedit-head">
+        <h3 class="display w8 lg">${kind.icon} ${L(kind.he, kind.en)}</h3>
+        <button class="icon-btn" style="width:2rem;height:2rem" onclick="pg.edit=null;renderPage()" aria-label="${L('סגירה', 'Close')}">${ICONS.close}</button>
       </div>
-      <div class="card r-2xl flex items-center gap-2" style="padding:0.5rem 1rem">
-        <span class="lg">🏆</span>
+      <div class="pedit-body">
+        <div class="grid g-1 sm-3" style="gap:0.75rem">
+          <div class="sm-span-2"><label class="label" for="pe-title">${L('כותרת', 'Title')}</label><input id="pe-title" class="input" dir="auto" value="${esc(n.title)}" onchange="nodeField('title', this.value)"></div>
+          <div><label class="label" for="pe-min">${L('דקות', 'Minutes')}</label><input id="pe-min" class="input" type="number" min="1" value="${n.minutes}" onchange="nodeField('minutes', this.value)"></div>
+        </div>
+        <div><label class="label" for="pe-sum">${L('הסבר', 'Explanation')}</label><textarea id="pe-sum" class="input" dir="auto" rows="3" onchange="nodeField('summary', this.value)">${esc(n.summary)}</textarea></div>
+        ${n.type === 'lesson' ? `<div><label class="label" for="pe-pts">${L('נקודות מפתח (שורה לכל נקודה)', 'Key points (one per line)')}</label><textarea id="pe-pts" class="input" dir="auto" rows="4" onchange="nodeField('points', this.value)">${esc(n.points.join('\n'))}</textarea></div>` : ''}
         <div>
-          <div class="display w7 sm">${done}/${bioPathNodes.length} ${L('הושלמו', 'Complete')}</div>
-          <div class="xs muted">${L('מסלול ביולוגיה', 'Biology Path')}</div>
+          <div class="flex items-center justify-between mb-2"><span class="label" style="margin:0">${L('שאלות', 'Questions')} (${n.questions.length})</span><button class="btn btn-soft btn-sm" onclick="addQuestion()">＋ ${L('שאלה', 'Question')}</button></div>
+          <div class="col" style="gap:0.75rem">
+            ${n.questions.map((q, qi) => `
+            <div class="pq">
+              <div class="flex items-start gap-2">
+                <span class="mono xs w8 muted mt-2">${qi + 1}</span>
+                <textarea class="input flex-1" dir="auto" rows="2" aria-label="${L('שאלה', 'Question')} ${qi + 1}" onchange="questionField(${qi}, 'question', this.value)">${esc(q.question)}</textarea>
+                <button class="del-q" onclick="removeQuestion(${qi})" aria-label="${L('מחיקת שאלה', 'Delete question')}">×</button>
+              </div>
+              <div class="col mt-2" style="gap:0.375rem">
+                ${q.options.map((o, oi) => `
+                <label class="pq-opt ${q.answer === oi ? 'right' : ''}">
+                  <input type="radio" name="ans-${qi}" ${q.answer === oi ? 'checked' : ''} onchange="questionField(${qi}, 'answer', ${oi});renderPage()" aria-label="${L('התשובה הנכונה', 'Correct answer')}">
+                  <input class="input input-sm flex-1" dir="auto" value="${esc(o)}" onchange="questionField(${qi}, 'option', this.value, ${oi})" aria-label="${L('אפשרות', 'Option')} ${oi + 1}">
+                  ${q.options.length > 2 ? `<button class="del-q" onclick="event.preventDefault();removeOption(${qi}, ${oi})" aria-label="${L('מחיקת אפשרות', 'Delete option')}">×</button>` : ''}
+                </label>`).join('')}
+                ${q.options.length < 6 ? `<button class="link-btn xs" style="align-self:flex-start" onclick="addOption(${qi})">＋ ${L('אפשרות', 'Option')}</button>` : ''}
+              </div>
+              <input class="input input-sm mt-2" dir="auto" value="${esc(q.explanation)}" placeholder="${L('הסבר לתשובה (לא חובה)', 'Why this is the answer (optional)')}" onchange="questionField(${qi}, 'explanation', this.value)">
+            </div>`).join('') || `<p class="xs muted">${L('אין שאלות בשלב הזה.', 'No questions in this step.')}</p>`}
+          </div>
         </div>
       </div>
-    </div>
-    ${teacher ? teacherPathEditor() + progressTracker() : ''}
-    <div class="grid g-1 lg-3" style="gap:1.25rem">
-      <div class="card r-3xl p-6 lg-span-2">
-        <h2 class="display w7 base mb-4">${teacher ? L('תצוגה מקדימה של המסלול הכיתתי', 'Class Path Preview') : L('המסע שלך', 'Your Journey')}</h2>
-        ${nodeMap()}
+      <div class="pedit-foot">
+        <button class="link-btn xs" style="color:#F43F5E;margin-inline-end:auto" onclick="deleteNode()">${L('מחיקת השלב', 'Delete step')}</button>
+        <button class="btn btn-soft" onclick="startPlay('${p.id}', '${n.id}', true)">▶ ${L('ניסיון', 'Try it')}</button>
+        <button class="btn btn-primary" onclick="pg.edit=null;renderPage()">${L('סיום', 'Done')}</button>
       </div>
-      ${legends()}
     </div>
-  `;
+  </div>`;
 }
+
+/* ================= Player ================= */
+function startPlay(pathId, nodeId, preview) {
+  const p = findPath(pathId);
+  const n = p && allNodes(p).find(x => x.id === nodeId);
+  if (!n) return;
+  pg.edit = null;
+  const order = n.questions.map((_, i) => i);
+  pg.play = { pathId, nodeId, preview, step: n.type === 'lesson' ? 'learn' : 'q', order, pos: 0, qi: order[0] || 0, picked: null, right: 0, earned: 0, missed: new Set() };
+  renderPage();
+}
+function previewPath(id) {
+  const p = findPath(id);
+  if (p) startPlay(id, allNodes(p)[0].id, true);
+}
+function playPick(i) {
+  const pl = pg.play;
+  if (pl.picked !== null) return;
+  pl.picked = i;
+  const n = allNodes(findPath(pl.pathId)).find(x => x.id === pl.nodeId);
+  if (i === n.questions[pl.qi].answer) { if (!pl.missed.has(pl.qi)) pl.right++; }
+  else {
+    pl.missed.add(pl.qi);
+    if (n.type === 'lesson') pl.order.push(pl.qi);   // learn it: the question comes back later
+  }
+  renderPage();
+}
+function playNext() {
+  const pl = pg.play;
+  const p = findPath(pl.pathId);
+  const n = allNodes(p).find(x => x.id === pl.nodeId);
+  if (pl.step === 'learn') { pl.step = n.questions.length ? 'q' : 'end'; pl.pos = 0; pl.qi = pl.order[0]; pl.picked = null; }
+  else if (pl.step === 'q') {
+    if (pl.pos + 1 < pl.order.length) { pl.pos++; pl.qi = pl.order[pl.pos]; pl.picked = null; }
+    else pl.step = 'end';
+  }
+  if (pl.step === 'end' && !pl.finished) {
+    pl.finished = true;
+    const D = DIFFICULTY[p.difficulty] || DIFFICULTY.medium;
+    pl.passed = n.type === 'lesson' || !n.questions.length || pl.right / n.questions.length >= D.pass;
+    if (pl.passed && !pl.preview) pl.earned = recordProgress(p.id, currentUserName(), n, pl.right, n.questions.length);
+  }
+  renderPage();
+}
+function playRetry() { const pl = pg.play; startPlay(pl.pathId, pl.nodeId, pl.preview); }
+function closePlay() { pg.play = null; renderPage(); }
+function player() {
+  const pl = pg.play;
+  const p = findPath(pl.pathId);
+  const n = p && allNodes(p).find(x => x.id === pl.nodeId);
+  if (!n) { pg.play = null; return ''; }
+  const kind = NODE_KIND[n.type];
+  const D = DIFFICULTY[p.difficulty] || DIFFICULTY.medium;
+  const steps = (n.type === 'lesson' ? 1 : 0) + pl.order.length;
+  const doneSteps = pl.step === 'learn' ? 0 : pl.step === 'end' ? steps : (n.type === 'lesson' ? 1 : 0) + pl.pos + (pl.picked !== null ? 1 : 0);
+  let body = '', foot = '';
+  if (pl.step === 'learn') {
+    body = `
+      <div class="play-kicker">${kind.icon} ${L(kind.he, kind.en)}</div>
+      <h2 class="display w8 x2 play-title" dir="auto">${esc(n.title)}</h2>
+      <p class="play-text" dir="auto">${esc(n.summary)}</p>
+      ${n.points.length ? `<div class="play-points">${n.points.map((pt, i) => `<div class="play-point" style="animation-delay:${i * 80}ms" dir="auto"><span>💡</span><span>${esc(pt)}</span></div>`).join('')}</div>` : ''}`;
+    foot = `<button class="play-btn go" onclick="playNext()">${n.questions.length ? L('לתרגול', 'Practice') : L('סיום', 'Finish')}</button>`;
+  } else if (pl.step === 'q') {
+    const q = n.questions[pl.qi];
+    const answered = pl.picked !== null;
+    const right = answered && pl.picked === q.answer;
+    body = `
+      <div class="play-kicker">${pl.pos >= n.questions.length ? '🔁 ' + L('עוד ניסיון', 'Once more') : L(`שאלה ${pl.pos + 1} מתוך ${n.questions.length}`, `Question ${pl.pos + 1} of ${n.questions.length}`)}</div>
+      <h2 class="display w8 xl play-q" dir="auto">${esc(q.question).replace('_____', '<span class="blank">_____</span>')}</h2>
+      <div class="play-options ${q.kind === 'true_false' ? 'tf' : ''}">
+        ${q.options.map((o, i) => `<button class="play-opt ${answered ? (i === q.answer ? 'right' : i === pl.picked ? 'wrong' : 'dim') : ''}" onclick="playPick(${i})" ${answered ? 'disabled' : ''} dir="auto">
+          <span class="play-key">${i + 1}</span><span>${esc(o)}</span></button>`).join('')}
+      </div>`;
+    foot = answered
+      ? `<div class="play-feedback ${right ? 'right' : 'wrong'}" role="status">
+          <div><b>${right ? '🎉 ' + L('מצוין!', 'Great!') : '💡 ' + L('התשובה הנכונה:', 'Correct answer:') + ' ' + esc(q.options[q.answer])}</b>
+          ${!right && n.type === 'lesson' ? `<div class="xs mt-1">${L('נחזור לשאלה הזו בסוף השיעור.', 'We’ll come back to this one at the end of the lesson.')}</div>` : ''}
+          ${q.explanation && !right ? `<div class="sm mt-1" dir="auto">${esc(q.explanation)}</div>` : ''}</div>
+          <button class="play-btn ${right ? 'go' : 'bad'}" onclick="playNext()">${L('המשך', 'Continue')}</button>
+        </div>`
+      : `<span class="xs muted">${L('בחרו תשובה (אפשר גם להקיש 1–' + q.options.length + ')', 'Choose an answer (or press 1–' + q.options.length + ')')}</span>`;
+  } else {
+    const total = n.questions.length;
+    const pct = total ? Math.round((pl.right / total) * 100) : 100;
+    body = `
+      <div class="play-end">
+        <div class="play-trophy">${pl.passed ? (n.type === 'boss' ? '🏆' : '⭐') : '💪'}</div>
+        <h2 class="display w8 x2">${pl.passed ? (n.type === 'boss' ? L('סיימתם את המסלול!', 'You finished the path!') : L('כל הכבוד!', 'Well done!')) : L('כמעט!', 'Almost!')}</h2>
+        ${total ? `<p class="play-text">${L(`ענית נכון על ${pl.right} מתוך ${total} (${pct}%)`, `You got ${pl.right} of ${total} right (${pct}%)`)}</p>` : ''}
+        ${!pl.passed ? `<p class="sm muted">${L(`כדי לעבור צריך ${Math.round(D.pass * 100)}%. נסו שוב!`, `You need ${Math.round(D.pass * 100)}% to pass. Try again!`)}</p>` : ''}
+        ${pl.earned ? `<div class="play-xp">⚡ +${pl.earned} XP</div>` : ''}
+        ${pl.preview ? `<p class="xs muted mt-2">${L('תצוגה מקדימה – ההתקדמות לא נשמרת', 'Preview – progress is not saved')}</p>` : ''}
+      </div>`;
+    const next = (() => { const list = allNodes(p); const i = list.findIndex(x => x.id === n.id); return list[i + 1]; })();
+    foot = pl.passed
+      ? `${next && (pl.preview || state.role === 'student') ? `<button class="play-btn soft" onclick="closePlay()">${L('למפה', 'Back to the map')}</button><button class="play-btn go" onclick="startPlay('${p.id}', '${next.id}', ${pl.preview})">${L('לשלב הבא', 'Next step')} ›</button>` : `<button class="play-btn go" onclick="closePlay()">${L('למפה', 'Back to the map')}</button>`}`
+      : `<button class="play-btn soft" onclick="closePlay()">${L('למפה', 'Back to the map')}</button><button class="play-btn go" onclick="playRetry()">${L('ניסיון חוזר', 'Try again')}</button>`;
+  }
+  return `
+  <div class="play-bg" role="dialog" aria-modal="true" aria-label="${esc(n.title)}">
+    <div class="play">
+      <div class="play-top">
+        <button class="icon-btn" style="width:2.25rem;height:2.25rem" onclick="closePlay()" aria-label="${L('סגירה', 'Close')}">${ICONS.close}</button>
+        <div class="play-bar"><span style="width:${(doneSteps / Math.max(1, steps)) * 100}%"></span></div>
+        ${pl.preview ? `<span class="pbadge">👀 ${L('תצוגה', 'Preview')}</span>` : ''}
+      </div>
+      <div class="play-body">${body}</div>
+      <div class="play-foot">${foot}</div>
+    </div>
+  </div>`;
+}
+document.addEventListener('keydown', e => {
+  if (!pg.play) { if (e.key === 'Escape' && pg.edit) { pg.edit = null; renderPage(); } return; }
+  if (e.key === 'Escape') { closePlay(); return; }
+  const pl = pg.play;
+  if (pl.step === 'q' && pl.picked === null && /^[1-6]$/.test(e.key)) {
+    const n = allNodes(findPath(pl.pathId)).find(x => x.id === pl.nodeId);
+    if (Number(e.key) <= n.questions[pl.qi].options.length) playPick(Number(e.key) - 1);
+  } else if (e.key === 'Enter' && (pl.step === 'learn' || pl.picked !== null)) {
+    if (pl.step === 'end') return;
+    playNext();
+  }
+});
+
+/* ================= Teacher: generator card ================= */
+function generatorCard() {
+  const tc = teacherClasses();
+  if (!pg.classId) pg.classId = (tc.find(c => c.id === state.classId) || tc[0] || {}).id;
+  const d = pg.doc;
+  const D = DIFFICULTY[pg.difficulty];
+  const engine = pg.engine || (aiReady() ? 'ai' : 'builtin');
+  const estLessons = Math.max(2, Math.round(pg.minutes / (D.lessonMin * 1.55)));
+  return `
+  <div class="card r-3xl p-6 pgen">
+    <div class="flex items-center gap-3 mb-5">
+      <div class="icon-tile" style="background:color-mix(in srgb, var(--primary) 14%, transparent)">✨</div>
+      <div>
+        <h2 class="display w8 lg">${L('יצירת מסלול למידה ממסמך', 'Create a learning path from a document')}</h2>
+        <p class="xs muted">${L('העלו חומר לימוד – המערכת תבנה ממנו מסלול בסגנון דואולינגו: יחידות, שיעורים, תרגולים ואתגר מסכם.', 'Upload your material – it becomes a Duolingo-style path: units, lessons, practice rounds and a final challenge.')}</p>
+      </div>
+    </div>
+
+    <div class="pstep"><span class="step-dot">1</span><span class="sm w8">${L('חומר הלימוד', 'Your material')}</span></div>
+    ${d ? `
+    <div class="pdoc">
+      <div class="pdoc-icon">${{ pdf: '📕', docx: '📘', pptx: '📙', text: '📄' }[d.kind] || '📄'}</div>
+      <div class="flex-1 min-w-0">
+        <div class="sm w8 truncate" dir="auto">${esc(d.name)}</div>
+        <div class="xs muted">${d.words ? L(`${d.words.toLocaleString()} מילים · ${d.sections.length} נושאים`, `${d.words.toLocaleString()} words · ${d.sections.length} topics`) : L('PDF ללא טקסט (סרוק)', 'PDF without text (scanned)')}</div>
+        ${d.sections.length ? `<div class="pdoc-topics">${d.sections.slice(0, 8).map(s => `<span dir="auto">${esc(s.title)}</span>`).join('')}${d.sections.length > 8 ? `<span>+${d.sections.length - 8}</span>` : ''}</div>` : ''}
+      </div>
+      <button class="link-btn xs" onclick="pg.doc=null;pg.error='';renderPage()">${L('החלפה', 'Change')}</button>
+    </div>` : `
+    <label class="pdrop ${pg.extracting ? 'busy' : ''}" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')"
+      ondrop="event.preventDefault();this.classList.remove('over');const i=document.getElementById('pg-file');i.files=event.dataTransfer.files;onFileChosen(i)">
+      <input type="file" id="pg-file" hidden accept=".pdf,.docx,.pptx,.txt,.md" onchange="onFileChosen(this)">
+      ${pg.extracting ? `<span class="spinner"></span><span class="sm w7">${L('קורא את הקובץ…', 'Reading the file…')}</span>`
+        : `<span style="font-size:2rem">📤</span><span class="sm w8">${L('גררו לכאן קובץ או לחצו לבחירה', 'Drop a file here or click to choose')}</span><span class="xs muted">PDF · Word (.docx) · PowerPoint (.pptx) · ${L('טקסט', 'text')}</span>`}
+    </label>
+    <details class="mt-3">
+      <summary class="xs w7 primary" style="cursor:pointer">${L('או הדביקו טקסט', 'Or paste text')}</summary>
+      <textarea id="pg-paste" class="input mt-2" rows="5" dir="auto" placeholder="${L('הדביקו כאן את חומר הלימוד…', 'Paste your material here…')}"></textarea>
+      <button class="btn btn-soft btn-sm mt-2" onclick="usePasted()">${L('שימוש בטקסט', 'Use this text')}</button>
+    </details>
+    <button class="link-btn xs mt-2" onclick="useSample()">🧪 ${L('לנסות עם מסמך לדוגמה (ביולוגיה)', 'Try a sample document (biology)')}</button>`}
+    ${pg.error ? `<p class="perror" role="alert">⚠️ ${esc(pg.error)}</p>` : ''}
+
+    <div class="pstep mt-5"><span class="step-dot">2</span><span class="sm w8">${L('הגדרות המסלול', 'Path settings')}</span></div>
+    <div class="grid g-1 md-2" style="gap:0.875rem">
+      <div><label class="label" for="pg-title">${L('שם המסלול', 'Path name')}</label><input id="pg-title" class="input" dir="auto" value="${esc(pg.title)}" placeholder="${L('ייקבע לפי המסמך', 'Taken from the document')}" oninput="pg.title=this.value"></div>
+      <div><label class="label" for="pg-class">${L('כיתה', 'Class')}</label>
+        <select id="pg-class" class="input" onchange="pg.classId=this.value">${tc.map(c => `<option value="${c.id}" ${pg.classId === c.id ? 'selected' : ''}>${className(c)}</option>`).join('')}</select></div>
+    </div>
+    <div class="mt-4">
+      <span class="label">${L('רמת קושי', 'Difficulty')}</span>
+      <div class="pdiff">${Object.entries(DIFFICULTY).map(([k, x]) => `<button class="${pg.difficulty === k ? 'on' : ''}" aria-pressed="${pg.difficulty === k}" onclick="pg.difficulty='${k}';renderPage()"><span>${x.icon}</span><span class="sm w8">${L(x.he, x.en)}</span><span class="xs muted">${{ easy: L('רעיונות מרכזיים', 'Main ideas'), medium: L('רעיונות ופרטים', 'Ideas and details'), hard: L('לעומק + יישום', 'In depth + application') }[k]}</span></button>`).join('')}</div>
+    </div>
+    <div class="mt-4">
+      <span class="label">${L('זמן משוער להשלמת המסלול', 'Estimated time to complete')}</span>
+      <div class="flex wrap gap-2 items-center">
+        ${TIME_CHOICES.map(m => `<button class="ptime ${Number(pg.minutes) === m ? 'on' : ''}" onclick="pg.minutes=${m};renderPage()">${fmtMinutes(m)}</button>`).join('')}
+        <span class="flex items-center gap-1"><input class="input input-sm" type="number" min="10" max="1200" step="5" style="width:5.5rem" value="${pg.minutes}" aria-label="${L('דקות', 'Minutes')}" onchange="pg.minutes=Math.max(10,Math.min(1200,Number(this.value)||60));renderPage()"><span class="xs muted">${L('דק׳', 'min')}</span></span>
+      </div>
+      <p class="xs muted mt-2">≈ ${estLessons} ${L('שיעורים', 'lessons')} · ${L('כ־', 'about ')}${D.lessonMin} ${L('דקות לשיעור ברמה הזו', 'min per lesson at this level')}</p>
+    </div>
+
+    <div class="pstep mt-5"><span class="step-dot">3</span><span class="sm w8">${L('מנוע', 'Engine')}</span></div>
+    <div class="pengine">
+      <button class="${engine === 'ai' ? 'on' : ''}" onclick="pg.engine='ai';renderPage()" aria-pressed="${engine === 'ai'}">
+        <span class="sm w8">✨ Claude AI</span>
+        <span class="xs muted">${L('קורא את המסמך ומנסח הסברים ושאלות איכותיים. כ־1–3 דקות.', 'Reads the document and writes clear explanations and good questions. About 1–3 minutes.')}</span>
+      </button>
+      <button class="${engine === 'builtin' ? 'on' : ''}" onclick="pg.engine='builtin';renderPage()" aria-pressed="${engine === 'builtin'}">
+        <span class="sm w8">⚙️ ${L('מחולל מובנה', 'Built-in generator')}</span>
+        <span class="xs muted">${L('בלי AI ובלי חיבור: בונה מהמשפטים של המסמך שאלות השלמה ונכון/לא נכון. מיידי.', 'No AI, works offline: builds fill-in and true/false questions from the document’s own sentences. Instant.')}</span>
+      </button>
+    </div>
+    ${engine === 'ai' ? aiSetup() : ''}
+
+    <div class="flex items-center gap-3 mt-5 wrap">
+      <button class="btn btn-primary display" onclick="generate()" ${!d || pg.generating || pg.extracting ? 'disabled' : ''}>
+        ${pg.generating ? `<span class="spinner"></span> ${engine === 'ai' ? L('Claude בונה את המסלול…', 'Claude is building the path…') : L('בונה…', 'Building…')}` : `✨ ${L('יצירת המסלול', 'Create the path')}`}
+      </button>
+      ${pg.generating && engine === 'ai' ? `<span id="pg-progress" class="xs muted">${esc(pg.progress || L('קורא את המסמך…', 'Reading the document…'))}</span><button class="link-btn xs" onclick="cancelGenerate()">${L('ביטול', 'Cancel')}</button>` : ''}
+      ${!d ? `<span class="xs muted">${L('קודם בחרו חומר לימוד', 'Add your material first')}</span>` : ''}
+    </div>
+  </div>`;
+}
+function aiSetup() {
+  if (aiProxyUrl()) return `<p class="xs mt-2" style="color:#059669">✅ ${L('מחובר לשרת ה־AI של בית הספר.', 'Connected to the school’s AI server.')}</p>`;
+  if (aiKey()) return `<p class="xs mt-2 flex items-center gap-2 wrap"><span style="color:#059669">✅ ${L('משתמש במפתח ה־API ששמרת בדפדפן הזה', 'Using the API key saved in this browser')} (…${esc(aiKey().slice(-4))})</span><button class="link-btn xs" onclick="removeKey()">${L('הסרת המפתח', 'Remove key')}</button></p>`;
+  return `
+  <div class="pkey mt-3">
+    <p class="xs">${L('כדי להשתמש ב־Claude צריך חיבור לשירות. שתי אפשרויות:', 'Claude needs a connection to the service. Two options:')}</p>
+    <ol class="xs mt-1" style="padding-inline-start:1.1rem;line-height:1.6">
+      <li>${L('<b>לכל בית הספר (מומלץ):</b> המנהל/ת מגדיר/ה שרת AI אחד, והמורים לא צריכים מפתח. ', '<b>For the whole school (recommended):</b> the admin sets up one AI server and teachers need no key. ')}<a class="link-btn xs" href="https://github.com/coolschooliltamar-bit/coolschool/blob/main/ai-proxy/README.md" target="_blank" rel="noopener">${L('מדריך', 'Guide')}</a></li>
+      <li>${L('<b>לניסיון:</b> מפתח API אישי מ־console.anthropic.com. הוא נשמר רק בדפדפן הזה ונשלח רק ל־Anthropic.', '<b>To try it:</b> a personal API key from console.anthropic.com. It is kept only in this browser and sent only to Anthropic.')}</li>
+    </ol>
+    <div class="flex gap-2 mt-2"><input id="pg-key" type="password" class="input input-sm flex-1" autocomplete="off" placeholder="sk-ant-…" aria-label="${L('מפתח API', 'API key')}"><button class="btn btn-soft btn-sm" onclick="saveKey()">${L('שמירה', 'Save')}</button></div>
+  </div>`;
+}
+
+/* ================= Lists ================= */
+function teacherList() {
+  const mine = loadPaths().filter(p => p.by === CURRENT_USER.id || teacherClasses().some(c => c.id === p.classId));
+  if (!mine.length) return '';
+  return `
+  <div class="card r-3xl p-5" data-collapse="path-list" data-collapse-default="open">
+    <h3 class="display w8 lg mb-3">🗺️ ${L('המסלולים שלי', 'My paths')}</h3>
+    <div class="grid g-1 md-2" style="gap:0.75rem">${mine.map(p => pathCard(p, true)).join('')}</div>
+  </div>`;
+}
+function pathCard(p, teacher) {
+  const nodes = allNodes(p);
+  const cls = classes.find(c => c.id === p.classId);
+  const done = teacher ? null : Object.keys(progressOf(p.id, currentUserName()).done).length;
+  const D = DIFFICULTY[p.difficulty] || DIFFICULTY.medium;
+  return `
+  <a class="pcard ${pg.viewId === p.id ? 'on' : ''}" href="?id=${p.id}" onclick="event.preventDefault();openPath('${p.id}')">
+    <div class="pcard-icon" style="background:${(cls || {}).color || '#7C3AED'}22">${subjectIcon(cls)}</div>
+    <div class="flex-1 min-w-0">
+      <div class="sm w8 truncate" dir="auto">${esc(p.title)}</div>
+      <div class="xs muted truncate">${className(cls)} · ${D.icon} ${L(D.he, D.en)} · ⏱ ${fmtMinutes(totalMinutes(p))} · ${nodes.length} ${L('שלבים', 'steps')}</div>
+      ${teacher ? `<span class="pbadge mt-1 ${p.published ? 'live' : 'draft'}">${p.published ? '● ' + L('פורסם', 'Published') : L('טיוטה', 'Draft')}</span>`
+        : `<span class="bar mt-2" style="height:0.45rem"><span style="width:${(done / nodes.length) * 100}%;background:#58CC02"></span></span><span class="xs muted">${done}/${nodes.length} ${L('שלבים', 'steps')}</span>`}
+    </div>
+  </a>`;
+}
+function openPath(id) {
+  pg.viewId = id; pg.edit = null;
+  history.replaceState(null, '', '?id=' + id);
+  renderPage();
+  document.getElementById('path-map')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function studentPaths() { return loadPaths().filter(p => p.published); }
+
+/* ================= Page ================= */
+function renderPage() {
+  const teacher = state.role === 'teacher';
+  const p = pg.viewId ? findPath(pg.viewId) : null;
+  if (pg.viewId && (!p || (!teacher && !p.published))) pg.viewId = null;
+  let html = `
+    <div>
+      <h1 class="display w8 x2">🗺️ ${L('מסלולי למידה', 'Learning paths')}</h1>
+      <p class="sm muted mt-1">${teacher ? L('מסלולים בסגנון דואולינגו, שנבנים מחומר הלימוד שלך.', 'Duolingo-style paths built from your own material.') : L('מסלולים שהמורים פרסמו לך. כל שלב פותח את הבא.', 'Paths your teachers published for you. Each step unlocks the next.')}</p>
+    </div>`;
+  if (teacher) {
+    html += generatorCard() + teacherList();
+    if (p) html += `<div class="grid g-1 lg-3" style="gap:1.25rem;align-items:start"><div class="lg-span-2 col" style="gap:1rem">${pathHeader(p, true)}<div class="card r-3xl p-5">${pathMap(p, 'teacher')}<p class="xs muted text-center mt-3">✏️ ${L('לחצו על שלב כדי לערוך אותו', 'Click a step to edit it')}</p></div></div>${studentProgress(p)}</div>`;
+  } else {
+    const list = studentPaths();
+    html += list.length
+      ? `<div class="grid g-1 md-2" style="gap:0.75rem">${list.map(x => pathCard(x, false)).join('')}</div>`
+      : `<div class="card r-3xl p-6 text-center"><div style="font-size:2.5rem">🗺️</div><p class="sm muted mt-2">${L('עדיין אין מסלולים. כשהמורה יפרסם/תפרסם מסלול, הוא יופיע כאן.', 'No paths yet. When your teacher publishes one, it shows up here.')}</p></div>`;
+    if (p) {
+      const pr = progressOf(p.id, currentUserName());
+      html += pathHeader(p, false) + `<div class="card r-3xl p-5"><div class="flex justify-center mb-3"><span class="pbadge">⚡ ${pr.xp} XP</span></div>${pathMap(p, 'student')}</div>`;
+    }
+  }
+  document.getElementById('main').innerHTML = html + (teacher && p && pg.edit ? nodeEditor(p) : '') + (pg.play ? player() : '');
+  document.body.classList.toggle('jmodal-open', !!pg.play);
+}
+
+/* ---------- Sample material (so the generator can be tried right away) ---------- */
+const SAMPLE_EN = `# Membranes and Transport
+
+# The Cell Membrane
+The cell membrane is a thin, flexible barrier that surrounds every cell and separates its interior from the outside environment. It is made mainly of a phospholipid bilayer. Each phospholipid has a hydrophilic head that faces water and two hydrophobic tails that point inward. Proteins are embedded in the bilayer. Channel proteins form pores, and carrier proteins change shape to move specific molecules. The fluid mosaic model describes the membrane as a moving sea of lipids with proteins floating in it like tiles of a mosaic.
+
+# Passive Transport
+Passive transport moves substances across the membrane without using energy from the cell. In diffusion, particles move from an area of high concentration to an area of low concentration until equilibrium is reached. Small nonpolar molecules such as oxygen and carbon dioxide diffuse directly through the phospholipid bilayer. Facilitated diffusion uses channel or carrier proteins to help larger or charged molecules such as glucose and ions cross the membrane.
+
+# Osmosis
+Osmosis is the diffusion of water across a selectively permeable membrane. Water moves toward the side with the higher concentration of solutes. In a hypotonic solution a cell gains water and may swell. In a hypertonic solution a cell loses water and shrinks; in plant cells this is called plasmolysis. In an isotonic solution there is no net movement of water.
+
+# Active Transport
+Active transport moves substances against their concentration gradient and requires energy in the form of ATP. The sodium-potassium pump moves three sodium ions out of the cell and two potassium ions into the cell. Endocytosis brings large particles into the cell by folding the membrane around them to form a vesicle. Exocytosis releases substances such as hormones and enzymes when a vesicle fuses with the cell membrane.`;
+const SAMPLE_HE = `# קרומים ומעבר חומרים
+
+# קרום התא
+קרום התא הוא מחסום דק וגמיש שעוטף כל תא ומפריד בין תוכן התא לסביבה החיצונית. הקרום בנוי בעיקר משכבה כפולה של פוספוליפידים. לכל פוספוליפיד יש ראש הידרופילי שפונה אל המים ושני זנבות הידרופוביים שפונים פנימה. בקרום משובצים חלבונים. חלבוני תעלה יוצרים נקבוביות, וחלבוני נשא משנים את צורתם כדי להעביר מולקולות מסוימות.
+
+# מעבר סביל
+במעבר סביל חומרים עוברים דרך הקרום בלי שהתא משקיע אנרגיה. בדיפוזיה חלקיקים נעים מאזור של ריכוז גבוה לאזור של ריכוז נמוך עד שנוצר שיווי משקל. מולקולות קטנות כמו חמצן ופחמן דו־חמצני עוברות ישירות דרך שכבת הפוספוליפידים. בדיפוזיה מזורזת חלבוני תעלה או חלבוני נשא עוזרים למולקולות גדולות כמו גלוקוז לעבור.
+
+# אוסמוזה
+אוסמוזה היא דיפוזיה של מים דרך קרום בררני. המים נעים לכיוון הצד שבו ריכוז המומסים גבוה יותר. בתמיסה היפוטונית התא קולט מים ומתנפח. בתמיסה היפרטונית התא מאבד מים ומתכווץ, ובתאי צמח התופעה נקראת פלסמוליזה. בתמיסה איזוטונית אין מעבר נטו של מים.
+
+# מעבר פעיל
+במעבר פעיל חומרים עוברים נגד מפל הריכוז, והתא משקיע אנרגיה בצורת ATP. משאבת נתרן־אשלגן מוציאה שלושה יוני נתרן מהתא ומכניסה שני יוני אשלגן. באנדוציטוזה התא מכניס חלקיקים גדולים כשהקרום מתקפל סביבם ויוצר שלפוחית. באקסוציטוזה התא משחרר חומרים כמו הורמונים ואנזימים כשהשלפוחית מתמזגת עם הקרום.`;
 </script>
 </body>
 </html>

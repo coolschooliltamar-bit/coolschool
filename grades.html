@@ -984,6 +984,11 @@ function inboxNotifs() {
           ? L(`${name} עדכן/ה את הציון שלך ב${what}: ${x.oldGrade} ← ${x.newGrade}`, `${name} updated your grade for ${what}: ${x.oldGrade} → ${x.newGrade}`)
           : L(`${name} השאיר/ה את הציון שלך ב${what} ללא שינוי`, `${name} kept your grade for ${what} unchanged`) };
     }
+    if (m.kind === 'path-published') {
+      const x = m.extra || {};
+      return { ...base, type: 'path', link: 'path.html?id=' + encodeURIComponent(x.id || ''),
+        text: L(`${name} פרסם/ה מסלול למידה חדש: ${x.title || ''}`, `${name} published a new learning path: ${x.title || ''}`) };
+    }
     if (m.kind === 'teacher-approved') {
       return { ...base, type: 'approved', text: L('המנהל/ת אישר/ה את החשבון שלך. ברוכים הבאים!', 'The principal approved your account. Welcome!') };
     }
@@ -1100,7 +1105,7 @@ const NAV = [
 
 /* ================= Header ================= */
 function notifIcon(type) {
-  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'grade-req': '📝', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
+  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'grade-req': '📝', path: '🗺️', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
 }
 
 function renderHeader() {
@@ -2335,7 +2340,6 @@ function renderAll() {
   if (!CURRENT_USER) return;
   if (isPrincipal() && !PRINCIPAL_PAGES.includes(window.PAGE_KEY)) { location.replace('home.html'); return; }
   if (!isPrincipal() && (window.PAGE_KEY === 'timetable' || window.PAGE_KEY === 'classes')) { location.replace('schedule.html'); return; }
-  if (state.role === 'student' && window.PAGE_KEY === 'path') { location.replace('tasks.html'); return; }
   if (state.role === 'teacher' && window.PAGE_KEY === 'tasks') { location.replace('home.html'); return; }
   applyDocument();
   renderHeaderOnly();
