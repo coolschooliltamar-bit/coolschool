@@ -467,6 +467,9 @@ body.jmodal-open { overflow: hidden; }
 .lv-table { width: 100%; min-width: 30rem; border-collapse: collapse; }
 .lv-table th, .lv-table td { padding: 0.5rem; text-align: start; border-bottom: 1px solid var(--border); }
 .lv-table th { font-size: 0.75rem; color: var(--muted); font-weight: 800; }
+.lv-demo { padding: 0.625rem 0.75rem; border-radius: 0.75rem; background: #F59E0B1a; border: 1px solid #F59E0B55; font-size: 0.8125rem; line-height: 1.5; }
+.lv-demo b { display: block; color: #B45309; margin-bottom: 0.125rem; }
+.dark .lv-demo b { color: #FCD34D; }
 </style>
 </head>
 <body>
@@ -478,6 +481,7 @@ body.jmodal-open { overflow: hidden; }
   </div>
 </div>
 
+<script src="site-config.js"></script>
 <script>
 /* ===================== Shared app code (data, i18n, header, sidebar) ===================== */
 /* ================= Data ================= */
@@ -1289,10 +1293,15 @@ function relWeekLabel(offset) {
   return L(`בעוד ${offset} שבועות`, `In ${offset} weeks`);
 }
 /* ================= Live lessons (Jitsi) =================
-   The video server. meet.jit.si works for trying things out, but it cuts embedded calls
-   after 5 minutes and asks the first person to sign in; real classes need a school-run
-   Jitsi server (or Jitsi as a Service). Change it here, or per browser in 'cs-jitsi-domain'. */
-const JITSI_DOMAIN = load('cs-jitsi-domain', null) || 'meet.jit.si';
+   The video server comes from site-config.js (one line for the whole site; a browser can
+   override it in 'cs-jitsi-domain' for testing). meet.jit.si is Jitsi's demo server: it
+   makes the first person sign in and cuts embedded calls after 5 minutes. A school-run
+   Jitsi server (video-server/README.md) needs no sign-in and has no limit. */
+const SITE_CONFIG = window.COOLSCHOOL_CONFIG || {};
+const JITSI_DOMAIN = String(load('cs-jitsi-domain', null) || SITE_CONFIG.jitsiDomain || 'meet.jit.si').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+function jitsiDemoServer() { return JITSI_DOMAIN === 'meet.jit.si'; }
+const VIDEO_GUIDE_URL = 'https://github.com/coolschooliltamar-bit/coolschool/blob/main/video-server/README.md';
+const SITE_CONFIG_URL = 'https://github.com/coolschooliltamar-bit/coolschool/edit/main/site-config.js';
 // One room per class per day; teacher and students work out the same name on their own
 function liveRoomName(classId, date) {
   return `CoolSchool${classId}${date.replace(/-/g, '')}k${seedHash('cs-live|' + classId + '|' + date).toString(36)}`;
@@ -2637,6 +2646,17 @@ function lessonTitle(s) {
   return cls ? localize(cls.name) : '';
 }
 
+/* While the site still uses Jitsi's demo server, say plainly what people will run into */
+function demoServerNote(teacher) {
+  if (!jitsiDemoServer()) return '';
+  return `<div class="lv-demo mb-4" role="note">
+    <b>⚠️ ${L('שרת הדגמה', 'Demo video server')}</b>
+    ${teacher
+      ? L('בשרת ההדגמה של Jitsi (meet.jit.si) מי שפותח/ת את השיעור מתבקש/ת להתחבר עם Google, GitHub או Facebook, והשיחה מתנתקת אחרי 5 דקות. כשבית הספר יחבר שרת Jitsi משלו – אף אחד לא יתבקש להתחבר ואין הגבלת זמן.', 'On Jitsi’s demo server (meet.jit.si) whoever opens the lesson is asked to sign in with Google, GitHub or Facebook, and the call stops after 5 minutes. Once the school connects its own Jitsi server, nobody is asked to sign in and there is no time limit.')
+      : L('אם מופיעה בקשה להתחבר – לא צריך. חכו שהמורה יפתח/תפתח את השיעור והכניסה תהיה אוטומטית.', 'If you are asked to sign in, you don’t need to – wait for your teacher to open the lesson and you’ll be let in.')}
+  </div>`;
+}
+
 /* ================= Teacher views ================= */
 function teacherSetup() {
   const st = live.setup || (live.setup = defaultSetup());
@@ -2650,6 +2670,7 @@ function teacherSetup() {
     <div class="card r-3xl p-6">
       <h2 class="display w8 xl mb-1">🎥 ${L('פתיחת שיעור חי', 'Start a live lesson')}</h2>
       <p class="sm muted mb-5">${L('התלמידים נכנסים מהמכשיר שלהם, והנוכחות נרשמת במשוב אוטומטית.', 'Students join from their own device and attendance goes into Mashov automatically.')}</p>
+      ${demoServerNote(true)}
       <label class="label" for="lv-class">${L('כיתה', 'Class')}</label>
       <select id="lv-class" class="input mb-3" onchange="setupField('classId', this.value)">
         ${mine.map(c => `<option value="${c.id}" ${st.classId === c.id ? 'selected' : ''}>${className(c)}</option>`).join('')}
@@ -2830,6 +2851,7 @@ function studentPick() {
     <div class="card r-3xl p-6">
       <h2 class="display w8 xl mb-1">🎥 ${L('כניסה לשיעור חי', 'Join a live lesson')}</h2>
       <p class="sm muted mb-4">${L('בחרו את הכיתה שהשיעור שלה מתקיים עכשיו. המורה צריך/ה לפתוח את השיעור.', 'Choose the class whose lesson is on now. Your teacher opens the lesson.')}</p>
+      ${demoServerNote(false)}
       <div class="col" style="gap:0.5rem">
         ${classes.map(c => `<button class="lv-class" style="--c:${c.color}" onclick="joinAsStudent('${c.id}')">
           <span class="cp-icon-lv">${subjectIcon(c)}</span><span class="flex-1 text-start"><span class="w7 block">${localize(c.name)}</span><span class="xs muted">${classTeachers(c.id).map(n => esc(localize(n))).join(', ')}</span></span>

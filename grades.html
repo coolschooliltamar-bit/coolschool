@@ -576,6 +576,7 @@ html[dir='rtl'] .nav-arrow { transform: scaleX(-1); }
   </div>
 </div>
 
+<script src="site-config.js"></script>
 <script>
 /* ===================== Shared app code (data, i18n, header, sidebar) ===================== */
 /* ================= Data ================= */
@@ -1387,10 +1388,15 @@ function relWeekLabel(offset) {
   return L(`בעוד ${offset} שבועות`, `In ${offset} weeks`);
 }
 /* ================= Live lessons (Jitsi) =================
-   The video server. meet.jit.si works for trying things out, but it cuts embedded calls
-   after 5 minutes and asks the first person to sign in; real classes need a school-run
-   Jitsi server (or Jitsi as a Service). Change it here, or per browser in 'cs-jitsi-domain'. */
-const JITSI_DOMAIN = load('cs-jitsi-domain', null) || 'meet.jit.si';
+   The video server comes from site-config.js (one line for the whole site; a browser can
+   override it in 'cs-jitsi-domain' for testing). meet.jit.si is Jitsi's demo server: it
+   makes the first person sign in and cuts embedded calls after 5 minutes. A school-run
+   Jitsi server (video-server/README.md) needs no sign-in and has no limit. */
+const SITE_CONFIG = window.COOLSCHOOL_CONFIG || {};
+const JITSI_DOMAIN = String(load('cs-jitsi-domain', null) || SITE_CONFIG.jitsiDomain || 'meet.jit.si').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+function jitsiDemoServer() { return JITSI_DOMAIN === 'meet.jit.si'; }
+const VIDEO_GUIDE_URL = 'https://github.com/coolschooliltamar-bit/coolschool/blob/main/video-server/README.md';
+const SITE_CONFIG_URL = 'https://github.com/coolschooliltamar-bit/coolschool/edit/main/site-config.js';
 // One room per class per day; teacher and students work out the same name on their own
 function liveRoomName(classId, date) {
   return `CoolSchool${classId}${date.replace(/-/g, '')}k${seedHash('cs-live|' + classId + '|' + date).toString(36)}`;
