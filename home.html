@@ -609,6 +609,11 @@ function isMySubmission(q) {
   return !!a && teacherClasses().some(c => c.id === a.classId);
 }
 /* Who teaches a class: approved teacher accounts first, otherwise the class's listed teacher */
+/* Each subject has an icon, shown next to the class name everywhere */
+const SUBJECT_ICONS = { Biology: '🧬', Chemistry: '🧪', Physics: '⚛️', Science: '🔬', Math: '➗', Mathematics: '➗', History: '🏛️',
+  English: '📖', Literature: '📖', Geography: '🌍', Art: '🎨', Music: '🎵', Sport: '⚽', Computers: '💻', Bible: '📜', Hebrew: '✍️' };
+function subjectIcon(c) { return (c && SUBJECT_ICONS[c.subject]) || '📘'; }
+function className(c) { return c ? `${subjectIcon(c)} ${localize(c.name)}` : ''; }
 function classTeachers(classId) {
   const fromAccounts = loadUsers().filter(u => u.role === 'teacher' && u.status === 'active' && (u.classIds || []).includes(classId)).map(fullName);
   if (fromAccounts.length) return fromAccounts;
@@ -620,7 +625,7 @@ function timeRange(start, end) { return `\u2066${start}:00–${end}:00\u2069`; }
 function dayName(day) { return (isHe() ? DAY_NAMES.he : DAY_NAMES.en)[day]; }
 function lessonLabel(s) {
   const cls = classes.find(c => c.id === s.classId);
-  return `${cls ? localize(cls.name) : ''} · ${dayName(s.day)} ${timeRange(s.startHour, s.startHour + s.duration)}${s.room ? ' · ' + localize(s.room) : ''}`;
+  return `${cls ? className(cls) : ''} · ${dayName(s.day)} ${timeRange(s.startHour, s.startHour + s.duration)}${s.room ? ' · ' + localize(s.room) : ''}`;
 }
 // What changed between two versions of the timetable (matched by lesson id)
 function diffTimetables(before, after) {
@@ -852,8 +857,8 @@ function inboxNotifs() {
       const x = m.extra || {};
       const cls = classes.find(c => c.id === x.classId);
       return { ...base, type: 'grade', link: 'grades.html#attendance',
-        text: L(`${name} עדכן/ה משוב: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? localize(cls.name) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`,
-                `${name} updated your Mashov: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? cls.name : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`) };
+        text: L(`${name} עדכן/ה משוב: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? className(cls) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`,
+                `${name} updated your Mashov: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? className(cls) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`) };
     }
     if (m.kind === 'exam-grade') {
       const x = m.extra || {};
@@ -868,7 +873,7 @@ function inboxNotifs() {
     if (m.kind === 'justification' || m.kind === 'justification-result') {
       const x = m.extra || {};
       const cls = classes.find(c => c.id === x.classId);
-      const what = `${mashovLabel(x.kind)} · ${cls ? localize(cls.name) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`;
+      const what = `${mashovLabel(x.kind)} · ${cls ? className(cls) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`;
       const link = 'home.html#justify=' + x.id;
       if (m.kind === 'justification') {
         return { ...base, type: 'justify', link, jid: x.id,
@@ -882,7 +887,7 @@ function inboxNotifs() {
     if (m.kind === 'grade-request' || m.kind === 'grade-request-result') {
       const x = m.extra || {};
       const cls = classes.find(c => c.id === x.classId);
-      const what = `"${localize(x.title || '')}" · ${cls ? localize(cls.name) : ''}`;
+      const what = `"${localize(x.title || '')}" · ${cls ? className(cls) : ''}`;
       const link = 'home.html#request=' + x.id;
       if (m.kind === 'grade-request') {
         return { ...base, type: 'grade-req', link, jid: x.id,
@@ -1028,7 +1033,7 @@ function renderHeader() {
       <button class="class-pill" onclick="toggleDd('classes')"
         style="background:${cls.color}22;color:${cls.color};border:1.5px solid ${cls.color}44">
         <span class="dot" style="background:${cls.color}"></span>
-        <span class="sm-up">${localize(cls.name)}</span>
+        <span class="sm-up">${className(cls)}</span>
         ${ICONS.chevron}
       </button>
       ${ui.classes ? `
@@ -1038,7 +1043,7 @@ function renderHeader() {
             style="background:${state.classId === c.id ? c.color + '18' : 'transparent'}">
             <span class="dot" style="width:0.75rem;height:0.75rem;background:${c.color}"></span>
             <div class="flex-1">
-              <div class="w6">${localize(c.name)}</div>
+              <div class="w6">${className(c)}</div>
               <div class="xs muted">${localize(c.teacher)}</div>
             </div>
             ${state.classId === c.id ? `<span style="color:${c.color}">${ICONS.check}</span>` : ''}
@@ -1312,7 +1317,7 @@ function classRoster() {
    Final grade = weighted mix of three categories (weights set per class by the teacher):
    - Exams:         average of the student's exam scores in the class
    - Assignments:   average of the student's graded submissions in the class
-   - Participation: a grade the teacher enters, guided by the student's Mashov tally
+   - Conduct & engagement (תלמידאות, key 'participation'): a grade the teacher enters, guided by the student's Mashov tally
      (the system only counts the entries – it never turns them into a grade)
    A category with no grade yet is left out and the other weights are scaled up. */
 const EXAMS_KEY = 'cs-exams';
@@ -1770,7 +1775,7 @@ function justifyDialogHtml() {
 
   const lessonCard = `
     <div class="jlesson" style="--c:${cls.color}">
-      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${localize(cls.subject)[0]}</div>
+      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${subjectIcon(cls)}</div>
       <div class="min-w-0">
         <div class="w7">${localize(cls.name)}</div>
         <div class="xs muted">${lessonWhen(slot, date)}</div>
@@ -2080,7 +2085,7 @@ function gradeRequestDialogHtml() {
   const shownGrade = r && r.status === 'approved' ? r.newGrade : (r ? r.currentGrade : it.grade);
   const itemCard = `
     <div class="jlesson" style="--c:${cls.color}">
-      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${localize(cls.subject)[0]}</div>
+      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${subjectIcon(cls)}</div>
       <div class="flex-1 min-w-0">
         <div class="w7">${esc(localize(it.title))}</div>
         <div class="xs muted">${kindLabel} · ${localize(cls.name)}${it.date ? ' · ' + fmtDate(it.date, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</div>
@@ -2310,6 +2315,8 @@ function enhanceCollapsibles() {
     });
   });
 }
+// Open a collapsible section from code (e.g. a button that jumps to it)
+function openSection(key) { rememberSection(key, true); }
 function setAllSections(open) {
   const saved = {};
   document.querySelectorAll('#main [data-collapse]').forEach(sec => { saved[sec.dataset.collapse] = open; });
@@ -2341,7 +2348,7 @@ const home = {
   draft: { title: '', classId: '', dueDate: '2026-09-24', type: 'homework' },
 };
 
-/* Notes teachers post to their students' home page */
+/* Messages teachers post to their students' home page */
 const DEFAULT_NOTES = [
   { id: 'n-1', classId: 'bio11a', author: 'Dr. Levi', important: true, date: '2026-09-08',
     text: { he: 'אל תשכחו להביא חלוק מעבדה ביום חמישי – יש לנו ניסוי במעבדה 3.', en: 'Remember to bring your lab coat on Thursday – we have an experiment in Lab 3.' } },
@@ -2354,7 +2361,7 @@ function noteText(n) { return typeof n.text === 'string' ? n.text : L(n.text.he,
 function noteClassLabel(classId) {
   if (classId === 'all') return L('כל הכיתות', 'All classes');
   const cls = classes.find(c => c.id === classId);
-  return cls ? localize(cls.name) : '';
+  return cls ? className(cls) : '';
 }
 function noteCard(n, teacherView) {
   const cls = classes.find(c => c.id === n.classId);
@@ -2380,7 +2387,7 @@ function teacherNotes() {
   return `
   <div class="card r-3xl p-5" data-collapse="home-teacher-notes" data-collapse-default="closed">
     <div class="section-head" style="margin-bottom:0.25rem">
-      <h2 class="display w8 lg">📝 ${L('הערות לתלמידים', 'Notes for students')}</h2>
+      <h2 class="display w8 lg">📝 ${L('הודעות לתלמידים', 'Messages for students')}</h2>
       <span class="xs muted">${L('יופיעו בעמוד הבית של התלמידים', 'Shown on your students\' home page')}</span>
     </div>
     <div class="grid g-1 md-2 mt-3" style="gap:1rem;align-items:start">
@@ -2391,16 +2398,16 @@ function teacherNotes() {
         <div class="flex items-center gap-2 wrap">
           <select class="input" style="width:auto;flex:1" onchange="home.noteDraft.classId=this.value">
             <option value="all" ${d.classId === 'all' ? 'selected' : ''}>${L('כל הכיתות שלי', 'All my classes')}</option>
-            ${teacherClasses().map(c => `<option value="${c.id}" ${d.classId === c.id ? 'selected' : ''}>${localize(c.name)}</option>`).join('')}
+            ${teacherClasses().map(c => `<option value="${c.id}" ${d.classId === c.id ? 'selected' : ''}>${className(c)}</option>`).join('')}
           </select>
           <label class="flex items-center gap-2 sm w6" style="cursor:pointer">
             <input type="checkbox" ${d.important ? 'checked' : ''} onchange="home.noteDraft.important=this.checked"> ${L('חשוב', 'Important')}
           </label>
-          <button id="note-post" class="btn btn-primary" onclick="postNote()" ${d.text.trim() ? '' : 'disabled'}>${L('פרסום', 'Post note')}</button>
+          <button id="note-post" class="btn btn-primary" onclick="postNote()" ${d.text.trim() ? '' : 'disabled'}>${L('פרסום', 'Post message')}</button>
         </div>
       </div>
       <div class="col gap-2">
-        ${mine.length ? mine.map(n => noteCard(n, true)).join('') : `<p class="sm muted">${L('עדיין לא פרסמת הערות.', 'You haven\'t posted any notes yet.')}</p>`}
+        ${mine.length ? mine.map(n => noteCard(n, true)).join('') : `<p class="sm muted">${L('עדיין לא פרסמת הודעות.', 'You haven\'t posted any messages yet.')}</p>`}
       </div>
     </div>
   </div>`;
@@ -2413,7 +2420,7 @@ function studentNotes() {
   if (!visible.length) return '';
   return `
   <div data-collapse="home-student-notes" data-collapse-default="open">
-    <h2 class="display w8 lg mb-3">📌 ${L('הערות מהמורים', 'Notes from your teachers')}</h2>
+    <h2 class="display w8 lg mb-3">📌 ${L('הודעות מהמורים', 'Messages from your teachers')}</h2>
     <div class="grid g-1 md-2 lg-3">${visible.map(n => noteCard(n, false)).join('')}</div>
   </div>`;
 }
@@ -2430,7 +2437,7 @@ function postNote() {
   save('cs-teacher-notes', home.notes);
   home.noteDraft = { text: '', classId: d.classId, important: false };
   renderPage();
-  toast(L('ההערה פורסמה לתלמידים', 'Note posted to students'));
+  toast(L('ההודעה פורסמה לתלמידים', 'Message posted to students'));
 }
 function deleteNote(id) {
   home.notes = home.notes.filter(n => n.id !== id);
@@ -2478,7 +2485,7 @@ function liveBanner() {
           <span class="live-chip"><span class="live-dot pulse"></span>
             ${teacher ? L('מרכז השידור', 'LIVE CLASS STUDIO') : L('בשידור חי', 'LIVE NOW')}
           </span>
-          <span class="sm" style="color:rgba(255,255,255,.7)">${localize(cls.name)}</span>
+          <span class="sm" style="color:rgba(255,255,255,.7)">${className(cls)}</span>
         </div>
         <h2 class="live-title">${L('העברה דרך קרום התא', 'Cell Membrane Transport')}</h2>
         <p class="sm mt-1" style="color:rgba(255,255,255,.7)">
@@ -2544,7 +2551,7 @@ function classCard(cls) {
   <div class="card r-2xl p-5 col gap-3 hover-lift">
     <div class="flex items-start justify-between">
       <div>
-        <div class="letter-tile mb-2" style="width:2.5rem;height:2.5rem;background:${cls.color}">${localize(cls.subject)[0]}</div>
+        <div class="letter-tile mb-2" style="width:2.5rem;height:2.5rem;background:${cls.color}">${subjectIcon(cls)}</div>
         <h3 class="display w7 base leading-tight">${localize(cls.name)}</h3>
         <p class="sm muted mt-1">${localize(cls.teacher)}</p>
       </div>
@@ -2612,7 +2619,7 @@ function composer() {
       <input id="c-title" class="input" style="grid-column:1/-1" value="${esc(d.title)}"
         placeholder="${L('שם המשימה', 'Assignment title')}" oninput="draftTitle(this.value)">
       <select class="input" onchange="home.draft.classId=this.value">
-        ${tc.map(c => `<option value="${c.id}" ${d.classId === c.id ? 'selected' : ''}>${localize(c.name)}</option>`).join('')}
+        ${tc.map(c => `<option value="${c.id}" ${d.classId === c.id ? 'selected' : ''}>${className(c)}</option>`).join('')}
       </select>
       <select class="input" onchange="home.draft.type=this.value">
         ${['homework', 'quiz', 'exam', 'bagrut'].map(ty => `<option value="${ty}" ${d.type === ty ? 'selected' : ''}>${typeLabel(ty)}</option>`).join('')}
@@ -2689,7 +2696,7 @@ function principalHome() {
   const students = users.filter(u => u.role === 'student');
   const classChips = u => (u.classIds || []).map(id => {
     const c = classes.find(x => x.id === id);
-    return c ? `<span class="tag" style="background:${c.color}20;color:${c.color}">${localize(c.name)}</span>` : '';
+    return c ? `<span class="tag" style="background:${c.color}20;color:${c.color}">${className(c)}</span>` : '';
   }).join(' ');
   const person = (u, i) => `
     <div class="letter-tile sm" style="width:2.5rem;height:2.5rem;background:hsl(${i * 53 + 190},60%,50%)">${esc(initials(fullName(u).replace(/^(Dr\.|Mr\.|Ms\.)\s*/, '')))}</div>`;
@@ -2785,9 +2792,9 @@ function requestRow({ type, r }, teacherView) {
     <span class="flex-1 min-w-0">
       <span class="flex items-center gap-2 min-w-0">
         <span class="req-kind ${grade ? 'grade' : 'justify'}">${grade ? '📝 ' + L('בדיקת ציון', 'Grade review') : '📨 ' + L('הצדקה', 'Justification')}</span>
-        <span class="sm w7 truncate">${teacherView ? esc(localize(r.studentName)) : localize(cls.name)}</span>
+        <span class="sm w7 truncate">${teacherView ? esc(localize(r.studentName)) : className(cls)}</span>
       </span>
-      <span class="xs muted block truncate mt-1">${teacherView ? localize(cls.name) + ' · ' : ''}${what} · ${reason.icon} ${L(reason.he, reason.en)}</span>
+      <span class="xs muted block truncate mt-1">${teacherView ? className(cls) + ' · ' : ''}${what} · ${reason.icon} ${L(reason.he, reason.en)}</span>
     </span>
     ${status || `<span class="xs w7 primary shrink-0">${teacherView ? L('לטיפול ←', 'Review →') : L('ממתינה', 'Pending')}</span>`}
   </button>`;

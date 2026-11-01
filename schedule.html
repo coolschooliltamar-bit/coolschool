@@ -556,6 +556,16 @@ html[dir='rtl'] .week-arrow { transform: scaleX(-1); }
 .week-rel { font-family: inherit; font-size: 1rem; font-weight: 800; }
 .week-rel.now { color: var(--primary); }
 .mashov-table thead th { min-width: 4.5rem; }
+
+/* Calendar → upcoming events */
+.cal-title { background: none; border: 0; padding: 0; cursor: pointer; color: inherit; text-align: start; }
+.cal-title:hover h3 { color: var(--primary); }
+.cal-upcoming { margin-inline-start: auto; font-size: 0.75rem; }
+.up-row { border-radius: 0.875rem; padding: 0.25rem; margin: -0.25rem; }
+.up-row.on-day { background: color-mix(in srgb, var(--primary) 9%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--primary) 35%, transparent); }
+#upcoming.flash { animation: upflash 1.1s ease; }
+@keyframes upflash { 0%, 40% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 35%, transparent); } 100% { box-shadow: none; } }
+.up-row.past { opacity: .6; }
 </style>
 </head>
 <body>
@@ -685,6 +695,11 @@ function isMySubmission(q) {
   return !!a && teacherClasses().some(c => c.id === a.classId);
 }
 /* Who teaches a class: approved teacher accounts first, otherwise the class's listed teacher */
+/* Each subject has an icon, shown next to the class name everywhere */
+const SUBJECT_ICONS = { Biology: '🧬', Chemistry: '🧪', Physics: '⚛️', Science: '🔬', Math: '➗', Mathematics: '➗', History: '🏛️',
+  English: '📖', Literature: '📖', Geography: '🌍', Art: '🎨', Music: '🎵', Sport: '⚽', Computers: '💻', Bible: '📜', Hebrew: '✍️' };
+function subjectIcon(c) { return (c && SUBJECT_ICONS[c.subject]) || '📘'; }
+function className(c) { return c ? `${subjectIcon(c)} ${localize(c.name)}` : ''; }
 function classTeachers(classId) {
   const fromAccounts = loadUsers().filter(u => u.role === 'teacher' && u.status === 'active' && (u.classIds || []).includes(classId)).map(fullName);
   if (fromAccounts.length) return fromAccounts;
@@ -696,7 +711,7 @@ function timeRange(start, end) { return `\u2066${start}:00–${end}:00\u2069`; }
 function dayName(day) { return (isHe() ? DAY_NAMES.he : DAY_NAMES.en)[day]; }
 function lessonLabel(s) {
   const cls = classes.find(c => c.id === s.classId);
-  return `${cls ? localize(cls.name) : ''} · ${dayName(s.day)} ${timeRange(s.startHour, s.startHour + s.duration)}${s.room ? ' · ' + localize(s.room) : ''}`;
+  return `${cls ? className(cls) : ''} · ${dayName(s.day)} ${timeRange(s.startHour, s.startHour + s.duration)}${s.room ? ' · ' + localize(s.room) : ''}`;
 }
 // What changed between two versions of the timetable (matched by lesson id)
 function diffTimetables(before, after) {
@@ -928,8 +943,8 @@ function inboxNotifs() {
       const x = m.extra || {};
       const cls = classes.find(c => c.id === x.classId);
       return { ...base, type: 'grade', link: 'grades.html#attendance',
-        text: L(`${name} עדכן/ה משוב: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? localize(cls.name) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`,
-                `${name} updated your Mashov: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? cls.name : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`) };
+        text: L(`${name} עדכן/ה משוב: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? className(cls) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`,
+                `${name} updated your Mashov: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? className(cls) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`) };
     }
     if (m.kind === 'exam-grade') {
       const x = m.extra || {};
@@ -944,7 +959,7 @@ function inboxNotifs() {
     if (m.kind === 'justification' || m.kind === 'justification-result') {
       const x = m.extra || {};
       const cls = classes.find(c => c.id === x.classId);
-      const what = `${mashovLabel(x.kind)} · ${cls ? localize(cls.name) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`;
+      const what = `${mashovLabel(x.kind)} · ${cls ? className(cls) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`;
       const link = 'home.html#justify=' + x.id;
       if (m.kind === 'justification') {
         return { ...base, type: 'justify', link, jid: x.id,
@@ -958,7 +973,7 @@ function inboxNotifs() {
     if (m.kind === 'grade-request' || m.kind === 'grade-request-result') {
       const x = m.extra || {};
       const cls = classes.find(c => c.id === x.classId);
-      const what = `"${localize(x.title || '')}" · ${cls ? localize(cls.name) : ''}`;
+      const what = `"${localize(x.title || '')}" · ${cls ? className(cls) : ''}`;
       const link = 'home.html#request=' + x.id;
       if (m.kind === 'grade-request') {
         return { ...base, type: 'grade-req', link, jid: x.id,
@@ -1104,7 +1119,7 @@ function renderHeader() {
       <button class="class-pill" onclick="toggleDd('classes')"
         style="background:${cls.color}22;color:${cls.color};border:1.5px solid ${cls.color}44">
         <span class="dot" style="background:${cls.color}"></span>
-        <span class="sm-up">${localize(cls.name)}</span>
+        <span class="sm-up">${className(cls)}</span>
         ${ICONS.chevron}
       </button>
       ${ui.classes ? `
@@ -1114,7 +1129,7 @@ function renderHeader() {
             style="background:${state.classId === c.id ? c.color + '18' : 'transparent'}">
             <span class="dot" style="width:0.75rem;height:0.75rem;background:${c.color}"></span>
             <div class="flex-1">
-              <div class="w6">${localize(c.name)}</div>
+              <div class="w6">${className(c)}</div>
               <div class="xs muted">${localize(c.teacher)}</div>
             </div>
             ${state.classId === c.id ? `<span style="color:${c.color}">${ICONS.check}</span>` : ''}
@@ -1388,7 +1403,7 @@ function classRoster() {
    Final grade = weighted mix of three categories (weights set per class by the teacher):
    - Exams:         average of the student's exam scores in the class
    - Assignments:   average of the student's graded submissions in the class
-   - Participation: a grade the teacher enters, guided by the student's Mashov tally
+   - Conduct & engagement (תלמידאות, key 'participation'): a grade the teacher enters, guided by the student's Mashov tally
      (the system only counts the entries – it never turns them into a grade)
    A category with no grade yet is left out and the other weights are scaled up. */
 const EXAMS_KEY = 'cs-exams';
@@ -1846,7 +1861,7 @@ function justifyDialogHtml() {
 
   const lessonCard = `
     <div class="jlesson" style="--c:${cls.color}">
-      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${localize(cls.subject)[0]}</div>
+      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${subjectIcon(cls)}</div>
       <div class="min-w-0">
         <div class="w7">${localize(cls.name)}</div>
         <div class="xs muted">${lessonWhen(slot, date)}</div>
@@ -2156,7 +2171,7 @@ function gradeRequestDialogHtml() {
   const shownGrade = r && r.status === 'approved' ? r.newGrade : (r ? r.currentGrade : it.grade);
   const itemCard = `
     <div class="jlesson" style="--c:${cls.color}">
-      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${localize(cls.subject)[0]}</div>
+      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${subjectIcon(cls)}</div>
       <div class="flex-1 min-w-0">
         <div class="w7">${esc(localize(it.title))}</div>
         <div class="xs muted">${kindLabel} · ${localize(cls.name)}${it.date ? ' · ' + fmtDate(it.date, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</div>
@@ -2386,6 +2401,8 @@ function enhanceCollapsibles() {
     });
   });
 }
+// Open a collapsible section from code (e.g. a button that jumps to it)
+function openSection(key) { rememberSection(key, true); }
 function setAllSections(open) {
   const saved = {};
   document.querySelectorAll('#main [data-collapse]').forEach(sec => { saved[sec.dataset.collapse] = open; });
@@ -2417,7 +2434,8 @@ const YEAR = 2026;
 
 const sched = {
   month: 8, selectedDay: null, selectedSlot: null,
-  weekOffset: 0,            // 0 = this week, -1 = last week, -2 = two weeks ago …
+  weekOffset: 0,
+  upcomingFrom: null,       // date the upcoming-events list starts from (null = today)            // 0 = this week, -1 = last week, -2 = two weeks ago …
   events: load('cs-events', []),
   showEventForm: false,
   draft: null,
@@ -2501,7 +2519,7 @@ function visibleTimetable() { return timetable.filter(s => isMyClass(s.classId))
 function classLabel(classId) {
   if (classId === 'all') return L('כל הכיתות שלי', 'All my classes');
   const cls = classes.find(c => c.id === classId);
-  return cls ? localize(cls.name) : '';
+  return cls ? className(cls) : '';
 }
 
 /* ---------- Teacher: add event ---------- */
@@ -2586,7 +2604,7 @@ function eventForm() {
         <label class="label">${L('כיתה', 'Class')}</label>
         <select class="input" onchange="sched.draft.classId=this.value">
           <option value="all" ${d.classId === 'all' ? 'selected' : ''}>${L('כל הכיתות שלי', 'All my classes')}</option>
-          ${tc.map(c => `<option value="${c.id}" ${d.classId === c.id ? 'selected' : ''}>${localize(c.name)}</option>`).join('')}
+          ${tc.map(c => `<option value="${c.id}" ${d.classId === c.id ? 'selected' : ''}>${className(c)}</option>`).join('')}
         </select>
       </div>
       <div class="flex items-end">
@@ -2780,7 +2798,7 @@ function weeklyGrid() {
         html += `
           <button class="slot ${sched.selectedSlot === slot.id ? 'selected' : ''} ${flag ? 'flagged' : ''}" onclick="${state.role === 'teacher' ? `openMashov('${slot.id}')` : `selectSlot('${slot.id}')`}"
             style="background:${cls.color}22;border-color:${cls.color}55;min-height:${slots.length > 1 ? 'auto' : slot.duration * 3.75 + 'rem'};--c:${cls.color}">
-            <div class="w7 xs leading-tight" style="color:${cls.color}">${localize(cls.subject)}</div>
+            <div class="w7 xs leading-tight" style="color:${cls.color}">${subjectIcon(cls)} ${localize(cls.subject)}</div>
             <div class="xs muted mt-1 md-up">${esc(localize(slot.room || ''))}</div>
             ${slot.duration > 1 ? `<div class="xs w6 mt-1" style="color:${cls.color}cc">${timeRange(hour, hour + slot.duration)}</div>` : ''}
             ${state.role === 'student' ? lessonStatus(slot) : ''}
@@ -2862,7 +2880,7 @@ function slotDetails() {
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   return `
   <div class="card r-3xl p-5 fade-up flex items-start gap-4" style="border-color:${cls.color}55">
-    <div class="letter-tile" style="width:3rem;height:3rem;background:${cls.color};font-size:1.25rem">${localize(cls.subject)[0]}</div>
+    <div class="letter-tile" style="width:3rem;height:3rem;background:${cls.color};font-size:1.25rem">${subjectIcon(cls)}</div>
     <div class="flex-1 min-w-0">
       <div class="flex items-center justify-between gap-2">
         <h3 class="display w8 lg">${localize(cls.name)}</h3>
@@ -2938,8 +2956,9 @@ function miniCalendar() {
 
   return `
   <div class="card r-3xl p-5" data-collapse="schedule-calendar" data-collapse-default="closed">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="display w7 base">${new Date(YEAR, month).toLocaleDateString(isHe() ? 'he-IL' : 'en-US', { month: 'long', year: 'numeric' })}</h3>
+    <div class="flex items-center justify-between gap-2 mb-4">
+      <button class="cal-title" onclick="showUpcoming()" title="${L('הצגת האירועים הקרובים', 'Show upcoming events')}"><h3 class="display w7 base">${new Date(YEAR, month).toLocaleDateString(isHe() ? 'he-IL' : 'en-US', { month: 'long', year: 'numeric' })}</h3></button>
+      <button class="btn btn-soft btn-sm cal-upcoming" onclick="showUpcoming()">📋 ${L('אירועים קרובים', 'Upcoming')}</button>
       <div class="flex gap-1 cal-nav">
         <button onclick="changeMonth(-1)" aria-label="prev"><svg style="width:0.875rem;height:0.875rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg></button>
         <button onclick="changeMonth(1)" aria-label="next"><svg style="width:0.875rem;height:0.875rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg></button>
@@ -2978,25 +2997,56 @@ function changeMonth(delta) {
   sched.selectedDay = null;
   renderPage();
 }
+// Clicking a day opens the upcoming-events list from that date on
 function selectDay(day) {
-  sched.selectedDay = sched.selectedDay === day ? null : day;
+  if (sched.selectedDay === day) { sched.selectedDay = null; sched.upcomingFrom = null; renderPage(); return; }
+  sched.selectedDay = day;
+  sched.upcomingFrom = isoLocal(new Date(YEAR, sched.month, day));
+  revealUpcoming();
+}
+function showUpcoming() {
+  sched.selectedDay = null;
+  sched.upcomingFrom = null;
+  revealUpcoming();
+}
+function revealUpcoming() {
+  openSection('schedule-upcoming');
   renderPage();
+  const el = document.getElementById('upcoming');
+  if (el) {
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 }
 
 /* ---------- Upcoming events ---------- */
 function upcomingEvents() {
+  const from = sched.upcomingFrom || isoLocal(new Date());
   const upcoming = calendarEntries()
+    .filter(e => (e.endDate || e.date).slice(0, 10) >= from)
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .slice(0, 10);
+  // nothing ahead: show the latest earlier items too, so the list is never just empty
+  const earlier = upcoming.length ? [] : calendarEntries()
+    .filter(e => (e.endDate || e.date).slice(0, 10) < from)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 3);
+  const fromLabel = fmtDate(parseIso(from), { weekday: 'short', day: 'numeric', month: 'long' });
   return `
-  <div class="card r-3xl p-5" data-collapse="schedule-upcoming" data-collapse-default="closed">
-    <h3 class="display w7 base mb-4">${L('אירועים קרובים', 'Upcoming Events')}</h3>
+  <div class="card r-3xl p-5" id="upcoming" data-collapse="schedule-upcoming" data-collapse-default="closed">
+    <div class="mb-4">
+      <h3 class="display w7 base">${sched.upcomingFrom ? L(`אירועים החל מ־${fromLabel}`, `Events from ${fromLabel}`) : L('אירועים קרובים', 'Upcoming Events')}</h3>
+      ${sched.upcomingFrom ? `<button class="link-btn xs mt-1" onclick="showUpcoming()">↺ ${L('מהיום והלאה', 'From today')}</button>` : ''}
+    </div>
     <div class="col gap-2">
-      ${upcoming.map(a => {
-        const days = daysUntil(a.date);
+      ${upcoming.length ? '' : `<p class="sm muted">${L('אין אירועים או הגשות מתוכננים מהתאריך הזה והלאה.', 'Nothing scheduled from this date on.')}</p>`}
+      ${upcoming.concat(earlier).map((a, i) => {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const days = Math.round((parseIso(a.date.slice(0, 10)) - today) / 86400000);
         const color = a.color;
-        return `
-        <div class="flex items-center gap-3">
+        const onDay = sched.upcomingFrom && a.date.slice(0, 10) <= from && (a.endDate || a.date).slice(0, 10) >= from;
+        return `${!upcoming.length && i === 0 ? `<div class="xs w7 muted mt-2">${L('מוקדם יותר', 'Earlier')}</div>` : ''}
+        <div class="flex items-center gap-3 up-row ${onDay ? 'on-day' : ''} ${upcoming.length ? '' : 'past'}">
           <div class="icon-tile col" style="background:${color}18">
             <span class="mono w7 sm" style="color:${color};line-height:1">${new Date(a.date).getDate()}</span>
             <span style="font-size:0.625rem;color:${color}aa">${new Date(a.date).toLocaleDateString(isHe() ? 'he-IL' : 'en-US', { month: 'short' })}</span>
@@ -3006,7 +3056,7 @@ function upcomingEvents() {
             <div class="xs muted truncate">${a.kind === 'event' ? esc(a.tag) + ' · ' : ''}${classLabel(a.classId)}${entryWhen(a)}</div>
           </div>
           <span class="xs w7 shrink-0" style="color:${days <= 2 ? '#F43F5E' : 'var(--muted)'}">
-            ${days <= 0 ? L('היום', 'Today') : L(`${days} ימים`, `${days}d`)}
+            ${days === 0 ? L('היום', 'Today') : days < 0 ? L(`לפני ${-days} ימים`, `${-days}d ago`) : L(`בעוד ${days} ימים`, `in ${days}d`)}
           </span>
           ${deleteBtn(a)}
         </div>`;
@@ -3176,9 +3226,9 @@ function mashovModal() {
     <div class="card r-3xl mashov ${fade}" role="dialog" aria-label="${L('משוב', 'Mashov')}">
       <div class="mashov-head">
         <div class="flex items-center gap-3 min-w-0">
-          <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${localize(cls.subject)[0]}</div>
+          <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${subjectIcon(cls)}</div>
           <div class="min-w-0">
-            <h2 class="display w8 lg truncate">📋 ${L('משוב', 'Mashov')} · ${localize(cls.name)}</h2>
+            <h2 class="display w8 lg truncate">📋 ${L('משוב', 'Mashov')} · ${className(cls)}</h2>
             <p class="xs muted truncate">${dayName(slot.day)} · ${timeRange(slot.startHour, slot.startHour + slot.duration)}${slot.room ? ' · ' + esc(localize(slot.room)) : ''}</p>
           </div>
         </div>

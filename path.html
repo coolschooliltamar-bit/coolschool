@@ -586,6 +586,11 @@ function isMySubmission(q) {
   return !!a && teacherClasses().some(c => c.id === a.classId);
 }
 /* Who teaches a class: approved teacher accounts first, otherwise the class's listed teacher */
+/* Each subject has an icon, shown next to the class name everywhere */
+const SUBJECT_ICONS = { Biology: '🧬', Chemistry: '🧪', Physics: '⚛️', Science: '🔬', Math: '➗', Mathematics: '➗', History: '🏛️',
+  English: '📖', Literature: '📖', Geography: '🌍', Art: '🎨', Music: '🎵', Sport: '⚽', Computers: '💻', Bible: '📜', Hebrew: '✍️' };
+function subjectIcon(c) { return (c && SUBJECT_ICONS[c.subject]) || '📘'; }
+function className(c) { return c ? `${subjectIcon(c)} ${localize(c.name)}` : ''; }
 function classTeachers(classId) {
   const fromAccounts = loadUsers().filter(u => u.role === 'teacher' && u.status === 'active' && (u.classIds || []).includes(classId)).map(fullName);
   if (fromAccounts.length) return fromAccounts;
@@ -597,7 +602,7 @@ function timeRange(start, end) { return `\u2066${start}:00–${end}:00\u2069`; }
 function dayName(day) { return (isHe() ? DAY_NAMES.he : DAY_NAMES.en)[day]; }
 function lessonLabel(s) {
   const cls = classes.find(c => c.id === s.classId);
-  return `${cls ? localize(cls.name) : ''} · ${dayName(s.day)} ${timeRange(s.startHour, s.startHour + s.duration)}${s.room ? ' · ' + localize(s.room) : ''}`;
+  return `${cls ? className(cls) : ''} · ${dayName(s.day)} ${timeRange(s.startHour, s.startHour + s.duration)}${s.room ? ' · ' + localize(s.room) : ''}`;
 }
 // What changed between two versions of the timetable (matched by lesson id)
 function diffTimetables(before, after) {
@@ -829,8 +834,8 @@ function inboxNotifs() {
       const x = m.extra || {};
       const cls = classes.find(c => c.id === x.classId);
       return { ...base, type: 'grade', link: 'grades.html#attendance',
-        text: L(`${name} עדכן/ה משוב: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? localize(cls.name) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`,
-                `${name} updated your Mashov: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? cls.name : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`) };
+        text: L(`${name} עדכן/ה משוב: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? className(cls) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`,
+                `${name} updated your Mashov: ${(x.marks || []).map(mashovLabel).join(', ')} · ${cls ? className(cls) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`) };
     }
     if (m.kind === 'exam-grade') {
       const x = m.extra || {};
@@ -845,7 +850,7 @@ function inboxNotifs() {
     if (m.kind === 'justification' || m.kind === 'justification-result') {
       const x = m.extra || {};
       const cls = classes.find(c => c.id === x.classId);
-      const what = `${mashovLabel(x.kind)} · ${cls ? localize(cls.name) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`;
+      const what = `${mashovLabel(x.kind)} · ${cls ? className(cls) : ''} · ${x.date ? fmtDate(x.date, { day: 'numeric', month: 'short' }) : ''}`;
       const link = 'home.html#justify=' + x.id;
       if (m.kind === 'justification') {
         return { ...base, type: 'justify', link, jid: x.id,
@@ -859,7 +864,7 @@ function inboxNotifs() {
     if (m.kind === 'grade-request' || m.kind === 'grade-request-result') {
       const x = m.extra || {};
       const cls = classes.find(c => c.id === x.classId);
-      const what = `"${localize(x.title || '')}" · ${cls ? localize(cls.name) : ''}`;
+      const what = `"${localize(x.title || '')}" · ${cls ? className(cls) : ''}`;
       const link = 'home.html#request=' + x.id;
       if (m.kind === 'grade-request') {
         return { ...base, type: 'grade-req', link, jid: x.id,
@@ -1005,7 +1010,7 @@ function renderHeader() {
       <button class="class-pill" onclick="toggleDd('classes')"
         style="background:${cls.color}22;color:${cls.color};border:1.5px solid ${cls.color}44">
         <span class="dot" style="background:${cls.color}"></span>
-        <span class="sm-up">${localize(cls.name)}</span>
+        <span class="sm-up">${className(cls)}</span>
         ${ICONS.chevron}
       </button>
       ${ui.classes ? `
@@ -1015,7 +1020,7 @@ function renderHeader() {
             style="background:${state.classId === c.id ? c.color + '18' : 'transparent'}">
             <span class="dot" style="width:0.75rem;height:0.75rem;background:${c.color}"></span>
             <div class="flex-1">
-              <div class="w6">${localize(c.name)}</div>
+              <div class="w6">${className(c)}</div>
               <div class="xs muted">${localize(c.teacher)}</div>
             </div>
             ${state.classId === c.id ? `<span style="color:${c.color}">${ICONS.check}</span>` : ''}
@@ -1289,7 +1294,7 @@ function classRoster() {
    Final grade = weighted mix of three categories (weights set per class by the teacher):
    - Exams:         average of the student's exam scores in the class
    - Assignments:   average of the student's graded submissions in the class
-   - Participation: a grade the teacher enters, guided by the student's Mashov tally
+   - Conduct & engagement (תלמידאות, key 'participation'): a grade the teacher enters, guided by the student's Mashov tally
      (the system only counts the entries – it never turns them into a grade)
    A category with no grade yet is left out and the other weights are scaled up. */
 const EXAMS_KEY = 'cs-exams';
@@ -1747,7 +1752,7 @@ function justifyDialogHtml() {
 
   const lessonCard = `
     <div class="jlesson" style="--c:${cls.color}">
-      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${localize(cls.subject)[0]}</div>
+      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${subjectIcon(cls)}</div>
       <div class="min-w-0">
         <div class="w7">${localize(cls.name)}</div>
         <div class="xs muted">${lessonWhen(slot, date)}</div>
@@ -2057,7 +2062,7 @@ function gradeRequestDialogHtml() {
   const shownGrade = r && r.status === 'approved' ? r.newGrade : (r ? r.currentGrade : it.grade);
   const itemCard = `
     <div class="jlesson" style="--c:${cls.color}">
-      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${localize(cls.subject)[0]}</div>
+      <div class="letter-tile" style="width:2.5rem;height:2.5rem;background:${cls.color}">${subjectIcon(cls)}</div>
       <div class="flex-1 min-w-0">
         <div class="w7">${esc(localize(it.title))}</div>
         <div class="xs muted">${kindLabel} · ${localize(cls.name)}${it.date ? ' · ' + fmtDate(it.date, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</div>
@@ -2287,6 +2292,8 @@ function enhanceCollapsibles() {
     });
   });
 }
+// Open a collapsible section from code (e.g. a button that jumps to it)
+function openSection(key) { rememberSection(key, true); }
 function setAllSections(open) {
   const saved = {};
   document.querySelectorAll('#main [data-collapse]').forEach(sec => { saved[sec.dataset.collapse] = open; });
@@ -2456,7 +2463,7 @@ function teacherPathEditor() {
         <label class="label">${pathUi.audienceType === 'class' ? L('בחירת כיתה', 'Choose class') : L('בחירת שכבה', 'Choose grade')}</label>
         <select class="input on-card" onchange="pathUi.audience=this.value">
           ${pathUi.audienceType === 'class'
-            ? tc.map(c => `<option value="${c.id}" ${pathUi.audience === c.id ? 'selected' : ''}>${localize(c.name)}</option>`).join('')
+            ? tc.map(c => `<option value="${c.id}" ${pathUi.audience === c.id ? 'selected' : ''}>${className(c)}</option>`).join('')
             : ['9', '10', '11', '12'].map(g => `<option value="${g}" ${pathUi.audience === g ? 'selected' : ''}>${L(`שכבה ${g}`, `Grade ${g}`)}</option>`).join('')}
         </select>
       </div>
@@ -2593,7 +2600,7 @@ function renderPage() {
     <div class="flex items-center justify-between wrap gap-3">
       <div>
         <h1 class="display w8 x2">${L('🗺️ מסלול למידה', '🗺️ Learning Path')}</h1>
-        <p class="sm muted mt-1">${localize(cls.name)} · ${L('מסלול סילבוס שנוצר בעזרת AI', 'AI-Generated Syllabus Path')}</p>
+        <p class="sm muted mt-1">${className(cls)} · ${L('מסלול סילבוס שנוצר בעזרת AI', 'AI-Generated Syllabus Path')}</p>
       </div>
       <div class="card r-2xl flex items-center gap-2" style="padding:0.5rem 1rem">
         <span class="lg">🏆</span>

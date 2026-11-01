@@ -37,8 +37,8 @@ Password for all: `demo1234`
 - Teachers who register must be approved by a principal (the principal is notified)
 - Principals edit the weekly timetable for the whole school year; teachers and students are notified of changes
 - Teachers grade submissions and view student files; grade weights (per class) can be typed freely and are scaled to exactly 100% on save
-- Grades: **Exams** = average of exam grades the teacher enters, **Assignments** = average of graded submissions, **Participation** = a grade the teacher sets, shown next to each student's Mashov tally (e.g. 14 on time, 5 late, 1 absent)
-- Students see the Mashov status of each lesson (on time / late / absent / equipment / disruption / commendation) on their schedule and Grades page – but not a participation grade – and get notified of new marks and grades
+- Grades (in this order): **Exams** = average of exam grades the teacher enters, **Assignments** = average of graded submissions, **Conduct & Engagement (תלמידאות)** = a grade the teacher sets, shown next to each student's Mashov tally (e.g. 14 on time, 5 late, 1 absent)
+- Students see the Mashov status of each lesson (on time / late / absent / equipment / disruption / commendation) on their schedule and Grades page – but not the conduct & engagement grade – and get notified of new marks and grades
 - Mashov: teachers click a lesson in the schedule to mark each student – absence, excused absence, tardiness, excused lateness, disruption, commendation, missing equipment, present – saved per lesson date
 - Schedule week picker: the week on screen is named – Current week / Last week / Two weeks ago / 3 weeks ago… (arrows reach any week of the school year); the Grades attendance list is grouped the same way – each lesson block shows that week's date and that lesson's Mashov
 - Grade review requests: next to each exam and graded assignment (Grades and Tasks pages) a student can click **Request review**, say what is wrong, suggest a grade and attach a file. The teacher gets a notification and the request appears in **Student requests** on their Home page, below the live-lesson bar; approving sets the new grade (which updates the student's average), declining keeps it, and the student is notified either way. Students follow their requests under **My requests** on Home
@@ -46,6 +46,10 @@ Password for all: `demo1234`
 - Students see all their tasks in one place – what is still due, what is awaiting a grade, and completed work with the teacher's grade and feedback
 - Students hand in work, build and share personal learning paths in the library
 - Works on phones, tablets and desktops
+- Every class shows a subject icon next to its name (🧬 Biology, 🧪 Chemistry, ➗ Math, 🏛️ History, 📖 English)
+- Clicking a day in the calendar (or the Upcoming button) opens the upcoming-events list from that date
+- Students pick a class at the top of their Grades page
+- Teachers post **Messages for students** that appear on the students' Home page
 - Notifications: opening the bell clears the count; a notification you have opened disappears from the list the next day (a teacher sign-up waiting for approval stays until the principal decides)
 - Collapsible sections (Settings): automatic by default – drop-downs on phones (always starting closed), everything open on computers – or always collapsible / always open
 
