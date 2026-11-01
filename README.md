@@ -18,6 +18,8 @@ Open `index.html` in a browser to start – it takes you to sign in (or to your 
 | Learning path | `path.html` | Teachers |
 | Library | `library.html` | Students, teachers |
 | Weekly timetable editor | `timetable.html` | Principals |
+| Classes & schedules (grades 7–12, generator, end times) | `classes.html` | Principals |
+| Live lesson (Jitsi) with automatic attendance | `live.html` | Teachers, students |
 | Settings | `settings.html` | Everyone |
 
 ## Demo accounts
@@ -39,13 +41,15 @@ Password for all: `demo1234`
 - Teachers grade submissions and view student files; grade weights (per class) can be typed freely and are scaled to exactly 100% on save
 - Grades (in this order): **Exams** = average of exam grades the teacher enters, **Assignments** = average of graded submissions, **Conduct & Engagement (תלמידאות)** = a grade the teacher sets, shown next to each student's Mashov tally (e.g. 14 on time, 5 late, 1 absent)
 - Students see the Mashov status of each lesson (on time / late / absent / equipment / disruption / commendation) on their schedule and Grades page – but not the conduct & engagement grade – and get notified of new marks and grades
-- Mashov: teachers click a lesson in the schedule to mark each student – absence, excused absence, tardiness, excused lateness, disruption, commendation, missing equipment, present – saved per lesson date
+- Mashov: teachers click a lesson in the schedule to mark each student – absence, excused absence, tardiness, excused lateness, skipped class (הברזה), disruption, commendation, missing equipment, present – saved per lesson date
 - Schedule week picker: the week on screen is named – Current week / Last week / Two weeks ago / 3 weeks ago… (arrows reach any week of the school year); the Grades attendance list is grouped the same way – each lesson block shows that week's date and that lesson's Mashov
 - Grade review requests: next to each exam and graded assignment (Grades and Tasks pages) a student can click **Request review**, say what is wrong, suggest a grade and attach a file. The teacher gets a notification and the request appears in **Student requests** on their Home page, below the live-lesson bar; approving sets the new grade (which updates the student's average), declining keeps it, and the student is notified either way. Students follow their requests under **My requests** on Home
 - Justification requests: a student clicks a Late or Absent mark to explain why (reason, explanation, optional document such as a doctor's note). The teacher is notified and sees an alert at the top of Home; they open the request (lesson details + explanation) and approve or decline it with a reply. Approving turns the mark into an excused absence / excused lateness, and the student is told the outcome; students see their approved requests right under the live-lesson bar on Home
 - Students see all their tasks in one place – what is still due, what is awaiting a grade, and completed work with the teacher's grade and feedback
 - Students hand in work, build and share personal learning paths in the library
 - Works on phones, tablets and desktops
+- **Classes & schedules** (principal): grades 7–12 with as many parallel classes as needed (11-1, 11-2 …); click a class to see and edit its weekly timetable; set each class's daily end time; an automatic generator takes the chosen classes, their subjects and weekly hours (and optional teachers), and preferences – group similar subjects together, double lessons, a daily cap per subject – and never puts a teacher in two classes at once or a lesson after a class's end time
+- **Live lessons** (Jitsi): the teacher opens a live lesson and students join from their own device. The teacher's page follows the call: joining marks a student present in Mashov, leaving for longer than the set time (5 minutes by default) marks **הברזה** (skipped class) and notifies the student, and at the end students who never joined are marked absent. The video server is set in `JITSI_DOMAIN` in `common.js` – meet.jit.si is fine for a quick try, but it cuts embedded calls after 5 minutes and needs a signed-in moderator, so real classes need a school-run Jitsi server or Jitsi as a Service
 - Every class shows a subject icon next to its name (🧬 Biology, 🧪 Chemistry, ➗ Math, 🏛️ History, 📖 English)
 - Clicking a day in the calendar (or the Upcoming button) opens the upcoming-events list from that date
 - Students pick a class at the top of their Grades page
