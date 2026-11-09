@@ -423,6 +423,7 @@ body.jmodal-open { overflow: hidden; }
 .req-kind.justify { color: #0369A1; background: #0EA5E91f; }
 .dark .req-kind.justify { color: #7DD3FC; } .dark .req-kind.grade { color: #C4B5FD; }
 .count-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; height: 1.5rem; padding: 0 0.4375rem; margin-inline-start: 0.375rem; border-radius: 9999px; background: #F43F5E; color: #fff; font-size: 0.8125rem; font-weight: 800; vertical-align: middle; }
+.sreq-note { padding: 0.625rem 0.75rem; border-radius: 0.75rem; background: color-mix(in srgb, var(--primary) 8%, transparent); font-size: 0.8125rem; line-height: 1.5; }
 
 /* ===================== Page styles ===================== */
 /* Tabs */
@@ -512,6 +513,17 @@ body.jmodal-open { overflow: hidden; }
 .time-pair { display: flex; align-items: center; gap: 0.125rem; }
 .hours-table { min-width: 52rem; }
 .cs-lesson.together { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 55%, transparent); }
+.t-in { width: 6.6rem; padding-inline: 0.375rem; font-variant-numeric: tabular-nums; }
+.time-pair .t-in { width: 7rem; }
+.hours-table { min-width: 74rem; }
+.bell-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; margin: 0 0 0.625rem; font-size: 0.75rem; }
+.bell-slot { padding: 0.125rem 0.5rem; border-radius: 0.5rem; background: var(--surface); }
+.bell-slot b { color: var(--primary); margin-inline-end: 0.125rem; }
+.bell-gap { padding: 0.125rem 0.5rem; border-radius: 0.5rem; background: #F59E0B1f; color: #B45309; font-weight: 700; }
+.dark .bell-gap { color: #FCD34D; }
+.cs-grid tr.brk-row td.brk { height: 1.75rem; }
+.cs-grid tbody th { white-space: nowrap; font-size: 0.6875rem; }
+.cs-grid thead th:first-child, .cs-grid tbody th { width: 5.5rem; }
 </style>
 </head>
 <body>
@@ -681,8 +693,8 @@ function teacherStudentCount() { return teacherClasses().reduce((sum, c) => sum 
 /* ================= Translations ================= */
 const translations = {
   he: {
-    home: 'בית', schedule: 'מערכת', timetable: 'עריכת מערכת', classes: 'כיתות ומערכות', live: 'שיעור חי', tasks: 'משימות', grades: 'ציונים', path: 'מסלול', library: 'ספרייה', settings: 'הגדרות',
-    student: 'תלמיד', teacher: 'מורה', principal: 'מנהל/ת', notifications: 'התראות', markAllRead: 'סימון הכול כנקרא',
+    home: 'בית', schedule: 'מערכת', timetable: 'עריכת מערכת', classes: 'כיתות ומערכות', live: 'שיעור חי', tasks: 'משימות', grades: 'ציונים', path: 'עבודות הכיתה', library: 'ספרייה', settings: 'הגדרות',
+    student: 'תלמיד', teacher: 'מורה', principal: 'מנהל/ת', coordinator: 'רכז/ת לימודים', achievements: 'הישגים', notifications: 'התראות', markAllRead: 'סימון הכול כנקרא',
     joinClass: 'הצטרפות לכיתה עם QR', profile: 'פרופיל', help: 'עזרה', signOut: 'יציאה', grade: 'כיתה י״א',
     appSettings: 'הגדרות האפליקציה', settingsSubtitle: 'התאימו את CoolSchool לאופן שבו נוח לכם ללמוד.',
     language: 'שפה', languageDescription: 'בחרו את שפת הממשק. השינוי נשמר אוטומטית.',
@@ -695,8 +707,8 @@ const translations = {
     teacherAverageExplanation: 'במצב מורה מוצג הממוצע הכיתתי של התלמידים בכיתה שנבחרה כעת.',
   },
   en: {
-    home: 'Home', schedule: 'Schedule', timetable: 'Timetable', classes: 'Classes', live: 'Live lesson', tasks: 'Tasks', grades: 'Grades', path: 'Path', library: 'Library', settings: 'Settings',
-    student: 'Student', teacher: 'Teacher', principal: 'Principal', notifications: 'Notifications', markAllRead: 'Mark all read',
+    home: 'Home', schedule: 'Schedule', timetable: 'Timetable', classes: 'Classes', live: 'Live lesson', tasks: 'Tasks', grades: 'Grades', path: 'Classwork', library: 'Library', settings: 'Settings',
+    student: 'Student', teacher: 'Teacher', principal: 'Principal', coordinator: 'Academic coordinator', achievements: 'Results', notifications: 'Notifications', markAllRead: 'Mark all read',
     joinClass: 'Join Class with QR', profile: 'Profile', help: 'Help', signOut: 'Sign Out', grade: 'Grade 11',
     appSettings: 'App Settings', settingsSubtitle: 'Make CoolSchool work the way you like to learn.',
     language: 'Language', languageDescription: 'Choose the interface language. Your choice is saved automatically.',
@@ -709,8 +721,8 @@ const translations = {
     teacherAverageExplanation: 'In teacher mode, this is the class average for the currently selected class.',
   },
   ar: {
-    home: 'الرئيسية', schedule: 'الجدول', timetable: 'تحرير الجدول', classes: 'الصفوف والجداول', live: 'درس مباشر', tasks: 'المهام', grades: 'العلامات', path: 'المسار', library: 'المكتبة', settings: 'الإعدادات',
-    student: 'طالب', teacher: 'معلّم', principal: 'المدير', notifications: 'الإشعارات', markAllRead: 'تحديد الكل كمقروء',
+    home: 'الرئيسية', schedule: 'الجدول', timetable: 'تحرير الجدول', classes: 'الصفوف والجداول', live: 'درس مباشر', tasks: 'المهام', grades: 'العلامات', path: 'أعمال الصف', library: 'المكتبة', settings: 'الإعدادات',
+    student: 'طالب', teacher: 'معلّم', principal: 'المدير', coordinator: 'منسّق/ة الدراسة', achievements: 'الإنجازات', notifications: 'الإشعارات', markAllRead: 'تحديد الكل كمقروء',
     joinClass: 'الانضمام إلى صف عبر QR', profile: 'الملف الشخصي', help: 'المساعدة', signOut: 'تسجيل الخروج', grade: 'الصف الحادي عشر',
     appSettings: 'إعدادات التطبيق', settingsSubtitle: 'خصص CoolSchool بالطريقة التي تناسب تعلمك.',
     language: 'اللغة', languageDescription: 'اختر لغة الواجهة. يتم حفظ اختيارك تلقائياً.',
@@ -779,6 +791,7 @@ const SEED_USERS = [
   { id: 'u-levi', role: 'teacher', firstName: 'Dr.', lastName: 'Levi', email: 'levi@coolschool.demo', status: 'active', classIds: ['bio11a'] },
   { id: 'u-noa', role: 'student', firstName: 'Noa', lastName: 'Ben-David', email: 'noa@coolschool.demo', status: 'active', grade: '11' },
   { id: 'u-shapiro', role: 'teacher', firstName: 'Ms.', lastName: 'Shapiro', email: 'shapiro@coolschool.demo', status: 'pending', classIds: ['eng11'] },
+  { id: 'u-coord', role: 'coordinator', firstName: 'Dana', lastName: 'Katz', email: 'coordinator@coolschool.demo', status: 'active', addedLater: true },
 ];
 const DEMO_USER_IDS = ['u-levi', 'u-noa'];   // the built-in sample data belongs to these two
 
@@ -811,7 +824,17 @@ async function hashPassword(password, salt) {
 }
 
 async function ensureSeedUsers() {
-  if (load(USERS_KEY, null)) return;
+  const existing = load(USERS_KEY, null);
+  if (existing) {
+    // demo accounts added in a later version join browsers that already have users
+    const missing = SEED_USERS.filter(u => u.addedLater && !existing.some(x => x.id === u.id));
+    for (const u of missing) {
+      const salt = newSalt();
+      existing.push({ ...u, salt, passwordHash: await hashPassword(DEMO_PASSWORD, salt), createdAt: '2026-11-01' });
+    }
+    if (missing.length) saveUsers(existing);
+    return;
+  }
   const users = [];
   for (const u of SEED_USERS) {
     const salt = newSalt();
@@ -851,6 +874,8 @@ if (window.AUTH_PAGE && CURRENT_USER) location.replace('home.html');
 function currentUserName() { return CURRENT_USER ? fullName(CURRENT_USER) : ''; }
 function isDemoUser() { return !!CURRENT_USER && DEMO_USER_IDS.includes(CURRENT_USER.id); }
 function isPrincipal() { return !!CURRENT_USER && CURRENT_USER.role === 'principal'; }
+function isCoordinator() { return !!CURRENT_USER && CURRENT_USER.role === 'coordinator'; }
+function isStaffAdmin() { return isPrincipal() || isCoordinator(); }
 
 const state = {
   language: load('cs-language', 'he'),
@@ -878,8 +903,10 @@ function inboxNotifs() {
     const name = about ? localize(fullName(about)) : '';
     const base = { id: m.id, inbox: true, read: m.read, readAt: m.readAt, time: fmtDate(m.date, { day: 'numeric', month: 'short' }) };
     if (m.kind === 'teacher-pending') {
+      const coord = about && about.role === 'coordinator';
       return { ...base, type: 'approval', pendingUser: about && about.status === 'pending' ? about.id : null,
-        text: L(`${name} נרשם/ה כמורה וממתין/ה לאישורך`, `${name} registered as a teacher and is waiting for your approval`) };
+        text: coord ? L(`${name} נרשם/ה כרכז/ת לימודים וממתין/ה לאישורך`, `${name} registered as academic coordinator and is waiting for your approval`)
+          : L(`${name} נרשם/ה כמורה וממתין/ה לאישורך`, `${name} registered as a teacher and is waiting for your approval`) };
     }
     if (m.kind === 'timetable-updated') {
       const count = (m.extra && m.extra.count) || 0;
@@ -930,6 +957,21 @@ function inboxNotifs() {
         text: x.status === 'approved'
           ? L(`${name} עדכן/ה את הציון שלך ב${what}: ${x.oldGrade} ← ${x.newGrade}`, `${name} updated your grade for ${what}: ${x.oldGrade} → ${x.newGrade}`)
           : L(`${name} השאיר/ה את הציון שלך ב${what} ללא שינוי`, `${name} kept your grade for ${what} unchanged`) };
+    }
+    if (m.kind === 'tt-feedback' || m.kind === 'tt-feedback-result' || m.kind === 'complaint' || m.kind === 'complaint-result') {
+      const x = m.extra || {};
+      const link = 'home.html#sreq=' + encodeURIComponent(x.id || '');
+      const st = SREQ_STATUS[x.status] || SREQ_STATUS.new;
+      if (m.kind === 'tt-feedback') return { ...base, type: 'tt-req', link, jid: x.id,
+        text: x.type === 'complaint' ? L(`${name} שלח/ה תלונה על מערכת השעות`, `${name} sent a timetable complaint`) : L(`${name} שלח/ה הצעה למערכת השעות`, `${name} sent a timetable suggestion`) };
+      if (m.kind === 'complaint') return { ...base, type: 'complaint', link, jid: x.id, text: L(`${name} שלח/ה פנייה על מורה`, `${name} sent a complaint about a teacher`) };
+      return { ...base, type: 'tt-req', link, jid: x.id, text: L(`${name} עדכן/ה את הפנייה שלך: ${st.he}`, `${name} updated your request: ${st.en}`) };
+    }
+    if (m.kind === 'assignment-new') {
+      const x = m.extra || {};
+      const cls = classes.find(c => c.id === x.classId);
+      return { ...base, type: 'grade', link: 'tasks.html',
+        text: L(`${name} פרסם/ה מטלה חדשה: ${x.title || ''} · ${cls ? localize(cls.name) : ''}`, `${name} posted a new assignment: ${x.title || ''} · ${cls ? cls.name : ''}`) };
     }
     if (m.kind === 'path-published') {
       const x = m.extra || {};
@@ -1032,6 +1074,7 @@ const ICONS = {
   schedule: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
   grades: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
   path: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>',
+  achievements: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/><circle cx="16" cy="9" r="2"/></svg>',
   timetable: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 10h18M8 2v4M16 2v4M10 14h1v4M14 14l-1.5 4"/><path d="M17 15l2-2 2 2-4 4h-2v-2z" fill="currentColor" stroke="none"/></svg>',
   classes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 15h7M14 18h7M14 21h4"/></svg>',
   tasks: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 3v2h6V3M8 11l2 2 4-4M8 17h8"/></svg>',
@@ -1041,6 +1084,7 @@ const ICONS = {
 
 const NAV = [
   { href: 'home.html', key: 'home' },
+  { href: 'achievements.html', key: 'achievements' },
   { href: 'schedule.html', key: 'schedule' },
   { href: 'grades.html', key: 'grades' },
   { href: 'tasks.html', key: 'tasks' },
@@ -1052,7 +1096,7 @@ const NAV = [
 
 /* ================= Header ================= */
 function notifIcon(type) {
-  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'grade-req': '📝', path: '🗺️', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
+  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'grade-req': '📝', path: '🗺️', 'tt-req': '🗓️', complaint: '📨', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
 }
 
 function renderHeader() {
@@ -1170,11 +1214,14 @@ function renderSidebar(active) {
   </aside>`;
 }
 
-const PRINCIPAL_PAGES = ['home', 'classes', 'settings'];
+const PRINCIPAL_PAGES = ['home', 'achievements', 'classes', 'settings'];
+// The academic coordinator runs the timetable
+const COORDINATOR_PAGES = ['home', 'classes', 'settings'];
 // Students get Tasks instead of the learning path; teachers keep the path
 function navAllowed(item) {
   if (isPrincipal()) return PRINCIPAL_PAGES.includes(item.key);
-  if (item.key === 'timetable' || item.key === 'classes') return false;
+  if (isCoordinator()) return COORDINATOR_PAGES.includes(item.key);
+  if (['timetable', 'classes', 'achievements'].includes(item.key)) return false;
   if (item.key === 'tasks') return state.role === 'student';
   if (item.key === 'path') return state.role === 'teacher';
   return true;
@@ -1184,7 +1231,7 @@ function navAllowed(item) {
 function reviewTeacher(id, approve) {
   if (!isPrincipal()) return;
   const users = loadUsers();
-  const teacher = users.find(u => u.id === id && u.role === 'teacher');
+  const teacher = users.find(u => u.id === id && (u.role === 'teacher' || u.role === 'coordinator'));
   if (!teacher || teacher.status !== 'pending') return;
   teacher.status = approve ? 'active' : 'rejected';
   teacher.reviewedBy = CURRENT_USER.id;
@@ -1195,7 +1242,7 @@ function reviewTeacher(id, approve) {
   if (approve) sendInbox(id, 'teacher-approved', CURRENT_USER.id);
   renderAll();
   toast(approve
-    ? L(`${localize(fullName(teacher))} אושר/ה כמורה`, `${fullName(teacher)} was approved as a teacher`)
+    ? L(`${localize(fullName(teacher))} אושר/ה כ${teacher.role === 'coordinator' ? 'רכז/ת לימודים' : 'מורה'}`, `${fullName(teacher)} was approved as ${teacher.role === 'coordinator' ? 'academic coordinator' : 'a teacher'}`)
     : L(`הבקשה של ${localize(fullName(teacher))} נדחתה`, `${fullName(teacher)}'s request was declined`));
 }
 function approveTeacher(id) { reviewTeacher(id, true); }
@@ -1291,6 +1338,32 @@ async function uploadWork(assignmentId, input) {
 }
 
 function allAssignments() { return load('cs-teacher-assignments', null) || assignments; }
+function saveAssignments(list) { save('cs-teacher-assignments', list); }
+
+/* Hand in (or update) a student's work: a written answer and/or files. Files picked before
+   stay unless new ones are chosen. */
+async function submitWork(assignmentId, text, picked) {
+  const total = (picked || []).reduce((sum, f) => sum + f.size, 0);
+  if (total > MAX_UPLOAD_BYTES) { toast(L('הקבצים גדולים מדי (עד 2MB בגרסת ההדגמה)', 'Files are too large (2 MB max in this demo)')); return false; }
+  let files;
+  try { files = await Promise.all((picked || []).map(async f => ({ name: f.name, type: f.type, size: f.size, dataUrl: await readAsDataUrl(f) }))); }
+  catch (e) { toast(L('לא הצלחנו לקרוא את הקובץ', 'Could not read the file')); return false; }
+  const before = reviewQueue().find(q => q.assignmentId === assignmentId && q.student === currentUserName());
+  if (!files.length && before && before.files) files = before.files;
+  if (!files.length && !(text || '').trim()) { toast(L('כתבו תשובה או צרפו קובץ', 'Write an answer or attach a file')); return false; }
+  const queue = reviewQueue().filter(q => !(q.assignmentId === assignmentId && q.student === currentUserName()));
+  queue.push({ id: 's-' + Date.now(), assignmentId, student: currentUserName(), submittedAt: new Date().toISOString().slice(0, 10), submittedAtFull: new Date().toISOString(), files, ...((text || '').trim() ? { text: text.trim() } : {}) });
+  try { localStorage.setItem('cs-review-queue', JSON.stringify(queue)); }
+  catch (e) { toast(L('אין מספיק מקום באחסון הדפדפן לקובץ הזה', 'Not enough browser storage for this file')); return false; }
+  toast(before ? L('ההגשה עודכנה', 'Your submission was updated') : L('העבודה הוגשה למורה', 'Your work was handed in'));
+  return true;
+}
+function unsubmitWork(assignmentId) {
+  if (!confirm(L('לבטל את ההגשה? אפשר להגיש שוב עד שהמורה בודק/ת.', 'Unsubmit? You can hand in again until your teacher grades it.'))) return false;
+  localStorage.setItem('cs-review-queue', JSON.stringify(reviewQueue().filter(q => !(q.assignmentId === assignmentId && q.student === currentUserName()))));
+  toast(L('ההגשה בוטלה', 'Unsubmitted'));
+  return true;
+}
 
 /* Where the signed-in student stands on an assignment:
    'graded' (with grade + teacher feedback), 'submitted' (waiting for a grade) or 'todo'. */
@@ -1949,11 +2022,13 @@ function renderJustify() {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && justify.mode) closeJustify(); });
 // Links such as home.html#justify=<id> (from a notification) open that request
 function openJustifyFromHash() {
-  const m = location.hash.match(/^#(?:justify|request)=([\w-]+)/);
+  const m = location.hash.match(/^#(?:justify|request|sreq)=([\w-]+)/);
   if (m && CURRENT_USER) openAnyRequest(m[1]);
 }
 function openAnyRequest(id) {
-  if (id.startsWith('g-')) openGradeRequestById(id); else openJustifyReview(id);
+  if (id.startsWith('g-')) openGradeRequestById(id);
+  else if (id.startsWith('tf-') || id.startsWith('tc-')) openSreq(id);
+  else openJustifyReview(id);
 }
 window.addEventListener('hashchange', openJustifyFromHash);
 
@@ -2265,6 +2340,262 @@ function renderGradeRequest() {
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && greq.mode) closeGradeRequest(); });
 
+
+/* ================= Student feedback: the timetable and the teachers =================
+   Timetable complaints and suggestions go to the academic coordinator (or, if the school
+   has none, to the principal). Complaints about a teacher go to the principal only, and a
+   student can send a limited number of them in a period of time. */
+const TT_FEEDBACK_KEY = 'cs-timetable-feedback';
+const COMPLAINTS_KEY = 'cs-teacher-complaints';
+const COMPLAINT_LIMIT = 3;            // complaints about teachers …
+const COMPLAINT_WINDOW_DAYS = 30;     // … per student in this many days
+const COMPLAINT_CATS = [
+  { key: 'conduct', he: 'יחס או התנהגות', en: 'Attitude or behaviour', icon: '🗣️' },
+  { key: 'grading', he: 'הוגנות בציונים', en: 'Fair grading', icon: '⚖️' },
+  { key: 'teaching', he: 'אופן ההוראה', en: 'The teaching', icon: '📚' },
+  { key: 'other', he: 'אחר', en: 'Other', icon: '📝' },
+];
+const SREQ_STATUS = {
+  new: { he: 'חדש', en: 'New', cls: 'pending' },
+  reviewing: { he: 'בטיפול', en: 'In progress', cls: 'pending' },
+  done: { he: 'טופל', en: 'Handled', cls: 'approved' },
+  declined: { he: 'לא אושר', en: 'Not accepted', cls: 'rejected' },
+};
+const sreq = { mode: null, kind: null, id: null, draft: null, error: '' };
+
+function loadTtFeedback() { return load(TT_FEEDBACK_KEY, []); }
+function loadComplaints() { return load(COMPLAINTS_KEY, []); }
+function activeUsers(role) { return loadUsers().filter(u => u.role === role && u.status === 'active'); }
+// who gets timetable feedback: the coordinators, or the principals if there is no coordinator
+function ttRecipients() { const c = activeUsers('coordinator'); return c.length ? c : activeUsers('principal'); }
+function ttRecipientRole() { return activeUsers('coordinator').length ? 'coordinator' : 'principal'; }
+function myComplaintsInWindow() {
+  const since = Date.now() - COMPLAINT_WINDOW_DAYS * 86400000;
+  return loadComplaints().filter(c => c.studentId === (CURRENT_USER && CURRENT_USER.id) && new Date(c.createdAt).getTime() >= since)
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+}
+function complaintsLeft() { return Math.max(0, COMPLAINT_LIMIT - myComplaintsInWindow().length); }
+function nextComplaintDate() {
+  const list = myComplaintsInWindow();
+  return list.length ? new Date(new Date(list[0].createdAt).getTime() + COMPLAINT_WINDOW_DAYS * 86400000) : null;
+}
+function teacherOptions() {
+  const seen = {};
+  classes.forEach(c => classTeachers(c.id).forEach(n => { (seen[n] = seen[n] || []).push(c); }));
+  return Object.entries(seen).map(([name, cls]) => ({ name, classes: cls }));
+}
+function sreqStatusTag(st) { const x = SREQ_STATUS[st] || SREQ_STATUS.new; return `<span class="jtag ${x.cls}">${L(x.he, x.en)}</span>`; }
+
+/* ----- Student: the forms ----- */
+function openTtFeedback(slotId) {
+  if (state.role !== 'student') return;
+  sreq.mode = 'form'; sreq.kind = 'tt'; sreq.id = null; sreq.error = ''; sreq.fresh = true;
+  sreq.draft = { type: slotId ? 'complaint' : 'suggestion', slotId: slotId || '', text: '', swap: '' };
+  renderSreq();
+}
+function openComplaint() {
+  if (state.role !== 'student') return;
+  sreq.mode = 'form'; sreq.kind = 'complaint'; sreq.id = null; sreq.error = ''; sreq.fresh = true;
+  sreq.draft = { teacher: '', category: '', text: '' };
+  renderSreq();
+}
+function sreqField(field, value) { sreq.draft[field] = value; if (field !== 'text' && field !== 'swap') { sreq.error = ''; renderSreq(); } }
+function submitSreq() {
+  const d = sreq.draft;
+  ['text', 'swap'].forEach(f => { const el = document.getElementById('sreq-' + f); if (el) d[f] = el.value; });
+  const now = new Date().toISOString();
+  if (sreq.kind === 'tt') {
+    if (d.text.trim().length < 10) { sreq.error = L('נא לפרט קצת יותר (לפחות 10 תווים).', 'Please say a bit more (at least 10 characters).'); renderSreq(); return; }
+    const slot = timetable.find(x => x.id === d.slotId);
+    const item = { id: 'tf-' + Date.now(), studentId: CURRENT_USER.id, studentName: currentUserName(), type: d.type, slotId: slot ? slot.id : '', lesson: slot ? { classId: slot.classId, day: slot.day, startHour: slot.startHour, duration: slot.duration, room: slot.room } : null,
+      text: d.text.trim(), swap: d.swap.trim(), status: 'new', to: ttRecipientRole(), createdAt: now };
+    const list = loadTtFeedback(); list.unshift(item); save(TT_FEEDBACK_KEY, list);
+    ttRecipients().forEach(u => sendInbox(u.id, 'tt-feedback', CURRENT_USER.id, { id: item.id, type: item.type }));
+    sreq.id = item.id;
+  } else {
+    if (!complaintsLeft()) { sreq.error = L('הגעת למספר הפניות המרבי לתקופה הזו.', 'You have reached the limit for this period.'); renderSreq(); return; }
+    if (!d.teacher) { sreq.error = L('נא לבחור מורה.', 'Please choose a teacher.'); renderSreq(); return; }
+    if (!d.category) { sreq.error = L('נא לבחור נושא.', 'Please choose a topic.'); renderSreq(); return; }
+    if (d.text.trim().length < 20) { sreq.error = L('נא לתאר מה קרה (לפחות 20 תווים).', 'Please describe what happened (at least 20 characters).'); renderSreq(); return; }
+    const item = { id: 'tc-' + Date.now(), studentId: CURRENT_USER.id, studentName: currentUserName(), teacherName: d.teacher, category: d.category, text: d.text.trim(), status: 'new', createdAt: now };
+    const list = loadComplaints(); list.unshift(item); save(COMPLAINTS_KEY, list);
+    activeUsers('principal').forEach(u => sendInbox(u.id, 'complaint', CURRENT_USER.id, { id: item.id, teacher: item.teacherName }));
+    sreq.id = item.id;
+  }
+  sreq.mode = 'view';
+  renderSreq();
+  refreshAfterJustify();
+  toast(sreq.kind === 'tt' ? (ttRecipientRole() === 'coordinator' ? L('נשלח לרכז/ת הלימודים', 'Sent to the academic coordinator') : L('נשלח למנהל/ת', 'Sent to the principal')) : L('הפנייה נשלחה למנהל/ת', 'Sent to the principal'));
+}
+
+/* ----- Open one (student: their own; staff: to handle it) ----- */
+function findSreq(id) { return (id.startsWith('tf-') ? loadTtFeedback() : loadComplaints()).find(x => x.id === id) || null; }
+function openSreq(id) {
+  const item = findSreq(id);
+  if (!item) { toast(L('הפנייה כבר לא קיימת', 'That request no longer exists')); return; }
+  const tt = id.startsWith('tf-');
+  if (state.role === 'student') { if (item.studentId !== CURRENT_USER.id) return; sreq.mode = 'view'; }
+  else if (tt ? isStaffAdmin() : isPrincipal()) sreq.mode = 'review';
+  else return;
+  sreq.kind = tt ? 'tt' : 'complaint'; sreq.id = id; sreq.error = ''; sreq.fresh = true;
+  markJustifyRead(id);
+  renderSreq();
+}
+function decideSreq() {
+  const key = sreq.kind === 'tt' ? TT_FEEDBACK_KEY : COMPLAINTS_KEY;
+  const list = load(key, []);
+  const item = list.find(x => x.id === sreq.id);
+  if (!item) return;
+  const status = document.getElementById('sreq-status').value;
+  const reply = (document.getElementById('sreq-reply') || {}).value || '';
+  const changed = status !== item.status || reply.trim() !== (item.reply || '');
+  Object.assign(item, { status, reply: reply.trim(), handledBy: currentUserName(), handledAt: new Date().toISOString() });
+  save(key, list);
+  if (changed && item.studentId && status !== 'new') sendInbox(item.studentId, sreq.kind === 'tt' ? 'tt-feedback-result' : 'complaint-result', CURRENT_USER.id, { id: item.id, status });
+  markJustifyRead(item.id);
+  closeSreq();
+  refreshAfterJustify();
+  toast(L('נשמר', 'Saved'));
+}
+function closeSreq() {
+  sreq.mode = null;
+  renderSreq();
+  if (/^#sreq=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search);
+}
+
+function sreqLessonLabel(l) {
+  if (!l) return L('המערכת באופן כללי', 'The timetable in general');
+  const cls = classes.find(c => c.id === l.classId);
+  return `${className(cls)} · ${dayName(l.day)} ${timeRange(l.startHour, l.startHour + l.duration)}${l.room ? ' · ' + esc(localize(l.room)) : ''}`;
+}
+function sreqDialogHtml() {
+  if (!sreq.mode) return '';
+  const fade = sreq.fresh ? 'fade-up' : ''; sreq.fresh = false;
+  const item = sreq.id ? findSreq(sreq.id) : null;
+  let title, body, foot;
+  if (sreq.mode === 'form' && sreq.kind === 'tt') {
+    const d = sreq.draft;
+    const mine = timetable.slice().sort((a, b) => a.day - b.day || a.startHour - b.startHour);
+    title = '💡 ' + L('הצעה או תלונה על מערכת השעות', 'A timetable suggestion or complaint');
+    body = `
+      <div class="seg small" style="border-radius:0.75rem">
+        <button class="${d.type === 'complaint' ? 'on' : ''}" onclick="sreqField('type','complaint')">⚠️ ${L('תלונה על מיקום שיעור', 'A lesson in a bad spot')}</button>
+        <button class="${d.type === 'suggestion' ? 'on' : ''}" onclick="sreqField('type','suggestion')">💡 ${L('הצעה לשיפור / החלפה', 'An idea to improve or swap')}</button>
+      </div>
+      <div><label class="label" for="sreq-slot">${L('על איזה שיעור?', 'Which lesson?')}</label>
+        <select id="sreq-slot" class="input" onchange="sreqField('slotId', this.value)">
+          <option value="">${L('על המערכת באופן כללי', 'The timetable in general')}</option>
+          ${mine.map(x => `<option value="${x.id}" ${d.slotId === x.id ? 'selected' : ''}>${esc(lessonLabel(x).replace(/[⁦⁩]/g, ''))}</option>`).join('')}
+        </select></div>
+      <div><label class="label" for="sreq-text">${d.type === 'complaint' ? L('מה הבעיה?', 'What is the problem?') : L('מה ההצעה?', 'What do you suggest?')}</label>
+        <textarea id="sreq-text" class="input" dir="auto" rows="3" maxlength="600" placeholder="${d.type === 'complaint' ? L('למשל: שני שיעורי ספורט ברצף ואחריהם מבחן – קשה להתרכז.', 'e.g. Two PE lessons in a row right before a test – hard to focus.') : L('למשל: להעביר את הכימיה ליום רביעי כדי לא לסיים מאוחר ביום שני.', 'e.g. Move chemistry to Wednesday so Monday doesn’t end so late.')}">${esc(d.text)}</textarea></div>
+      <div><label class="label" for="sreq-swap">${L('הצעת החלפה (לא חובה)', 'Suggested swap (optional)')}</label>
+        <input id="sreq-swap" class="input" dir="auto" maxlength="200" value="${esc(d.swap)}" placeholder="${L('למשל: להחליף בין ספרות של יום ג׳ להיסטוריה של יום ה׳', 'e.g. swap Tuesday’s literature with Thursday’s history')}"></div>
+      <p class="xs muted">📬 ${ttRecipientRole() === 'coordinator' ? L('הפנייה תישלח לרכז/ת הלימודים.', 'This goes to the academic coordinator.') : L('הפנייה תישלח למנהל/ת.', 'This goes to the principal.')}</p>
+      ${sreq.error ? `<p class="jerror" role="alert">${sreq.error}</p>` : ''}`;
+    foot = `<button class="btn surface" onclick="closeSreq()">${L('ביטול', 'Cancel')}</button><button class="btn btn-primary" onclick="submitSreq()">${L('שליחה', 'Send')}</button>`;
+  } else if (sreq.mode === 'form') {
+    const d = sreq.draft;
+    const left = complaintsLeft();
+    const next = nextComplaintDate();
+    title = '📨 ' + L('פנייה למנהל/ת על מורה', 'Contact the principal about a teacher');
+    body = left ? `
+      <div class="sreq-note">🔒 ${L('רק המנהל/ת רואה את הפנייה. המורה לא מקבל/ת אותה.', 'Only the principal sees this. It is not sent to the teacher.')}</div>
+      <div><label class="label" for="sreq-teacher">${L('על איזה מורה?', 'Which teacher?')}</label>
+        <select id="sreq-teacher" class="input" onchange="sreqField('teacher', this.value)">
+          <option value="">${L('בחירה…', 'Choose…')}</option>
+          ${teacherOptions().map(t => `<option value="${esc(t.name)}" ${d.teacher === t.name ? 'selected' : ''}>${esc(localize(t.name))} · ${t.classes.map(c => localize(c.name)).join(', ')}</option>`).join('')}
+        </select></div>
+      <div><span class="label">${L('נושא', 'Topic')}</span>
+        <div class="jreasons">${COMPLAINT_CATS.map(c => `<button type="button" class="jreason ${d.category === c.key ? 'on' : ''}" aria-pressed="${d.category === c.key}" onclick="sreqField('category','${c.key}')">${c.icon} ${L(c.he, c.en)}</button>`).join('')}</div></div>
+      <div><label class="label" for="sreq-text">${L('מה קרה?', 'What happened?')}</label>
+        <textarea id="sreq-text" class="input" dir="auto" rows="4" maxlength="1000" placeholder="${L('תארו בכבוד ובפירוט מה קרה ומתי.', 'Describe respectfully and in detail what happened and when.')}">${esc(d.text)}</textarea></div>
+      <p class="xs muted">${L(`אפשר לשלוח עד ${COMPLAINT_LIMIT} פניות ב־${COMPLAINT_WINDOW_DAYS} יום. נשארו לך ${left}.`, `You can send up to ${COMPLAINT_LIMIT} in ${COMPLAINT_WINDOW_DAYS} days. You have ${left} left.`)}</p>
+      ${sreq.error ? `<p class="jerror" role="alert">${sreq.error}</p>` : ''}`
+      : `<div class="sreq-note">⏳ ${L(`שלחת כבר ${COMPLAINT_LIMIT} פניות ב־${COMPLAINT_WINDOW_DAYS} הימים האחרונים. אפשר יהיה לשלוח שוב ב־${fmtDate(next, { day: 'numeric', month: 'long' })}.`, `You have sent ${COMPLAINT_LIMIT} in the last ${COMPLAINT_WINDOW_DAYS} days. You can send again on ${fmtDate(next, { day: 'numeric', month: 'long' })}.`)}</div>
+         <p class="xs muted">${L('אם זה דחוף, פנו ליועצ/ת או למחנך/ת.', 'If it’s urgent, talk to the school counsellor or your homeroom teacher.')}</p>`;
+    foot = left ? `<button class="btn surface" onclick="closeSreq()">${L('ביטול', 'Cancel')}</button><button class="btn btn-primary" onclick="submitSreq()">${L('שליחה למנהל/ת', 'Send to the principal')}</button>`
+      : `<button class="btn btn-primary" onclick="closeSreq()">${L('הבנתי', 'OK')}</button>`;
+  } else {
+    if (!item) { sreq.mode = null; return ''; }
+    const review = sreq.mode === 'review';
+    const tt = sreq.kind === 'tt';
+    const cat = !tt && (COMPLAINT_CATS.find(c => c.key === item.category) || COMPLAINT_CATS[3]);
+    title = tt ? (item.type === 'complaint' ? '⚠️ ' + L('תלונה על המערכת', 'Timetable complaint') : '💡 ' + L('הצעה למערכת', 'Timetable suggestion'))
+      : '📨 ' + L('פנייה על מורה', 'About a teacher');
+    body = `
+      <div class="flex items-center gap-2 wrap"><span class="w7">${review ? esc(localize(item.studentName)) : L('הפנייה שלך', 'Your request')}</span>${sreqStatusTag(item.status)}<span class="xs muted" style="margin-inline-start:auto">${fmtDate(item.createdAt, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></div>
+      <div class="jbox">
+        ${tt ? `<div class="xs w7 muted">📅 ${sreqLessonLabel(item.lesson)}</div>` : `<div class="xs w7 muted">🧑‍🏫 ${esc(localize(item.teacherName))} · ${cat.icon} ${L(cat.he, cat.en)}</div>`}
+        <p class="sm mt-2 jtext" dir="auto">${esc(item.text)}</p>
+        ${tt && item.swap ? `<p class="sm mt-2" dir="auto">🔁 <b>${L('הצעת החלפה:', 'Suggested swap:')}</b> ${esc(item.swap)}</p>` : ''}
+      </div>
+      ${!review && item.reply ? `<div class="jbox reply"><div class="xs w7 muted">💬 ${L('תשובה', 'Reply')}${item.handledBy ? ' · ' + esc(localize(item.handledBy)) : ''}</div><p class="sm mt-1 jtext" dir="auto">${esc(item.reply)}</p></div>` : ''}
+      ${review ? `
+      <div class="grid g-1 sm-2" style="gap:0.75rem">
+        <div><label class="label" for="sreq-status">${L('סטטוס', 'Status')}</label>
+          <select id="sreq-status" class="input">${Object.entries(SREQ_STATUS).map(([k, x]) => `<option value="${k}" ${item.status === k ? 'selected' : ''}>${L(x.he, x.en)}</option>`).join('')}</select></div>
+      </div>
+      <div><label class="label" for="sreq-reply">${L('תשובה לתלמיד/ה', 'Reply to the student')}</label>
+        <textarea id="sreq-reply" class="input" dir="auto" rows="3" maxlength="600" placeholder="${tt ? L('למשל: תודה! נבדוק את ההחלפה בעדכון הבא של המערכת.', 'e.g. Thanks! We’ll look at the swap in the next timetable update.') : L('למשל: תודה שפנית. דיברתי עם המורה ונעקוב.', 'e.g. Thank you for telling me. I spoke with the teacher and we’ll follow up.')}">${esc(item.reply || '')}</textarea></div>` : ''}`;
+    foot = review ? `<button class="btn surface" onclick="closeSreq()">${L('סגירה', 'Close')}</button><button class="btn btn-primary" onclick="decideSreq()">${L('שמירה ועדכון התלמיד/ה', 'Save and update the student')}</button>`
+      : `<button class="btn btn-primary" onclick="closeSreq()">${L('סגירה', 'Close')}</button>`;
+  }
+  return `
+  <div class="jmodal-bg" onmousedown="if(event.target===this)closeSreq()">
+    <div class="card r-3xl jmodal ${fade}" role="dialog" aria-modal="true" aria-labelledby="sreq-title">
+      <div class="jmodal-head"><h2 id="sreq-title" class="display w8 lg">${title}</h2>
+        <button class="icon-btn" style="width:2rem;height:2rem;flex-shrink:0" onclick="closeSreq()" aria-label="${L('סגירה', 'Close')}">${ICONS.close}</button></div>
+      <div class="jmodal-body">${body}</div>
+      <div class="jmodal-foot">${foot}</div>
+    </div>
+  </div>`;
+}
+function renderSreq() {
+  let host = document.getElementById('sreq-host');
+  if (!host) { host = document.createElement('div'); host.id = 'sreq-host'; document.body.appendChild(host); }
+  host.innerHTML = sreqDialogHtml();
+  document.body.classList.toggle('jmodal-open', !!(sreq.mode || justify.mode || greq.mode));
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && sreq.mode) closeSreq(); });
+
+/* ----- Lists for the coordinator and the principal ----- */
+function sreqRow(item, kind) {
+  const tt = kind === 'tt';
+  const cat = !tt && (COMPLAINT_CATS.find(c => c.key === item.category) || COMPLAINT_CATS[3]);
+  return `
+  <button class="req-row ${item.status === 'new' ? 'pending' : ''}" onclick="openSreq('${item.id}')">
+    <span class="letter-tile xs" style="width:2rem;height:2rem;border-radius:0.625rem;background:${tt ? '#0EA5E9' : '#F43F5E'};flex-shrink:0">${initials(item.studentName)}</span>
+    <span class="flex-1 min-w-0">
+      <span class="flex items-center gap-2 min-w-0"><span class="req-kind ${tt ? 'justify' : 'grade'}">${tt ? (item.type === 'complaint' ? '⚠️ ' + L('תלונה', 'Complaint') : '💡 ' + L('הצעה', 'Suggestion')) : cat.icon + ' ' + L(cat.he, cat.en)}</span><span class="sm w7 truncate">${esc(localize(item.studentName))}</span></span>
+      <span class="xs muted block truncate mt-1" dir="auto">${tt ? sreqLessonLabel(item.lesson) : '🧑‍🏫 ' + esc(localize(item.teacherName))} · ${esc(item.text)}</span>
+    </span>
+    ${sreqStatusTag(item.status)}
+  </button>`;
+}
+const sreqView = { filter: 'open' };
+function staffRequestsSection(kind) {
+  const tt = kind === 'tt';
+  const all = tt ? loadTtFeedback() : loadComplaints();
+  const open = all.filter(x => x.status === 'new' || x.status === 'reviewing');
+  const list = sreqView.filter === 'open' ? open : all;
+  return `
+  <div class="card r-3xl p-5 ${open.some(x => x.status === 'new') ? 'jalert' : ''}" id="${tt ? 'tt-feedback' : 'teacher-complaints'}">
+    <div class="flex items-center justify-between wrap gap-3 mb-3">
+      <div class="min-w-0">
+        <h2 class="display w8 lg">${tt ? '🗓️ ' + L('פניות תלמידים על מערכת השעות', 'Student feedback on the timetable') : '📨 ' + L('פניות תלמידים על מורים', 'Student complaints about teachers')}
+          ${open.length ? `<span class="count-pill">${open.length}</span>` : ''}</h2>
+        <p class="xs muted">${tt ? L('תלונות על מיקום של שיעורים והצעות להחלפה ולייעול.', 'Complaints about where lessons are, and ideas for swaps and improvements.') : L(`רק את/ה רואה את הפניות האלה. כל תלמיד/ה יכול/ה לשלוח עד ${COMPLAINT_LIMIT} ב־${COMPLAINT_WINDOW_DAYS} יום.`, `Only you see these. Each student can send up to ${COMPLAINT_LIMIT} in ${COMPLAINT_WINDOW_DAYS} days.`)}</p>
+      </div>
+      <div class="seg small" style="border-radius:0.75rem">
+        <button class="${sreqView.filter === 'open' ? 'on' : ''}" onclick="sreqView.filter='open';renderPage()">${L('פתוחות', 'Open')} (${open.length})</button>
+        <button class="${sreqView.filter === 'all' ? 'on' : ''}" onclick="sreqView.filter='all';renderPage()">${L('הכול', 'All')} (${all.length})</button>
+      </div>
+    </div>
+    ${list.length ? `<div class="col" style="gap:0.5rem">${list.slice(0, 20).map(x => sreqRow(x, kind)).join('')}</div>` : `<p class="sm muted">${L('אין פניות פתוחות.', 'No open requests.')}</p>`}
+  </div>`;
+}
+
 /* ----- Everything students asked the signed-in teacher (Home) ----- */
 function teacherRequests() {
   if (state.role !== 'teacher') return [];
@@ -2286,7 +2617,8 @@ function renderAll() {
   }
   if (!CURRENT_USER) return;
   if (isPrincipal() && !PRINCIPAL_PAGES.includes(window.PAGE_KEY)) { location.replace('home.html'); return; }
-  if (!isPrincipal() && (window.PAGE_KEY === 'timetable' || window.PAGE_KEY === 'classes')) { location.replace('schedule.html'); return; }
+  if (isCoordinator() && !COORDINATOR_PAGES.includes(window.PAGE_KEY)) { location.replace('home.html'); return; }
+  if (!isStaffAdmin() && ['timetable', 'classes', 'achievements'].includes(window.PAGE_KEY)) { location.replace('schedule.html'); return; }
   if (state.role === 'teacher' && window.PAGE_KEY === 'tasks') { location.replace('home.html'); return; }
   applyDocument();
   renderHeaderOnly();
@@ -2410,17 +2742,18 @@ document.addEventListener('DOMContentLoaded', () => { if (!window.AUTH_PAGE) ope
 /* ===================== Page code ===================== */
 window.PAGE_KEY = 'classes';
 
-/* ================= Classes & schedules (principal) =================
-   Homeroom classes for grades 7–12 (11-1, 11-2 …), a weekly schedule for each,
-   the hour each class finishes every day, and an automatic schedule generator.
-   Everything is stored in one object under SC_KEY. */
+/* ================= Classes & schedules (academic coordinator) =================
+   Homeroom classes for grades 7–12 (11-1, 11-2 …), a weekly schedule for each, the
+   bell schedule of each grade (lesson length, breaks to the minute), when each class
+   starts and ends every day, and an automatic schedule generator.
+   Times are minutes from midnight (8:00 = 480). Everything is stored under SC_KEY. */
 const SC_KEY = 'cs-school-classes';
 const GRADES = [7, 8, 9, 10, 11, 12];
 const GRADE_HE = { 7: 'ז׳', 8: 'ח׳', 9: 'ט׳', 10: 'י׳', 11: 'י״א', 12: 'י״ב' };
-const DAY_START = 8;
-const END_CHOICES = [11, 12, 13, 14, 15, 16, 17];
-const START_CHOICES = [7, 8, 9, 10, 11];
-const BREAK_CHOICES = [9, 10, 11, 12, 13, 14, 15, 16];
+const DAY_START = 8 * 60;
+const LESSON_LENGTHS = [40, 45, 50, 55, 60];
+const DEFAULT_LESSON = 45;
+const DEFAULT_BREAKS = [{ day: 'all', from: 9 * 60 + 30, to: 9 * 60 + 45 }, { day: 'all', from: 11 * 60 + 15, to: 11 * 60 + 30 }];
 const MAX_SECTIONS = 15;
 
 const SUBJECT_GROUPS = {
@@ -2458,7 +2791,7 @@ const TEMPLATES = {
   senior: { math: 5, english: 5, hebrew: 2, literature: 2, bible: 2, history: 2, civics: 2, biology: 3, chemistry: 2, physics: 2, computers: 1, pe: 2, homeroom: 1 },
 };
 function templateFor(grade) { return grade <= 9 ? TEMPLATES.junior : TEMPLATES.senior; }
-function defaultEnds(grade) { return grade <= 9 ? [14, 15, 14, 15, 12] : [15, 15, 15, 15, 12]; }
+function defaultEnds(grade) { return (grade <= 9 ? [14, 15, 14, 15, 12] : [15, 15, 15, 15, 12]).map(h => h * 60); }
 
 function seedSchool() {
   const sections = [];
@@ -2475,6 +2808,43 @@ school.breaks = school.breaks || {};
 school.prefs = { doubles: true, groupRelated: true, maxPerDay: 2, ...(school.prefs || {}) };
 if (!Array.isArray(school.prefs.syncSubjects)) school.prefs.syncSubjects = ['math', 'english'];
 function saveSchool() { save(SC_KEY, school); }
+
+/* ---------- Time ---------- */
+function fmtT(min) { return `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`; }
+function tRange(a, b) { return `\u2066${fmtT(a)}–${fmtT(b)}\u2069`; }              // stays left-to-right inside Hebrew
+function inputT(min) { return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`; }
+function parseT(v) { const m = String(v || '').match(/^(\d{1,2}):(\d{2})/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
+
+/* Saves from before minutes: hours become minutes, one-hour breaks keep their hour, and
+   lessons placed at an hour move to the lesson in the same place of the day. */
+(function migrateToMinutes() {
+  if (school.timeModel === 2) return;
+  school.bells = school.bells || {};
+  const oldStarts = {};
+  Object.entries(school.plans || {}).forEach(([id, p]) => {
+    oldStarts[id] = (p.starts || [8, 8, 8, 8, 8]).slice();
+    p.starts = (p.starts || [8, 8, 8, 8, 8]).map(v => (v < 24 ? v * 60 : v));
+    p.ends = (p.ends || [15, 15, 15, 15, 12]).map(v => (v < 24 ? v * 60 : v));
+  });
+  GRADES.forEach(g => {
+    school.bells[g] = school.bells[g] || { len: DEFAULT_LESSON };
+    const old = school.breaks[g] || [];
+    school.breaks[g] = old.length ? old.map(b => (b.hour != null ? { day: b.day, from: b.hour * 60, to: b.hour * 60 + 60 } : b)) : DEFAULT_BREAKS.map(b => ({ ...b }));
+  });
+  school.timeModel = 2;
+  Object.entries(school.schedules || {}).forEach(([id, list]) => {
+    if (!section(id)) return;
+    school.schedules[id] = list.map(l => {
+      if (l.start != null) return l;
+      const k = l.hour - ((oldStarts[id] || [8, 8, 8, 8, 8])[l.day] || 8);
+      const slot = periods(id, l.day)[k];
+      if (!slot) return null;
+      const { hour, ...rest } = l;
+      return { ...rest, start: slot.start };
+    }).filter(Boolean);
+  });
+  saveSchool();
+})();
 
 const cm = {
   tab: 'classes',
@@ -2503,19 +2873,30 @@ function plan(id) {
   if (!p.starts) p.starts = [DAY_START, DAY_START, DAY_START, DAY_START, DAY_START];
   return p;
 }
-/* Breaks belong to a whole grade: { day: 'all' | 0–4, hour } – that hour has no lessons */
-function gradeBreaks(g) { return school.breaks[g] || []; }
-function isBreak(g, d, h) { return gradeBreaks(g).some(b => b.hour === h && (b.day === 'all' || b.day === d)); }
-// The hours a class can have lessons on a day: from its start to its end, without the grade's breaks
-function lessonHours(id, d) {
-  const p = plan(id), s = section(id), out = [];
-  for (let h = p.starts[d]; h < p.ends[d]; h++) if (!s || !isBreak(s.grade, d, h)) out.push(h);
+/* Each grade has its own bell schedule: the length of a lesson and its breaks
+   ({ day: 'all' | 0–4, from, to } in minutes). Lessons follow one another from the
+   class's start time; a break pushes the next lesson to the break's end. */
+function bellLen(g) { return ((school.bells || {})[g] || {}).len || DEFAULT_LESSON; }
+function gradeBreaks(g) { return (school.breaks[g] || []).slice().sort((a, b) => a.from - b.from); }
+function breakAt(g, d, from, to) { return gradeBreaks(g).find(b => (b.day === 'all' || b.day === d) && b.from < to && b.to > from) || null; }
+function periods(id, d) {
+  const p = plan(id), s = section(id), len = bellLen(s ? s.grade : 10), out = [];
+  let t = p.starts[d];
+  while (t + len <= p.ends[d]) {
+    const br = s && breakAt(s.grade, d, t, t + len);
+    if (br) { t = Math.max(t + 1, br.to); continue; }
+    out.push({ start: t, end: t + len });
+    t += len;
+  }
   return out;
 }
+// The start times of the lessons a class can have on a day
+function lessonHours(id, d) { return periods(id, d).map(x => x.start); }
+function lessonEnd(id, start) { const s = section(id); return start + bellLen(s ? s.grade : 10); }
 function schedule(id) { return school.schedules[id] || []; }
 function capacity(id) { return [0, 1, 2, 3, 4].reduce((sum, d) => sum + lessonHours(id, d).length, 0); }
 function requiredHours(id) { return plan(id).subjects.reduce((sum, x) => sum + (Number(x.hours) || 0), 0); }
-function lessonAt(id, day, hour) { return schedule(id).find(l => l.day === day && l.hour === hour) || null; }
+function lessonAt(id, day, start) { return schedule(id).find(l => l.day === day && l.start === start) || null; }
 function teacherOf(id, key) { const x = plan(id).subjects.find(p => p.key === key); return x ? x.teacher || '' : ''; }
 
 /* ================= Classes: grades 7–12 and their sections ================= */
@@ -2588,12 +2969,19 @@ function classesTab() {
 function classView(id) {
   const s = section(id);
   const p = plan(id);
-  const firstStart = Math.min(...p.starts);
-  const lastEnd = Math.max(...p.ends, firstStart + 1);
-  const hours = [];
-  for (let h = firstStart; h < lastEnd; h++) hours.push(h);
-  const outsideHours = (d, h) => h < p.starts[d] || h >= p.ends[d];
-  const outside = schedule(id).filter(l => outsideHours(l.day, l.hour) || isBreak(s.grade, l.day, l.hour));
+  const len = bellLen(s.grade);
+  const days = [0, 1, 2, 3, 4];
+  const per = days.map(d => periods(id, d));
+  // rows: every lesson time of the week, plus the grade's breaks in between
+  const starts = [...new Set(per.flat().map(x => x.start).concat(schedule(id).map(l => l.start)))].sort((a, b) => a - b);
+  const brs = gradeBreaks(s.grade);
+  const rows = [];
+  starts.forEach(t => {
+    brs.filter(b => b.to <= t && !rows.some(r => r.brk === b) && (!rows.length || rows[rows.length - 1].time < b.from + 1)).forEach(b => rows.push({ brk: b, time: b.from }));
+    rows.push({ time: t });
+  });
+  const isPeriod = (d, t) => per[d].some(x => x.start === t);
+  const outside = schedule(id).filter(l => !isPeriod(l.day, l.start));
   const placed = {};
   schedule(id).forEach(l => { placed[l.subject] = (placed[l.subject] || 0) + 1; });
   const keys = [...new Set(p.subjects.filter(x => x.hours > 0).map(x => x.key).concat(Object.keys(placed)))];
@@ -2602,7 +2990,7 @@ function classView(id) {
     <div class="flex items-start justify-between wrap gap-3 mb-4">
       <div>
         <h2 class="display w8 xl">${L('מערכת שעות', 'Timetable')} · ${sectionLabel(s)}</h2>
-        <p class="xs muted mt-1">${L(`${schedule(id).length} שיעורים בשבוע · ${capacity(id)} שעות לימוד לפי שעות ההתחלה, הסיום וההפסקות`, `${schedule(id).length} lessons a week · ${capacity(id)} teaching hours by start, end and break times`)}</p>
+        <p class="xs muted mt-1">${L(`${schedule(id).length} שיעורים בשבוע · ${capacity(id)} שיעורים אפשריים · שיעור של ${len} דקות`, `${schedule(id).length} lessons a week · ${capacity(id)} possible · ${len}-minute lessons`)}</p>
       </div>
       <div class="flex gap-2 wrap">
         <button class="btn btn-soft btn-sm" onclick="cm.tab='hours';renderPage()">🕒 ${L('שעות והפסקות', 'Hours & breaks')}</button>
@@ -2610,22 +2998,24 @@ function classView(id) {
         ${schedule(id).length ? `<button class="btn btn-sm" style="background:#F43F5E1a;color:#F43F5E" onclick="clearSchedule('${id}')">${L('ניקוי', 'Clear')}</button>` : ''}
       </div>
     </div>
-    ${outside.length ? `<div class="warn-box mb-3">⚠️ ${L(`${outside.length} שיעורים נמצאים מחוץ לשעות הלימודים או בהפסקה`, `${outside.length} lesson${outside.length === 1 ? ' is' : 's are'} outside school hours or in a break`)}</div>` : ''}
+    ${outside.length ? `<div class="warn-box mb-3">⚠️ ${L(`${outside.length} שיעורים לא נופלים על שעת שיעור (מחוץ לשעות, בהפסקה או אחרי שינוי בצלצולים)`, `${outside.length} lesson${outside.length === 1 ? ' is' : 's are'} not on a lesson time (outside hours, in a break, or after a bell change)`)}</div>` : ''}
     <div class="cs-grid-wrap">
       <table class="cs-grid">
-        <thead><tr><th></th>${DAY_NAMES.en.map((_, d) => `<th>${dayName(d)}<div class="xs muted w6 mono">${p.starts[d]}:00–${p.ends[d]}:00</div></th>`).join('')}</tr></thead>
+        <thead><tr><th></th>${days.map(d => `<th>${dayName(d)}<div class="xs muted w6">${tRange(p.starts[d], p.ends[d])}</div></th>`).join('')}</tr></thead>
         <tbody>
-          ${hours.map(h => `<tr>
-            <th class="mono xs muted">${h}:00</th>
-            ${DAY_NAMES.en.map((_, d) => {
-              const l = lessonAt(id, d, h);
-              const brk = isBreak(s.grade, d, h);
-              const after = outsideHours(d, h) || brk;
-              if (!l && brk && !outsideHours(d, h)) return `<td class="brk"><span class="xs w7">🔔 ${L('הפסקה', 'Break')}</span></td>`;
-              if (!l) return `<td class="${after ? 'after' : ''}">${after ? '' : `<button class="cs-empty" onclick="editCell('${id}', ${d}, ${h})" aria-label="${dayName(d)} ${h}:00 – ${L('הוספת שיעור', 'add a lesson')}">＋</button>`}</td>`;
+          ${rows.map(r => r.brk ? `<tr class="brk-row"><th class="mono xs muted">${fmtT(r.brk.from)}</th><td colspan="5" class="brk"><span class="xs w7">🔔 ${L('הפסקה', 'Break')} ${tRange(r.brk.from, r.brk.to)}${r.brk.day === 'all' ? '' : ' · ' + dayName(r.brk.day)}</span></td></tr>`
+            : `<tr>
+            <th class="mono xs muted">${tRange(r.time, r.time + len)}</th>
+            ${days.map(d => {
+              const t = r.time;
+              const l = lessonAt(id, d, t);
+              const ok = isPeriod(d, t);
+              const brk = breakAt(s.grade, d, t, t + len);
+              if (!l && !ok && brk) return `<td class="brk"><span class="xs w7">🔔</span></td>`;
+              if (!l) return `<td class="${ok ? '' : 'after'}">${ok ? `<button class="cs-empty" onclick="editCell('${id}', ${d}, ${t})" aria-label="${dayName(d)} ${fmtT(t)} – ${L('הוספת שיעור', 'add a lesson')}">＋</button>` : ''}</td>`;
               const x = subj(l.subject);
               const teacher = l.teacher || teacherOf(id, l.subject);
-              return `<td class="${after ? 'after' : ''}"><button class="cs-lesson ${after ? 'bad' : ''} ${l.together ? 'together' : ''}" style="--c:${x.color}" onclick="editCell('${id}', ${d}, ${h})" ${l.together ? `title="${L('באותה שעה בכל השכבה', 'Same time for the whole grade')}"` : ''}>
+              return `<td class="${ok ? '' : 'after'}"><button class="cs-lesson ${ok ? '' : 'bad'} ${l.together ? 'together' : ''}" style="--c:${x.color}" onclick="editCell('${id}', ${d}, ${t})" ${l.together ? `title="${L('באותה שעה בכל השכבה', 'Same time for the whole grade')}"` : ''}>
                 <span class="w7 xs">${x.icon} ${esc(subjName(l.subject))}${l.together ? ' 👥' : ''}</span>${teacher ? `<span class="xs muted truncate">${esc(teacher)}</span>` : ''}</button></td>`;
             }).join('')}
           </tr>`).join('')}
@@ -2633,7 +3023,7 @@ function classView(id) {
       </table>
     </div>
     <div class="mt-4">
-      <div class="xs w7 muted mb-2">${L('שעות לפי מקצוע (בפועל / נדרש)', 'Hours per subject (scheduled / required)')}</div>
+      <div class="xs w7 muted mb-2">${L('שעות לפי מקצוע (בפועל / נדרש)', 'Lessons per subject (scheduled / required)')}</div>
       <div class="flex wrap gap-2">
         ${keys.map(k => {
           const need = (p.subjects.find(x => x.key === k) || {}).hours || 0;
@@ -2653,18 +3043,18 @@ function clearSchedule(id) {
 }
 
 /* ---------- Edit one hour by hand ---------- */
-function editCell(id, day, hour) { cm.cell = { id, day, hour }; renderPage(); }
+function editCell(id, day, start) { cm.cell = { id, day, start }; renderPage(); }
 function cellEditor(id) {
-  const { day, hour } = cm.cell;
-  const l = lessonAt(id, day, hour);
+  const { day, start } = cm.cell;
+  const l = lessonAt(id, day, start);
   const p = plan(id);
   const options = [...new Set(p.subjects.map(x => x.key).concat(allSubjects().map(x => x.key)))];
-  const busy = l ? lessonClash(id, l.subject, l.teacher || teacherOf(id, l.subject), day, hour) : null;
+  const busy = l ? lessonClash(id, l.subject, l.teacher || teacherOf(id, l.subject), day, start) : null;
   return `
   <div class="modal-bg" onmousedown="if(event.target===this){cm.cell=null;renderPage()}">
     <div class="card r-3xl p-6 modal fade-up" role="dialog" aria-label="${L('עריכת שיעור', 'Edit lesson')}">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="display w8 lg">${sectionLabel(section(id))} · ${dayName(day)} ${timeRange(hour, hour + 1)}</h3>
+        <h3 class="display w8 lg">${sectionLabel(section(id))} · ${dayName(day)} ${tRange(start, lessonEnd(id, start))}</h3>
         <button class="icon-btn" style="width:2rem;height:2rem" onclick="cm.cell=null;renderPage()" aria-label="${L('סגירה', 'Close')}">${ICONS.close}</button>
       </div>
       <label class="label" for="cell-subject">${L('מקצוע', 'Subject')}</label>
@@ -2685,12 +3075,14 @@ function cellEditor(id) {
 /* Two classes can't have the same lesson at the same hour – unless different teachers are named.
    Subjects set to "same time for the whole grade" are the exception inside that grade. */
 function sameTimeSubject(key) { return school.prefs.syncSubjects.includes(key); }
-function lessonClash(id, subject, teacher, day, hour) {
+// Lessons of different grades can have different lengths, so "at the same time" means the times overlap
+function lessonClash(id, subject, teacher, day, start) {
   const me = section(id);
   const t = (teacher || '').trim().toLowerCase();
+  const end = lessonEnd(id, start);
   for (const s of school.sections) {
     if (s.id === id) continue;
-    const l = lessonAt(s.id, day, hour);
+    const l = schedule(s.id).find(x => x.day === day && x.start < end && lessonEnd(s.id, x.start) > start);
     if (!l) continue;
     const other = (l.teacher || teacherOf(s.id, l.subject)).trim().toLowerCase();
     if (t && other === t) return { id: s.id, teacher: teacher.trim(), kind: 'teacher' };
@@ -2704,95 +3096,131 @@ function clashText(c) {
     : L(`ל־${sectionLabel(section(c.id))} יש ${esc(subjName(c.subject))} באותה שעה. אותו שיעור בשתי כיתות במקביל – רק עם מורים שונים (רשמו מורה).`, `${sectionLabel(section(c.id))} has ${esc(subjName(c.subject))} at this time. The same lesson in two classes at once needs different teachers (add a teacher).`);
 }
 function saveCell() {
-  const { id, day, hour } = cm.cell;
+  const { id, day, start } = cm.cell;
   const key = document.getElementById('cell-subject').value;
   const teacher = document.getElementById('cell-teacher').value.trim();
-  const list = schedule(id).filter(l => !(l.day === day && l.hour === hour));
-  if (key) list.push({ day, hour, subject: key, ...(teacher ? { teacher } : {}) });
+  const list = schedule(id).filter(l => !(l.day === day && l.start === start));
+  if (key) list.push({ day, start, subject: key, ...(teacher ? { teacher } : {}) });
   school.schedules[id] = list;
   saveSchool();
   cm.cell = null;
   renderPage();
-  const clash = key ? lessonClash(id, key, teacher || teacherOf(id, key), day, hour) : null;
+  const clash = key ? lessonClash(id, key, teacher || teacherOf(id, key), day, start) : null;
   toast(clash ? L('נשמר – שימו לב להתנגשות', 'Saved – note the clash') : L('נשמר', 'Saved'));
-  if (clash) { cm.cell = { id, day, hour }; renderPage(); }
+  if (clash) { cm.cell = { id, day, start }; renderPage(); }
 }
 
-/* ================= Start/end times and breaks ================= */
+/* ================= Start/end times, bells and breaks ================= */
 function setTime(id, field, day, value) {
+  const v = parseT(value);
+  if (v == null) return;
   const p = plan(id);
-  p[field][day] = Number(value);
+  p[field][day] = v;
   if (p.starts[day] >= p.ends[day]) {
-    if (field === 'starts') p.ends[day] = p.starts[day] + 1; else p.starts[day] = p.ends[day] - 1;
+    if (field === 'starts') p.ends[day] = p.starts[day] + bellLen(section(id).grade); else p.starts[day] = Math.max(0, p.ends[day] - bellLen(section(id).grade));
   }
   saveSchool();
   renderPage();
 }
 function setGradeHours(grade) {
-  const start = Number(document.getElementById('bulk-start-' + grade).value);
-  const end = Number(document.getElementById('bulk-end-' + grade).value);
-  if (start >= end) { toast(L('שעת ההתחלה חייבת להיות לפני שעת הסיום', 'The start must be before the end')); return; }
+  const start = parseT(document.getElementById('bulk-start-' + grade).value);
+  const end = parseT(document.getElementById('bulk-end-' + grade).value);
+  if (start == null || end == null || start >= end) { toast(L('שעת ההתחלה חייבת להיות לפני שעת הסיום', 'The start must be before the end')); return; }
   gradeSections(grade).forEach(s => {
     const p = plan(s.id);
     p.starts = p.starts.map(() => start);
-    p.ends = p.ends.map((e, d) => (d === 4 ? Math.max(start + 1, Math.min(e, end)) : end));
+    p.ends = p.ends.map((e, d) => (d === 4 ? Math.max(start + bellLen(grade), Math.min(e, end)) : end));
   });
   saveSchool();
   renderPage();
-  toast(L(`${gradeLabel(grade)}: ${start}:00–${end}:00 (יום שישי לא מתארך)`, `${gradeLabel(grade)}: ${start}:00–${end}:00 (Friday is not made longer)`));
+  toast(L(`${gradeLabel(grade)}: ${fmtT(start)}–${fmtT(end)} (יום שישי לא מתארך)`, `${gradeLabel(grade)}: ${fmtT(start)}–${fmtT(end)} (Friday is not made longer)`));
+}
+function setBellLen(grade, value) {
+  school.bells[grade] = { ...(school.bells[grade] || {}), len: Number(value) };
+  saveSchool();
+  renderPage();
+  toast(L(`${gradeLabel(grade)}: שיעור של ${value} דקות. כדאי ליצור מחדש את המערכות של השכבה.`, `${gradeLabel(grade)}: ${value}-minute lessons. Regenerate the grade's schedules.`));
 }
 function addBreak(grade) {
-  const hour = Number(document.getElementById('brk-hour-' + grade).value);
+  const from = parseT(document.getElementById('brk-from-' + grade).value);
+  const to = parseT(document.getElementById('brk-to-' + grade).value);
   const dv = document.getElementById('brk-day-' + grade).value;
   const day = dv === 'all' ? 'all' : Number(dv);
+  if (from == null || to == null || to <= from) { toast(L('שעת הסיום של ההפסקה חייבת להיות אחרי שעת ההתחלה', 'The break must end after it starts')); return; }
+  if (to - from > 120) { toast(L('הפסקה ארוכה מדי (עד שעתיים)', 'That break is too long (2 hours max)')); return; }
   const list = school.breaks[grade] || (school.breaks[grade] = []);
-  if (list.some(b => b.hour === hour && (b.day === day || b.day === 'all'))) { toast(L('ההפסקה הזו כבר קיימת', 'That break already exists')); return; }
-  list.push({ day, hour });
-  list.sort((a, b) => a.hour - b.hour);
+  if (list.some(b => (b.day === day || b.day === 'all' || day === 'all') && b.from < to && b.to > from)) { toast(L('ההפסקה חופפת להפסקה אחרת', 'This break overlaps another one')); return; }
+  list.push({ day, from, to });
   saveSchool();
   renderPage();
 }
 function removeBreak(grade, i) {
-  (school.breaks[grade] || []).splice(i, 1);
+  const list = gradeBreaks(grade);
+  const b = list[i];
+  school.breaks[grade] = (school.breaks[grade] || []).filter(x => x !== b && !(x.from === b.from && x.to === b.to && x.day === b.day));
   saveSchool();
   renderPage();
 }
+function bellPreview(g) {
+  const sec = gradeSections(g)[0];
+  if (!sec) return '';
+  const list = periods(sec.id, 0);
+  // a lesson that doesn't fit before a break leaves dead time: say so
+  const waste = [];
+  list.forEach((x, i) => {
+    const next = list[i + 1];
+    if (!next || next.start <= x.end) return;
+    const inBreaks = gradeBreaks(g).filter(b => (b.day === 'all' || b.day === 0) && b.from >= x.end && b.to <= next.start).reduce((n, b) => n + b.to - b.from, 0);
+    if (next.start - x.end - inBreaks >= 10) waste.push({ from: x.end, to: next.start, lost: next.start - x.end - inBreaks });
+  });
+  return `${waste.length ? `<div class="warn-box mb-2">⏳ ${waste.map(w => L(`בין ${fmtT(w.from)} ל־${fmtT(w.to)} מתבזבזות ${w.lost} דקות, כי שיעור של ${bellLen(g)} דקות לא נכנס לפני ההפסקה. כדאי להזיז את ההפסקה או לשנות את אורך השיעור.`, `${w.lost} minutes are lost between ${fmtT(w.from)} and ${fmtT(w.to)}: a ${bellLen(g)}-minute lesson doesn't fit before the break. Move the break or change the lesson length.`)).join('<br>')}</div>` : ''}
+  <div class="bell-strip" aria-label="${L('לוח צלצולים', 'Bell schedule')}">${list.map((x, i) => {
+    const next = list[i + 1];
+    const gap = next && next.start > x.end ? `<span class="bell-gap">🔔 ${tRange(x.end, next.start)}</span>` : '';
+    return `<span class="bell-slot"><b>${i + 1}</b> ${tRange(x.start, x.end)}</span>${gap}`;
+  }).join('')}</div>`;
+}
 function hoursTab() {
-  const timeSel = (id, field, d, value, choices) => `<select class="input input-sm" aria-label="${sectionLabel(section(id))} ${dayName(d)} ${field === 'starts' ? L('התחלה', 'start') : L('סיום', 'end')}" onchange="setTime('${id}', '${field}', ${d}, this.value)">
-    ${choices.map(h => `<option value="${h}" ${h === value ? 'selected' : ''}>${h}:00</option>`).join('')}</select>`;
+  const timeIn = (id, field, d, value) => `<input type="time" step="300" class="input input-sm t-in" value="${inputT(value)}" aria-label="${sectionLabel(section(id))} ${dayName(d)} ${field === 'starts' ? L('התחלה', 'start') : L('סיום', 'end')}" onchange="setTime('${id}', '${field}', ${d}, this.value)">`;
   return `
   <div class="card r-3xl p-5">
-    <h2 class="display w8 lg">🕒 ${L('שעות לימוד והפסקות', 'School hours & breaks')}</h2>
-    <p class="xs muted mt-1 mb-4">${L('לכל כיתה – שעת התחלה ושעת סיום בכל יום. ההפסקות נקבעות לכל השכבה, וכל שכבה יכולה לקבל שעות הפסקה אחרות. המחולל לא ישבץ שיעורים מחוץ לשעות או בהפסקה.', 'Each class has a start and an end time for each day. Breaks are set for a whole grade, and each grade can have its own break times. The generator never places lessons outside these hours or in a break.')}</p>
+    <h2 class="display w8 lg">🕒 ${L('שעות לימוד, צלצולים והפסקות', 'School hours, bells & breaks')}</h2>
+    <p class="xs muted mt-1 mb-4">${L('לכל שכבה – אורך שיעור והפסקות (משעה עד שעה, בדקות). לכל כיתה – שעת התחלה ושעת סיום בכל יום. השיעורים נקבעים לפי זה, והמחולל לא ישבץ שיעור מחוץ לשעות או בהפסקה.', 'For each grade, the lesson length and breaks (from–to, to the minute). For each class, a start and end time per day. Lesson times follow from these, and the generator never places a lesson outside them or in a break.')}</p>
     ${GRADES.map(g => `
       <div class="hours-grade">
         <div class="flex items-center justify-between wrap gap-2 mb-2">
           <h3 class="w8">${gradeLabel(g)}</h3>
           <div class="flex items-center gap-2 wrap">
-            <span class="xs muted">${L('לכל השכבה:', 'Whole grade:')}</span>
-            <select id="bulk-start-${g}" class="input input-sm" aria-label="${L('שעת התחלה לכל השכבה', 'Start time for the whole grade')}">${START_CHOICES.map(h => `<option value="${h}" ${h === 8 ? 'selected' : ''}>${h}:00</option>`).join('')}</select>
+            <label class="xs muted" for="len-${g}">${L('אורך שיעור:', 'Lesson length:')}</label>
+            <select id="len-${g}" class="input input-sm" onchange="setBellLen(${g}, this.value)">${LESSON_LENGTHS.map(n => `<option value="${n}" ${bellLen(g) === n ? 'selected' : ''}>${L(`${n} דק׳`, `${n} min`)}</option>`).join('')}</select>
+            <span class="xs muted">· ${L('לכל השכבה:', 'Whole grade:')}</span>
+            <input type="time" step="300" id="bulk-start-${g}" class="input input-sm t-in" value="08:00" aria-label="${L('שעת התחלה לכל השכבה', 'Start time for the whole grade')}">
             <span class="xs muted">–</span>
-            <select id="bulk-end-${g}" class="input input-sm" aria-label="${L('שעת סיום לכל השכבה', 'End time for the whole grade')}">${END_CHOICES.map(h => `<option value="${h}" ${h === 15 ? 'selected' : ''}>${h}:00</option>`).join('')}</select>
+            <input type="time" step="300" id="bulk-end-${g}" class="input input-sm t-in" value="15:00" aria-label="${L('שעת סיום לכל השכבה', 'End time for the whole grade')}">
             <button class="btn btn-soft btn-sm" onclick="setGradeHours(${g})">${L('החלה', 'Apply')}</button>
           </div>
         </div>
         <div class="brk-bar">
           <span class="xs w8">🔔 ${L('הפסקות השכבה:', 'Grade breaks:')}</span>
-          ${gradeBreaks(g).map((b, i) => `<span class="brk-chip">${timeRange(b.hour, b.hour + 1)} · ${b.day === 'all' ? L('כל יום', 'every day') : dayName(b.day)}
+          ${gradeBreaks(g).map((b, i) => `<span class="brk-chip">${tRange(b.from, b.to)} · ${b.day === 'all' ? L('כל יום', 'every day') : dayName(b.day)}
             <button onclick="removeBreak(${g}, ${i})" aria-label="${L('מחיקת הפסקה', 'Remove break')}">×</button></span>`).join('') || `<span class="xs muted">${L('אין הפסקות', 'No breaks')}</span>`}
           <span class="flex items-center gap-1 wrap" style="margin-inline-start:auto">
-            <select id="brk-hour-${g}" class="input input-sm" aria-label="${L('שעת ההפסקה', 'Break time')}">${BREAK_CHOICES.map(h => `<option value="${h}" ${h === 10 ? 'selected' : ''}>${h}:00–${h + 1}:00</option>`).join('')}</select>
+            <label class="xs muted" for="brk-from-${g}">${L('מ־', 'From')}</label>
+            <input type="time" step="300" id="brk-from-${g}" class="input input-sm t-in" value="10:00">
+            <label class="xs muted" for="brk-to-${g}">${L('עד', 'to')}</label>
+            <input type="time" step="300" id="brk-to-${g}" class="input input-sm t-in" value="10:15">
             <select id="brk-day-${g}" class="input input-sm" aria-label="${L('יום', 'Day')}"><option value="all">${L('כל יום', 'Every day')}</option>${[0, 1, 2, 3, 4].map(d => `<option value="${d}">${dayName(d)}</option>`).join('')}</select>
             <button class="btn btn-soft btn-sm" onclick="addBreak(${g})">＋ ${L('הפסקה', 'Break')}</button>
           </span>
         </div>
+        ${bellPreview(g)}
         <div class="hours-table-wrap">
           <table class="hours-table">
-            <thead><tr><th>${L('כיתה', 'Class')}</th>${DAY_NAMES.en.map((_, d) => `<th>${dayName(d)}</th>`).join('')}<th>${L('שעות בשבוע', 'Hours/week')}</th></tr></thead>
+            <thead><tr><th>${L('כיתה', 'Class')}</th>${DAY_NAMES.en.map((_, d) => `<th>${dayName(d)}</th>`).join('')}<th>${L('שיעורים בשבוע', 'Lessons/week')}</th></tr></thead>
             <tbody>
               ${gradeSections(g).map(s => `<tr>
                 <th><button class="link-btn sm w7" onclick="cm.tab='classes';selectClass('${s.id}')">${sectionLabel(s)}</button></th>
-                ${[0, 1, 2, 3, 4].map(d => `<td><div class="time-pair">${timeSel(s.id, 'starts', d, plan(s.id).starts[d], START_CHOICES)}<span class="xs muted">–</span>${timeSel(s.id, 'ends', d, plan(s.id).ends[d], END_CHOICES)}</div></td>`).join('')}
+                ${[0, 1, 2, 3, 4].map(d => `<td><div class="time-pair">${timeIn(s.id, 'starts', d, plan(s.id).starts[d])}<span class="xs muted">–</span>${timeIn(s.id, 'ends', d, plan(s.id).ends[d])}</div><div class="xs muted">${L(`${periods(s.id, d).length} שיעורים`, `${periods(s.id, d).length} lessons`)}</div></td>`).join('')}
                 <td class="mono w7 ${requiredHours(s.id) > capacity(s.id) ? 'bad-text' : ''}" title="${L('נדרש / פנוי', 'required / available')}">${requiredHours(s.id)}/${capacity(s.id)}</td>
               </tr>`).join('') || `<tr><td colspan="7" class="xs muted">${L('אין כיתות בשכבה.', 'No classes in this grade.')}</td></tr>`}
             </tbody>
@@ -3032,56 +3460,71 @@ function buildUnits(id, prefs, reserved) {
   });
   return units;
 }
-// What an hour is booked under: the named teacher, or – with no teacher – the subject itself
-function bookingKey(subject, teacher, d, h) { return teacher ? `t:${teacher.toLowerCase()}|${d}|${h}` : `s:${subject}|${d}|${h}`; }
+/* Bookings. A lesson with no teacher named might be anyone's, so it blocks every lesson of the
+   same subject at that time; a named teacher blocks that teacher and the subject's unnamed lessons. */
+function bookingKeys(subject, teacher) { return teacher ? [`t:${teacher.toLowerCase()}`, `sa:${subject}`] : [`sb:${subject}`, `sa:${subject}`]; }
+function blockingKeys(subject, teacher) { return teacher ? [`t:${teacher.toLowerCase()}`, `sb:${subject}`] : [`sa:${subject}`]; }
+// Bookings are time ranges, because grades can have different lesson lengths and breaks
+function makeBusy(fixed) {
+  const map = new Map();
+  const add = (key, d, a, b) => { const k = key + '|' + d; if (!map.has(k)) map.set(k, []); map.get(k).push([a, b]); };
+  (fixed || []).forEach(x => add(x.key, x.day, x.start, x.end));
+  return { add, has: (key, d, a, b) => (map.get(key + '|' + d) || []).some(([x, y]) => x < b && y > a) };
+}
 
 /* Grade-wide subjects (same time in every class of the grade) are placed first, then
-   each class's other lessons. Hard rules: start/end times, grade breaks, one lesson per
-   hour, no teacher in two places, and the same lesson in two classes at once only with
-   different teachers. Preferences only change the score; the best of many attempts wins. */
+   each class's other lessons. Hard rules: the class's lesson times (start/end, bells,
+   breaks), one lesson at a time, no teacher in two places, and the same lesson in two
+   classes at once only with different teachers. Preferences only change the score;
+   the best of many attempts wins. */
 function attempt(ids, prefs, seed, busyFixed) {
   const rand = rng(seed);
-  const busy = new Set(busyFixed);
-  const grids = {}, result = {}, allowed = {}, reserved = {};
+  const busy = makeBusy(busyFixed);
+  const grids = {}, result = {}, slots = {}, reserved = {};
   const syncReport = [];
   let penalty = 0;
   ids.forEach(id => {
     grids[id] = [0, 1, 2, 3, 4].map(() => ({}));
-    allowed[id] = [0, 1, 2, 3, 4].map(d => lessonHours(id, d));
+    slots[id] = [0, 1, 2, 3, 4].map(d => periods(id, d));
     result[id] = [];
     reserved[id] = {};
   });
-  const dayFits = (id, d, h, u) => {
-    for (let k = 0; k < u.len; k++) if (!allowed[id][d].includes(h + k) || grids[id][d][h + k]) return false;
-    return Object.values(grids[id][d]).filter(x => x === u.subject).length + u.len <= prefs.maxPerDay;
+  // the lesson times a unit takes when it starts at slot i (doubles: two lessons back to back)
+  const span = (id, d, i, len) => {
+    const list = slots[id][d];
+    const out = list.slice(i, i + len);
+    if (out.length < len) return null;
+    for (let k = 1; k < out.length; k++) if (out[k].start !== out[k - 1].end) return null;
+    return out;
   };
-  const free = (subject, teacher, d, h, len) => {
-    for (let k = 0; k < len; k++) if (busy.has(bookingKey(subject, teacher, d, h + k))) return false;
-    return true;
-  };
-  const scoreFor = (id, d, h, u) => {
+  const dayFits = (id, d, sp, u) => sp && sp.every(x => !grids[id][d][x.start])
+    && Object.values(grids[id][d]).filter(x => x === u.subject).length + u.len <= prefs.maxPerDay;
+  const free = (subject, teacher, d, sp) => sp.every(x => blockingKeys(subject, teacher).every(k => !busy.has(k, d, x.start, x.end)));
+  const scoreFor = (id, d, i, u) => {
     const grid = grids[id][d];
+    const list = slots[id][d];
     const dayLessons = Object.values(grid);
-    const open = allowed[id][d].filter(x => !grid[x]);
-    let score = Math.max(0, open.indexOf(h)) * 3;                          // keep the day without holes
-    score += (dayLessons.length / Math.max(1, allowed[id][d].length)) * 4;  // spread over the week
+    const open = list.filter(x => !grid[x.start]);
+    let score = Math.max(0, open.findIndex(x => x.start === list[i].start)) * 3;   // keep the day without holes
+    score += (dayLessons.length / Math.max(1, list.length)) * 4;                    // spread over the week
     if (dayLessons.includes(u.subject)) score += 5;
     if (prefs.groupRelated) {
       const group = subj(u.subject).group;
       if (dayLessons.some(k => k !== u.subject && subj(k).group === group)) score -= 3;
-      if ([grid[h - 1], grid[h + u.len]].some(k => k && k !== u.subject && subj(k).group === group)) score -= 2;
+      const before = list[i - 1] && grid[list[i - 1].start], after = list[i + u.len] && grid[list[i + u.len].start];
+      if ([before, after].some(k => k && k !== u.subject && subj(k).group === group)) score -= 2;
     }
     return score;
   };
-  const put = (id, d, h, u) => {
-    for (let k = 0; k < u.len; k++) {
-      grids[id][d][h + k] = u.subject;
-      result[id].push({ day: d, hour: h + k, subject: u.subject, ...(u.together ? { together: true } : {}) });
-      busy.add(bookingKey(u.subject, u.teacher, d, h + k));
-    }
+  const put = (id, d, sp, u) => {
+    sp.forEach(x => {
+      grids[id][d][x.start] = u.subject;
+      result[id].push({ day: d, start: x.start, subject: u.subject, ...(u.together ? { together: true } : {}) });
+      bookingKeys(u.subject, u.teacher).forEach(k => busy.add(k, d, x.start, x.end));
+    });
   };
 
-  // 1. grade-wide subjects: one slot for every class of the grade at once
+  // 1. grade-wide subjects: the same start time in every class of the grade
   [...new Set(ids.map(id => section(id).grade))].forEach(g => {
     const secs = ids.filter(id => section(id).grade === g);
     prefs.syncSubjects.forEach(key => {
@@ -3093,19 +3536,22 @@ function attempt(ids, prefs, seed, busyFixed) {
       if (dup) { syncReport.push({ grade: g, key, problem: 'teacher', teacher: teachers.find(t => t.toLowerCase() === dup) }); return; }
       const n = Math.min(...rows.map(x => Number(x.row.hours) || 0));
       let placed = 0;
-      shuffle(unitsFor(key, n, '', n, prefs), rand).sort((a, b) => b.len - a.len).forEach(base => {
+      shuffled(unitsFor(key, n, '', n, prefs), rand).sort((a, b) => b.len - a.len).forEach(base => {
         let best = null;
         for (let d = 0; d < 5; d++) {
-          [...new Set(rows.flatMap(x => allowed[x.id][d]))].forEach(h => {
-            // every class must have the hour free, and its own teacher (or, with none named, the subject) must be free
-            const ok = rows.every((x, i) => dayFits(x.id, d, h, base) && free(key, teachers[i], d, h, base.len));
+          const times = [...new Set(rows.flatMap(x => slots[x.id][d].map(y => y.start)))];
+          times.forEach(t => {
+            const spans = rows.map(x => { const i = slots[x.id][d].findIndex(y => y.start === t); return i < 0 ? null : { i, sp: span(x.id, d, i, base.len) }; });
+            if (spans.some(z => !z || !z.sp)) return;
+            // nothing of this unit is booked yet, so the grade's classes don't block one another here
+            const ok = rows.every((x, k) => dayFits(x.id, d, spans[k].sp, base) && free(key, teachers[k], d, spans[k].sp));
             if (!ok) return;
-            const score = rows.reduce((sum, x) => sum + scoreFor(x.id, d, h, base), 0) / rows.length + rand() * 0.4;
-            if (!best || score < best.score) best = { d, h, score };
+            const score = rows.reduce((sum, x, k) => sum + scoreFor(x.id, d, spans[k].i, base), 0) / rows.length + rand() * 0.4;
+            if (!best || score < best.score) best = { d, spans, score };
           });
         }
         if (!best) return;
-        rows.forEach((x, i) => put(x.id, best.d, best.h, { ...base, teacher: teachers[i], together: true }));
+        rows.forEach((x, k) => put(x.id, best.d, best.spans[k].sp, { ...base, teacher: teachers[k], together: true }));
         placed += base.len;
         penalty += best.score;
       });
@@ -3115,31 +3561,34 @@ function attempt(ids, prefs, seed, busyFixed) {
   });
 
   // 2. everything else, class by class
-  shuffle(ids.slice(), rand).forEach(id => {
+  shuffled(ids, rand).forEach(id => {
     const units = buildUnits(id, prefs, reserved[id]);
-    shuffle(units, rand).sort((a, b) => (b.len - a.len) || (b.hours - a.hours) || ((a.teacher ? 0 : 1) - (b.teacher ? 0 : 1)));
+    shuffled(units, rand).sort((a, b) => (b.len - a.len) || (b.hours - a.hours) || ((a.teacher ? 0 : 1) - (b.teacher ? 0 : 1)));
     units.forEach(u => {
       let best = null;
       for (let d = 0; d < 5; d++) {
-        allowed[id][d].forEach(h => {
-          if (!dayFits(id, d, h, u) || !free(u.subject, u.teacher, d, h, u.len)) return;
-          const score = scoreFor(id, d, h, u) + rand() * 0.4;
-          if (!best || score < best.score) best = { d, h, score };
+        slots[id][d].forEach((_, i) => {
+          const sp = span(id, d, i, u.len);
+          if (!dayFits(id, d, sp, u) || !free(u.subject, u.teacher, d, sp)) return;
+          const score = scoreFor(id, d, i, u) + rand() * 0.4;
+          if (!best || score < best.score) best = { d, sp, score };
         });
       }
       if (!best) { penalty += 1000 * u.len; return; }
-      put(id, best.d, best.h, u);
+      put(id, best.d, best.sp, u);
       penalty += best.score;
     });
   });
   // holes inside a day
   ids.forEach(id => grids[id].forEach((day, d) => {
-    const hs = Object.keys(day).map(Number);
-    if (hs.length) penalty += allowed[id][d].filter(h => h < Math.max(...hs) && !day[h]).length * 20;
+    const used = slots[id][d].map(x => !!day[x.start]);
+    const last = used.lastIndexOf(true);
+    if (last > 0) penalty += used.slice(0, last).filter(x => !x).length * 20;
   }));
   syncReport.forEach(r => { if (r.hours != null) penalty += (r.hours - r.placed) * 1000; });
   return { result, penalty, syncReport };
 }
+function shuffled(arr, rand) { return shuffle(arr.slice(), rand); }
 
 function runGenerator() {
   const ids = [...cm.genSel].filter(section);
@@ -3150,7 +3599,7 @@ function runGenerator() {
   // teachers of classes that are not being regenerated are busy at their lessons
   const busyFixed = [];
   school.sections.filter(s => !ids.includes(s.id)).forEach(s => schedule(s.id).forEach(l => {
-    busyFixed.push(bookingKey(l.subject, (l.teacher || teacherOf(s.id, l.subject)).trim(), l.day, l.hour));
+    bookingKeys(l.subject, (l.teacher || teacherOf(s.id, l.subject)).trim()).forEach(key => busyFixed.push({ key, day: l.day, start: l.start, end: lessonEnd(s.id, l.start) }));
   }));
   const tries = Math.max(12, Math.min(60, Math.round(600 / ids.length)));
   let best = null;

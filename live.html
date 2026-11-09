@@ -423,6 +423,7 @@ body.jmodal-open { overflow: hidden; }
 .req-kind.justify { color: #0369A1; background: #0EA5E91f; }
 .dark .req-kind.justify { color: #7DD3FC; } .dark .req-kind.grade { color: #C4B5FD; }
 .count-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; height: 1.5rem; padding: 0 0.4375rem; margin-inline-start: 0.375rem; border-radius: 9999px; background: #F43F5E; color: #fff; font-size: 0.8125rem; font-weight: 800; vertical-align: middle; }
+.sreq-note { padding: 0.625rem 0.75rem; border-radius: 0.75rem; background: color-mix(in srgb, var(--primary) 8%, transparent); font-size: 0.8125rem; line-height: 1.5; }
 
 /* ===================== Page styles ===================== */
 /* Live lesson layout: video + attendance panel */
@@ -639,8 +640,8 @@ function teacherStudentCount() { return teacherClasses().reduce((sum, c) => sum 
 /* ================= Translations ================= */
 const translations = {
   he: {
-    home: 'בית', schedule: 'מערכת', timetable: 'עריכת מערכת', classes: 'כיתות ומערכות', live: 'שיעור חי', tasks: 'משימות', grades: 'ציונים', path: 'מסלול', library: 'ספרייה', settings: 'הגדרות',
-    student: 'תלמיד', teacher: 'מורה', principal: 'מנהל/ת', notifications: 'התראות', markAllRead: 'סימון הכול כנקרא',
+    home: 'בית', schedule: 'מערכת', timetable: 'עריכת מערכת', classes: 'כיתות ומערכות', live: 'שיעור חי', tasks: 'משימות', grades: 'ציונים', path: 'עבודות הכיתה', library: 'ספרייה', settings: 'הגדרות',
+    student: 'תלמיד', teacher: 'מורה', principal: 'מנהל/ת', coordinator: 'רכז/ת לימודים', achievements: 'הישגים', notifications: 'התראות', markAllRead: 'סימון הכול כנקרא',
     joinClass: 'הצטרפות לכיתה עם QR', profile: 'פרופיל', help: 'עזרה', signOut: 'יציאה', grade: 'כיתה י״א',
     appSettings: 'הגדרות האפליקציה', settingsSubtitle: 'התאימו את CoolSchool לאופן שבו נוח לכם ללמוד.',
     language: 'שפה', languageDescription: 'בחרו את שפת הממשק. השינוי נשמר אוטומטית.',
@@ -653,8 +654,8 @@ const translations = {
     teacherAverageExplanation: 'במצב מורה מוצג הממוצע הכיתתי של התלמידים בכיתה שנבחרה כעת.',
   },
   en: {
-    home: 'Home', schedule: 'Schedule', timetable: 'Timetable', classes: 'Classes', live: 'Live lesson', tasks: 'Tasks', grades: 'Grades', path: 'Path', library: 'Library', settings: 'Settings',
-    student: 'Student', teacher: 'Teacher', principal: 'Principal', notifications: 'Notifications', markAllRead: 'Mark all read',
+    home: 'Home', schedule: 'Schedule', timetable: 'Timetable', classes: 'Classes', live: 'Live lesson', tasks: 'Tasks', grades: 'Grades', path: 'Classwork', library: 'Library', settings: 'Settings',
+    student: 'Student', teacher: 'Teacher', principal: 'Principal', coordinator: 'Academic coordinator', achievements: 'Results', notifications: 'Notifications', markAllRead: 'Mark all read',
     joinClass: 'Join Class with QR', profile: 'Profile', help: 'Help', signOut: 'Sign Out', grade: 'Grade 11',
     appSettings: 'App Settings', settingsSubtitle: 'Make CoolSchool work the way you like to learn.',
     language: 'Language', languageDescription: 'Choose the interface language. Your choice is saved automatically.',
@@ -667,8 +668,8 @@ const translations = {
     teacherAverageExplanation: 'In teacher mode, this is the class average for the currently selected class.',
   },
   ar: {
-    home: 'الرئيسية', schedule: 'الجدول', timetable: 'تحرير الجدول', classes: 'الصفوف والجداول', live: 'درس مباشر', tasks: 'المهام', grades: 'العلامات', path: 'المسار', library: 'المكتبة', settings: 'الإعدادات',
-    student: 'طالب', teacher: 'معلّم', principal: 'المدير', notifications: 'الإشعارات', markAllRead: 'تحديد الكل كمقروء',
+    home: 'الرئيسية', schedule: 'الجدول', timetable: 'تحرير الجدول', classes: 'الصفوف والجداول', live: 'درس مباشر', tasks: 'المهام', grades: 'العلامات', path: 'أعمال الصف', library: 'المكتبة', settings: 'الإعدادات',
+    student: 'طالب', teacher: 'معلّم', principal: 'المدير', coordinator: 'منسّق/ة الدراسة', achievements: 'الإنجازات', notifications: 'الإشعارات', markAllRead: 'تحديد الكل كمقروء',
     joinClass: 'الانضمام إلى صف عبر QR', profile: 'الملف الشخصي', help: 'المساعدة', signOut: 'تسجيل الخروج', grade: 'الصف الحادي عشر',
     appSettings: 'إعدادات التطبيق', settingsSubtitle: 'خصص CoolSchool بالطريقة التي تناسب تعلمك.',
     language: 'اللغة', languageDescription: 'اختر لغة الواجهة. يتم حفظ اختيارك تلقائياً.',
@@ -737,6 +738,7 @@ const SEED_USERS = [
   { id: 'u-levi', role: 'teacher', firstName: 'Dr.', lastName: 'Levi', email: 'levi@coolschool.demo', status: 'active', classIds: ['bio11a'] },
   { id: 'u-noa', role: 'student', firstName: 'Noa', lastName: 'Ben-David', email: 'noa@coolschool.demo', status: 'active', grade: '11' },
   { id: 'u-shapiro', role: 'teacher', firstName: 'Ms.', lastName: 'Shapiro', email: 'shapiro@coolschool.demo', status: 'pending', classIds: ['eng11'] },
+  { id: 'u-coord', role: 'coordinator', firstName: 'Dana', lastName: 'Katz', email: 'coordinator@coolschool.demo', status: 'active', addedLater: true },
 ];
 const DEMO_USER_IDS = ['u-levi', 'u-noa'];   // the built-in sample data belongs to these two
 
@@ -769,7 +771,17 @@ async function hashPassword(password, salt) {
 }
 
 async function ensureSeedUsers() {
-  if (load(USERS_KEY, null)) return;
+  const existing = load(USERS_KEY, null);
+  if (existing) {
+    // demo accounts added in a later version join browsers that already have users
+    const missing = SEED_USERS.filter(u => u.addedLater && !existing.some(x => x.id === u.id));
+    for (const u of missing) {
+      const salt = newSalt();
+      existing.push({ ...u, salt, passwordHash: await hashPassword(DEMO_PASSWORD, salt), createdAt: '2026-11-01' });
+    }
+    if (missing.length) saveUsers(existing);
+    return;
+  }
   const users = [];
   for (const u of SEED_USERS) {
     const salt = newSalt();
@@ -809,6 +821,8 @@ if (window.AUTH_PAGE && CURRENT_USER) location.replace('home.html');
 function currentUserName() { return CURRENT_USER ? fullName(CURRENT_USER) : ''; }
 function isDemoUser() { return !!CURRENT_USER && DEMO_USER_IDS.includes(CURRENT_USER.id); }
 function isPrincipal() { return !!CURRENT_USER && CURRENT_USER.role === 'principal'; }
+function isCoordinator() { return !!CURRENT_USER && CURRENT_USER.role === 'coordinator'; }
+function isStaffAdmin() { return isPrincipal() || isCoordinator(); }
 
 const state = {
   language: load('cs-language', 'he'),
@@ -836,8 +850,10 @@ function inboxNotifs() {
     const name = about ? localize(fullName(about)) : '';
     const base = { id: m.id, inbox: true, read: m.read, readAt: m.readAt, time: fmtDate(m.date, { day: 'numeric', month: 'short' }) };
     if (m.kind === 'teacher-pending') {
+      const coord = about && about.role === 'coordinator';
       return { ...base, type: 'approval', pendingUser: about && about.status === 'pending' ? about.id : null,
-        text: L(`${name} נרשם/ה כמורה וממתין/ה לאישורך`, `${name} registered as a teacher and is waiting for your approval`) };
+        text: coord ? L(`${name} נרשם/ה כרכז/ת לימודים וממתין/ה לאישורך`, `${name} registered as academic coordinator and is waiting for your approval`)
+          : L(`${name} נרשם/ה כמורה וממתין/ה לאישורך`, `${name} registered as a teacher and is waiting for your approval`) };
     }
     if (m.kind === 'timetable-updated') {
       const count = (m.extra && m.extra.count) || 0;
@@ -888,6 +904,21 @@ function inboxNotifs() {
         text: x.status === 'approved'
           ? L(`${name} עדכן/ה את הציון שלך ב${what}: ${x.oldGrade} ← ${x.newGrade}`, `${name} updated your grade for ${what}: ${x.oldGrade} → ${x.newGrade}`)
           : L(`${name} השאיר/ה את הציון שלך ב${what} ללא שינוי`, `${name} kept your grade for ${what} unchanged`) };
+    }
+    if (m.kind === 'tt-feedback' || m.kind === 'tt-feedback-result' || m.kind === 'complaint' || m.kind === 'complaint-result') {
+      const x = m.extra || {};
+      const link = 'home.html#sreq=' + encodeURIComponent(x.id || '');
+      const st = SREQ_STATUS[x.status] || SREQ_STATUS.new;
+      if (m.kind === 'tt-feedback') return { ...base, type: 'tt-req', link, jid: x.id,
+        text: x.type === 'complaint' ? L(`${name} שלח/ה תלונה על מערכת השעות`, `${name} sent a timetable complaint`) : L(`${name} שלח/ה הצעה למערכת השעות`, `${name} sent a timetable suggestion`) };
+      if (m.kind === 'complaint') return { ...base, type: 'complaint', link, jid: x.id, text: L(`${name} שלח/ה פנייה על מורה`, `${name} sent a complaint about a teacher`) };
+      return { ...base, type: 'tt-req', link, jid: x.id, text: L(`${name} עדכן/ה את הפנייה שלך: ${st.he}`, `${name} updated your request: ${st.en}`) };
+    }
+    if (m.kind === 'assignment-new') {
+      const x = m.extra || {};
+      const cls = classes.find(c => c.id === x.classId);
+      return { ...base, type: 'grade', link: 'tasks.html',
+        text: L(`${name} פרסם/ה מטלה חדשה: ${x.title || ''} · ${cls ? localize(cls.name) : ''}`, `${name} posted a new assignment: ${x.title || ''} · ${cls ? cls.name : ''}`) };
     }
     if (m.kind === 'path-published') {
       const x = m.extra || {};
@@ -990,6 +1021,7 @@ const ICONS = {
   schedule: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
   grades: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
   path: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>',
+  achievements: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/><circle cx="16" cy="9" r="2"/></svg>',
   timetable: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 10h18M8 2v4M16 2v4M10 14h1v4M14 14l-1.5 4"/><path d="M17 15l2-2 2 2-4 4h-2v-2z" fill="currentColor" stroke="none"/></svg>',
   classes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 15h7M14 18h7M14 21h4"/></svg>',
   tasks: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 3v2h6V3M8 11l2 2 4-4M8 17h8"/></svg>',
@@ -999,6 +1031,7 @@ const ICONS = {
 
 const NAV = [
   { href: 'home.html', key: 'home' },
+  { href: 'achievements.html', key: 'achievements' },
   { href: 'schedule.html', key: 'schedule' },
   { href: 'grades.html', key: 'grades' },
   { href: 'tasks.html', key: 'tasks' },
@@ -1010,7 +1043,7 @@ const NAV = [
 
 /* ================= Header ================= */
 function notifIcon(type) {
-  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'grade-req': '📝', path: '🗺️', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
+  return { live: '🔴', grade: '📝', exam: '📋', xp: '⭐', timetable: '🗓️', approval: '🧑‍🏫', approved: '✅', justify: '📨', 'grade-req': '📝', path: '🗺️', 'tt-req': '🗓️', complaint: '📨', 'justify-ok': '✅', 'justify-no': '❌' }[type] || '📌';
 }
 
 function renderHeader() {
@@ -1128,11 +1161,14 @@ function renderSidebar(active) {
   </aside>`;
 }
 
-const PRINCIPAL_PAGES = ['home', 'classes', 'settings'];
+const PRINCIPAL_PAGES = ['home', 'achievements', 'classes', 'settings'];
+// The academic coordinator runs the timetable
+const COORDINATOR_PAGES = ['home', 'classes', 'settings'];
 // Students get Tasks instead of the learning path; teachers keep the path
 function navAllowed(item) {
   if (isPrincipal()) return PRINCIPAL_PAGES.includes(item.key);
-  if (item.key === 'timetable' || item.key === 'classes') return false;
+  if (isCoordinator()) return COORDINATOR_PAGES.includes(item.key);
+  if (['timetable', 'classes', 'achievements'].includes(item.key)) return false;
   if (item.key === 'tasks') return state.role === 'student';
   if (item.key === 'path') return state.role === 'teacher';
   return true;
@@ -1142,7 +1178,7 @@ function navAllowed(item) {
 function reviewTeacher(id, approve) {
   if (!isPrincipal()) return;
   const users = loadUsers();
-  const teacher = users.find(u => u.id === id && u.role === 'teacher');
+  const teacher = users.find(u => u.id === id && (u.role === 'teacher' || u.role === 'coordinator'));
   if (!teacher || teacher.status !== 'pending') return;
   teacher.status = approve ? 'active' : 'rejected';
   teacher.reviewedBy = CURRENT_USER.id;
@@ -1153,7 +1189,7 @@ function reviewTeacher(id, approve) {
   if (approve) sendInbox(id, 'teacher-approved', CURRENT_USER.id);
   renderAll();
   toast(approve
-    ? L(`${localize(fullName(teacher))} אושר/ה כמורה`, `${fullName(teacher)} was approved as a teacher`)
+    ? L(`${localize(fullName(teacher))} אושר/ה כ${teacher.role === 'coordinator' ? 'רכז/ת לימודים' : 'מורה'}`, `${fullName(teacher)} was approved as ${teacher.role === 'coordinator' ? 'academic coordinator' : 'a teacher'}`)
     : L(`הבקשה של ${localize(fullName(teacher))} נדחתה`, `${fullName(teacher)}'s request was declined`));
 }
 function approveTeacher(id) { reviewTeacher(id, true); }
@@ -1249,6 +1285,32 @@ async function uploadWork(assignmentId, input) {
 }
 
 function allAssignments() { return load('cs-teacher-assignments', null) || assignments; }
+function saveAssignments(list) { save('cs-teacher-assignments', list); }
+
+/* Hand in (or update) a student's work: a written answer and/or files. Files picked before
+   stay unless new ones are chosen. */
+async function submitWork(assignmentId, text, picked) {
+  const total = (picked || []).reduce((sum, f) => sum + f.size, 0);
+  if (total > MAX_UPLOAD_BYTES) { toast(L('הקבצים גדולים מדי (עד 2MB בגרסת ההדגמה)', 'Files are too large (2 MB max in this demo)')); return false; }
+  let files;
+  try { files = await Promise.all((picked || []).map(async f => ({ name: f.name, type: f.type, size: f.size, dataUrl: await readAsDataUrl(f) }))); }
+  catch (e) { toast(L('לא הצלחנו לקרוא את הקובץ', 'Could not read the file')); return false; }
+  const before = reviewQueue().find(q => q.assignmentId === assignmentId && q.student === currentUserName());
+  if (!files.length && before && before.files) files = before.files;
+  if (!files.length && !(text || '').trim()) { toast(L('כתבו תשובה או צרפו קובץ', 'Write an answer or attach a file')); return false; }
+  const queue = reviewQueue().filter(q => !(q.assignmentId === assignmentId && q.student === currentUserName()));
+  queue.push({ id: 's-' + Date.now(), assignmentId, student: currentUserName(), submittedAt: new Date().toISOString().slice(0, 10), submittedAtFull: new Date().toISOString(), files, ...((text || '').trim() ? { text: text.trim() } : {}) });
+  try { localStorage.setItem('cs-review-queue', JSON.stringify(queue)); }
+  catch (e) { toast(L('אין מספיק מקום באחסון הדפדפן לקובץ הזה', 'Not enough browser storage for this file')); return false; }
+  toast(before ? L('ההגשה עודכנה', 'Your submission was updated') : L('העבודה הוגשה למורה', 'Your work was handed in'));
+  return true;
+}
+function unsubmitWork(assignmentId) {
+  if (!confirm(L('לבטל את ההגשה? אפשר להגיש שוב עד שהמורה בודק/ת.', 'Unsubmit? You can hand in again until your teacher grades it.'))) return false;
+  localStorage.setItem('cs-review-queue', JSON.stringify(reviewQueue().filter(q => !(q.assignmentId === assignmentId && q.student === currentUserName()))));
+  toast(L('ההגשה בוטלה', 'Unsubmitted'));
+  return true;
+}
 
 /* Where the signed-in student stands on an assignment:
    'graded' (with grade + teacher feedback), 'submitted' (waiting for a grade) or 'todo'. */
@@ -1907,11 +1969,13 @@ function renderJustify() {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && justify.mode) closeJustify(); });
 // Links such as home.html#justify=<id> (from a notification) open that request
 function openJustifyFromHash() {
-  const m = location.hash.match(/^#(?:justify|request)=([\w-]+)/);
+  const m = location.hash.match(/^#(?:justify|request|sreq)=([\w-]+)/);
   if (m && CURRENT_USER) openAnyRequest(m[1]);
 }
 function openAnyRequest(id) {
-  if (id.startsWith('g-')) openGradeRequestById(id); else openJustifyReview(id);
+  if (id.startsWith('g-')) openGradeRequestById(id);
+  else if (id.startsWith('tf-') || id.startsWith('tc-')) openSreq(id);
+  else openJustifyReview(id);
 }
 window.addEventListener('hashchange', openJustifyFromHash);
 
@@ -2223,6 +2287,262 @@ function renderGradeRequest() {
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && greq.mode) closeGradeRequest(); });
 
+
+/* ================= Student feedback: the timetable and the teachers =================
+   Timetable complaints and suggestions go to the academic coordinator (or, if the school
+   has none, to the principal). Complaints about a teacher go to the principal only, and a
+   student can send a limited number of them in a period of time. */
+const TT_FEEDBACK_KEY = 'cs-timetable-feedback';
+const COMPLAINTS_KEY = 'cs-teacher-complaints';
+const COMPLAINT_LIMIT = 3;            // complaints about teachers …
+const COMPLAINT_WINDOW_DAYS = 30;     // … per student in this many days
+const COMPLAINT_CATS = [
+  { key: 'conduct', he: 'יחס או התנהגות', en: 'Attitude or behaviour', icon: '🗣️' },
+  { key: 'grading', he: 'הוגנות בציונים', en: 'Fair grading', icon: '⚖️' },
+  { key: 'teaching', he: 'אופן ההוראה', en: 'The teaching', icon: '📚' },
+  { key: 'other', he: 'אחר', en: 'Other', icon: '📝' },
+];
+const SREQ_STATUS = {
+  new: { he: 'חדש', en: 'New', cls: 'pending' },
+  reviewing: { he: 'בטיפול', en: 'In progress', cls: 'pending' },
+  done: { he: 'טופל', en: 'Handled', cls: 'approved' },
+  declined: { he: 'לא אושר', en: 'Not accepted', cls: 'rejected' },
+};
+const sreq = { mode: null, kind: null, id: null, draft: null, error: '' };
+
+function loadTtFeedback() { return load(TT_FEEDBACK_KEY, []); }
+function loadComplaints() { return load(COMPLAINTS_KEY, []); }
+function activeUsers(role) { return loadUsers().filter(u => u.role === role && u.status === 'active'); }
+// who gets timetable feedback: the coordinators, or the principals if there is no coordinator
+function ttRecipients() { const c = activeUsers('coordinator'); return c.length ? c : activeUsers('principal'); }
+function ttRecipientRole() { return activeUsers('coordinator').length ? 'coordinator' : 'principal'; }
+function myComplaintsInWindow() {
+  const since = Date.now() - COMPLAINT_WINDOW_DAYS * 86400000;
+  return loadComplaints().filter(c => c.studentId === (CURRENT_USER && CURRENT_USER.id) && new Date(c.createdAt).getTime() >= since)
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+}
+function complaintsLeft() { return Math.max(0, COMPLAINT_LIMIT - myComplaintsInWindow().length); }
+function nextComplaintDate() {
+  const list = myComplaintsInWindow();
+  return list.length ? new Date(new Date(list[0].createdAt).getTime() + COMPLAINT_WINDOW_DAYS * 86400000) : null;
+}
+function teacherOptions() {
+  const seen = {};
+  classes.forEach(c => classTeachers(c.id).forEach(n => { (seen[n] = seen[n] || []).push(c); }));
+  return Object.entries(seen).map(([name, cls]) => ({ name, classes: cls }));
+}
+function sreqStatusTag(st) { const x = SREQ_STATUS[st] || SREQ_STATUS.new; return `<span class="jtag ${x.cls}">${L(x.he, x.en)}</span>`; }
+
+/* ----- Student: the forms ----- */
+function openTtFeedback(slotId) {
+  if (state.role !== 'student') return;
+  sreq.mode = 'form'; sreq.kind = 'tt'; sreq.id = null; sreq.error = ''; sreq.fresh = true;
+  sreq.draft = { type: slotId ? 'complaint' : 'suggestion', slotId: slotId || '', text: '', swap: '' };
+  renderSreq();
+}
+function openComplaint() {
+  if (state.role !== 'student') return;
+  sreq.mode = 'form'; sreq.kind = 'complaint'; sreq.id = null; sreq.error = ''; sreq.fresh = true;
+  sreq.draft = { teacher: '', category: '', text: '' };
+  renderSreq();
+}
+function sreqField(field, value) { sreq.draft[field] = value; if (field !== 'text' && field !== 'swap') { sreq.error = ''; renderSreq(); } }
+function submitSreq() {
+  const d = sreq.draft;
+  ['text', 'swap'].forEach(f => { const el = document.getElementById('sreq-' + f); if (el) d[f] = el.value; });
+  const now = new Date().toISOString();
+  if (sreq.kind === 'tt') {
+    if (d.text.trim().length < 10) { sreq.error = L('נא לפרט קצת יותר (לפחות 10 תווים).', 'Please say a bit more (at least 10 characters).'); renderSreq(); return; }
+    const slot = timetable.find(x => x.id === d.slotId);
+    const item = { id: 'tf-' + Date.now(), studentId: CURRENT_USER.id, studentName: currentUserName(), type: d.type, slotId: slot ? slot.id : '', lesson: slot ? { classId: slot.classId, day: slot.day, startHour: slot.startHour, duration: slot.duration, room: slot.room } : null,
+      text: d.text.trim(), swap: d.swap.trim(), status: 'new', to: ttRecipientRole(), createdAt: now };
+    const list = loadTtFeedback(); list.unshift(item); save(TT_FEEDBACK_KEY, list);
+    ttRecipients().forEach(u => sendInbox(u.id, 'tt-feedback', CURRENT_USER.id, { id: item.id, type: item.type }));
+    sreq.id = item.id;
+  } else {
+    if (!complaintsLeft()) { sreq.error = L('הגעת למספר הפניות המרבי לתקופה הזו.', 'You have reached the limit for this period.'); renderSreq(); return; }
+    if (!d.teacher) { sreq.error = L('נא לבחור מורה.', 'Please choose a teacher.'); renderSreq(); return; }
+    if (!d.category) { sreq.error = L('נא לבחור נושא.', 'Please choose a topic.'); renderSreq(); return; }
+    if (d.text.trim().length < 20) { sreq.error = L('נא לתאר מה קרה (לפחות 20 תווים).', 'Please describe what happened (at least 20 characters).'); renderSreq(); return; }
+    const item = { id: 'tc-' + Date.now(), studentId: CURRENT_USER.id, studentName: currentUserName(), teacherName: d.teacher, category: d.category, text: d.text.trim(), status: 'new', createdAt: now };
+    const list = loadComplaints(); list.unshift(item); save(COMPLAINTS_KEY, list);
+    activeUsers('principal').forEach(u => sendInbox(u.id, 'complaint', CURRENT_USER.id, { id: item.id, teacher: item.teacherName }));
+    sreq.id = item.id;
+  }
+  sreq.mode = 'view';
+  renderSreq();
+  refreshAfterJustify();
+  toast(sreq.kind === 'tt' ? (ttRecipientRole() === 'coordinator' ? L('נשלח לרכז/ת הלימודים', 'Sent to the academic coordinator') : L('נשלח למנהל/ת', 'Sent to the principal')) : L('הפנייה נשלחה למנהל/ת', 'Sent to the principal'));
+}
+
+/* ----- Open one (student: their own; staff: to handle it) ----- */
+function findSreq(id) { return (id.startsWith('tf-') ? loadTtFeedback() : loadComplaints()).find(x => x.id === id) || null; }
+function openSreq(id) {
+  const item = findSreq(id);
+  if (!item) { toast(L('הפנייה כבר לא קיימת', 'That request no longer exists')); return; }
+  const tt = id.startsWith('tf-');
+  if (state.role === 'student') { if (item.studentId !== CURRENT_USER.id) return; sreq.mode = 'view'; }
+  else if (tt ? isStaffAdmin() : isPrincipal()) sreq.mode = 'review';
+  else return;
+  sreq.kind = tt ? 'tt' : 'complaint'; sreq.id = id; sreq.error = ''; sreq.fresh = true;
+  markJustifyRead(id);
+  renderSreq();
+}
+function decideSreq() {
+  const key = sreq.kind === 'tt' ? TT_FEEDBACK_KEY : COMPLAINTS_KEY;
+  const list = load(key, []);
+  const item = list.find(x => x.id === sreq.id);
+  if (!item) return;
+  const status = document.getElementById('sreq-status').value;
+  const reply = (document.getElementById('sreq-reply') || {}).value || '';
+  const changed = status !== item.status || reply.trim() !== (item.reply || '');
+  Object.assign(item, { status, reply: reply.trim(), handledBy: currentUserName(), handledAt: new Date().toISOString() });
+  save(key, list);
+  if (changed && item.studentId && status !== 'new') sendInbox(item.studentId, sreq.kind === 'tt' ? 'tt-feedback-result' : 'complaint-result', CURRENT_USER.id, { id: item.id, status });
+  markJustifyRead(item.id);
+  closeSreq();
+  refreshAfterJustify();
+  toast(L('נשמר', 'Saved'));
+}
+function closeSreq() {
+  sreq.mode = null;
+  renderSreq();
+  if (/^#sreq=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search);
+}
+
+function sreqLessonLabel(l) {
+  if (!l) return L('המערכת באופן כללי', 'The timetable in general');
+  const cls = classes.find(c => c.id === l.classId);
+  return `${className(cls)} · ${dayName(l.day)} ${timeRange(l.startHour, l.startHour + l.duration)}${l.room ? ' · ' + esc(localize(l.room)) : ''}`;
+}
+function sreqDialogHtml() {
+  if (!sreq.mode) return '';
+  const fade = sreq.fresh ? 'fade-up' : ''; sreq.fresh = false;
+  const item = sreq.id ? findSreq(sreq.id) : null;
+  let title, body, foot;
+  if (sreq.mode === 'form' && sreq.kind === 'tt') {
+    const d = sreq.draft;
+    const mine = timetable.slice().sort((a, b) => a.day - b.day || a.startHour - b.startHour);
+    title = '💡 ' + L('הצעה או תלונה על מערכת השעות', 'A timetable suggestion or complaint');
+    body = `
+      <div class="seg small" style="border-radius:0.75rem">
+        <button class="${d.type === 'complaint' ? 'on' : ''}" onclick="sreqField('type','complaint')">⚠️ ${L('תלונה על מיקום שיעור', 'A lesson in a bad spot')}</button>
+        <button class="${d.type === 'suggestion' ? 'on' : ''}" onclick="sreqField('type','suggestion')">💡 ${L('הצעה לשיפור / החלפה', 'An idea to improve or swap')}</button>
+      </div>
+      <div><label class="label" for="sreq-slot">${L('על איזה שיעור?', 'Which lesson?')}</label>
+        <select id="sreq-slot" class="input" onchange="sreqField('slotId', this.value)">
+          <option value="">${L('על המערכת באופן כללי', 'The timetable in general')}</option>
+          ${mine.map(x => `<option value="${x.id}" ${d.slotId === x.id ? 'selected' : ''}>${esc(lessonLabel(x).replace(/[⁦⁩]/g, ''))}</option>`).join('')}
+        </select></div>
+      <div><label class="label" for="sreq-text">${d.type === 'complaint' ? L('מה הבעיה?', 'What is the problem?') : L('מה ההצעה?', 'What do you suggest?')}</label>
+        <textarea id="sreq-text" class="input" dir="auto" rows="3" maxlength="600" placeholder="${d.type === 'complaint' ? L('למשל: שני שיעורי ספורט ברצף ואחריהם מבחן – קשה להתרכז.', 'e.g. Two PE lessons in a row right before a test – hard to focus.') : L('למשל: להעביר את הכימיה ליום רביעי כדי לא לסיים מאוחר ביום שני.', 'e.g. Move chemistry to Wednesday so Monday doesn’t end so late.')}">${esc(d.text)}</textarea></div>
+      <div><label class="label" for="sreq-swap">${L('הצעת החלפה (לא חובה)', 'Suggested swap (optional)')}</label>
+        <input id="sreq-swap" class="input" dir="auto" maxlength="200" value="${esc(d.swap)}" placeholder="${L('למשל: להחליף בין ספרות של יום ג׳ להיסטוריה של יום ה׳', 'e.g. swap Tuesday’s literature with Thursday’s history')}"></div>
+      <p class="xs muted">📬 ${ttRecipientRole() === 'coordinator' ? L('הפנייה תישלח לרכז/ת הלימודים.', 'This goes to the academic coordinator.') : L('הפנייה תישלח למנהל/ת.', 'This goes to the principal.')}</p>
+      ${sreq.error ? `<p class="jerror" role="alert">${sreq.error}</p>` : ''}`;
+    foot = `<button class="btn surface" onclick="closeSreq()">${L('ביטול', 'Cancel')}</button><button class="btn btn-primary" onclick="submitSreq()">${L('שליחה', 'Send')}</button>`;
+  } else if (sreq.mode === 'form') {
+    const d = sreq.draft;
+    const left = complaintsLeft();
+    const next = nextComplaintDate();
+    title = '📨 ' + L('פנייה למנהל/ת על מורה', 'Contact the principal about a teacher');
+    body = left ? `
+      <div class="sreq-note">🔒 ${L('רק המנהל/ת רואה את הפנייה. המורה לא מקבל/ת אותה.', 'Only the principal sees this. It is not sent to the teacher.')}</div>
+      <div><label class="label" for="sreq-teacher">${L('על איזה מורה?', 'Which teacher?')}</label>
+        <select id="sreq-teacher" class="input" onchange="sreqField('teacher', this.value)">
+          <option value="">${L('בחירה…', 'Choose…')}</option>
+          ${teacherOptions().map(t => `<option value="${esc(t.name)}" ${d.teacher === t.name ? 'selected' : ''}>${esc(localize(t.name))} · ${t.classes.map(c => localize(c.name)).join(', ')}</option>`).join('')}
+        </select></div>
+      <div><span class="label">${L('נושא', 'Topic')}</span>
+        <div class="jreasons">${COMPLAINT_CATS.map(c => `<button type="button" class="jreason ${d.category === c.key ? 'on' : ''}" aria-pressed="${d.category === c.key}" onclick="sreqField('category','${c.key}')">${c.icon} ${L(c.he, c.en)}</button>`).join('')}</div></div>
+      <div><label class="label" for="sreq-text">${L('מה קרה?', 'What happened?')}</label>
+        <textarea id="sreq-text" class="input" dir="auto" rows="4" maxlength="1000" placeholder="${L('תארו בכבוד ובפירוט מה קרה ומתי.', 'Describe respectfully and in detail what happened and when.')}">${esc(d.text)}</textarea></div>
+      <p class="xs muted">${L(`אפשר לשלוח עד ${COMPLAINT_LIMIT} פניות ב־${COMPLAINT_WINDOW_DAYS} יום. נשארו לך ${left}.`, `You can send up to ${COMPLAINT_LIMIT} in ${COMPLAINT_WINDOW_DAYS} days. You have ${left} left.`)}</p>
+      ${sreq.error ? `<p class="jerror" role="alert">${sreq.error}</p>` : ''}`
+      : `<div class="sreq-note">⏳ ${L(`שלחת כבר ${COMPLAINT_LIMIT} פניות ב־${COMPLAINT_WINDOW_DAYS} הימים האחרונים. אפשר יהיה לשלוח שוב ב־${fmtDate(next, { day: 'numeric', month: 'long' })}.`, `You have sent ${COMPLAINT_LIMIT} in the last ${COMPLAINT_WINDOW_DAYS} days. You can send again on ${fmtDate(next, { day: 'numeric', month: 'long' })}.`)}</div>
+         <p class="xs muted">${L('אם זה דחוף, פנו ליועצ/ת או למחנך/ת.', 'If it’s urgent, talk to the school counsellor or your homeroom teacher.')}</p>`;
+    foot = left ? `<button class="btn surface" onclick="closeSreq()">${L('ביטול', 'Cancel')}</button><button class="btn btn-primary" onclick="submitSreq()">${L('שליחה למנהל/ת', 'Send to the principal')}</button>`
+      : `<button class="btn btn-primary" onclick="closeSreq()">${L('הבנתי', 'OK')}</button>`;
+  } else {
+    if (!item) { sreq.mode = null; return ''; }
+    const review = sreq.mode === 'review';
+    const tt = sreq.kind === 'tt';
+    const cat = !tt && (COMPLAINT_CATS.find(c => c.key === item.category) || COMPLAINT_CATS[3]);
+    title = tt ? (item.type === 'complaint' ? '⚠️ ' + L('תלונה על המערכת', 'Timetable complaint') : '💡 ' + L('הצעה למערכת', 'Timetable suggestion'))
+      : '📨 ' + L('פנייה על מורה', 'About a teacher');
+    body = `
+      <div class="flex items-center gap-2 wrap"><span class="w7">${review ? esc(localize(item.studentName)) : L('הפנייה שלך', 'Your request')}</span>${sreqStatusTag(item.status)}<span class="xs muted" style="margin-inline-start:auto">${fmtDate(item.createdAt, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></div>
+      <div class="jbox">
+        ${tt ? `<div class="xs w7 muted">📅 ${sreqLessonLabel(item.lesson)}</div>` : `<div class="xs w7 muted">🧑‍🏫 ${esc(localize(item.teacherName))} · ${cat.icon} ${L(cat.he, cat.en)}</div>`}
+        <p class="sm mt-2 jtext" dir="auto">${esc(item.text)}</p>
+        ${tt && item.swap ? `<p class="sm mt-2" dir="auto">🔁 <b>${L('הצעת החלפה:', 'Suggested swap:')}</b> ${esc(item.swap)}</p>` : ''}
+      </div>
+      ${!review && item.reply ? `<div class="jbox reply"><div class="xs w7 muted">💬 ${L('תשובה', 'Reply')}${item.handledBy ? ' · ' + esc(localize(item.handledBy)) : ''}</div><p class="sm mt-1 jtext" dir="auto">${esc(item.reply)}</p></div>` : ''}
+      ${review ? `
+      <div class="grid g-1 sm-2" style="gap:0.75rem">
+        <div><label class="label" for="sreq-status">${L('סטטוס', 'Status')}</label>
+          <select id="sreq-status" class="input">${Object.entries(SREQ_STATUS).map(([k, x]) => `<option value="${k}" ${item.status === k ? 'selected' : ''}>${L(x.he, x.en)}</option>`).join('')}</select></div>
+      </div>
+      <div><label class="label" for="sreq-reply">${L('תשובה לתלמיד/ה', 'Reply to the student')}</label>
+        <textarea id="sreq-reply" class="input" dir="auto" rows="3" maxlength="600" placeholder="${tt ? L('למשל: תודה! נבדוק את ההחלפה בעדכון הבא של המערכת.', 'e.g. Thanks! We’ll look at the swap in the next timetable update.') : L('למשל: תודה שפנית. דיברתי עם המורה ונעקוב.', 'e.g. Thank you for telling me. I spoke with the teacher and we’ll follow up.')}">${esc(item.reply || '')}</textarea></div>` : ''}`;
+    foot = review ? `<button class="btn surface" onclick="closeSreq()">${L('סגירה', 'Close')}</button><button class="btn btn-primary" onclick="decideSreq()">${L('שמירה ועדכון התלמיד/ה', 'Save and update the student')}</button>`
+      : `<button class="btn btn-primary" onclick="closeSreq()">${L('סגירה', 'Close')}</button>`;
+  }
+  return `
+  <div class="jmodal-bg" onmousedown="if(event.target===this)closeSreq()">
+    <div class="card r-3xl jmodal ${fade}" role="dialog" aria-modal="true" aria-labelledby="sreq-title">
+      <div class="jmodal-head"><h2 id="sreq-title" class="display w8 lg">${title}</h2>
+        <button class="icon-btn" style="width:2rem;height:2rem;flex-shrink:0" onclick="closeSreq()" aria-label="${L('סגירה', 'Close')}">${ICONS.close}</button></div>
+      <div class="jmodal-body">${body}</div>
+      <div class="jmodal-foot">${foot}</div>
+    </div>
+  </div>`;
+}
+function renderSreq() {
+  let host = document.getElementById('sreq-host');
+  if (!host) { host = document.createElement('div'); host.id = 'sreq-host'; document.body.appendChild(host); }
+  host.innerHTML = sreqDialogHtml();
+  document.body.classList.toggle('jmodal-open', !!(sreq.mode || justify.mode || greq.mode));
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && sreq.mode) closeSreq(); });
+
+/* ----- Lists for the coordinator and the principal ----- */
+function sreqRow(item, kind) {
+  const tt = kind === 'tt';
+  const cat = !tt && (COMPLAINT_CATS.find(c => c.key === item.category) || COMPLAINT_CATS[3]);
+  return `
+  <button class="req-row ${item.status === 'new' ? 'pending' : ''}" onclick="openSreq('${item.id}')">
+    <span class="letter-tile xs" style="width:2rem;height:2rem;border-radius:0.625rem;background:${tt ? '#0EA5E9' : '#F43F5E'};flex-shrink:0">${initials(item.studentName)}</span>
+    <span class="flex-1 min-w-0">
+      <span class="flex items-center gap-2 min-w-0"><span class="req-kind ${tt ? 'justify' : 'grade'}">${tt ? (item.type === 'complaint' ? '⚠️ ' + L('תלונה', 'Complaint') : '💡 ' + L('הצעה', 'Suggestion')) : cat.icon + ' ' + L(cat.he, cat.en)}</span><span class="sm w7 truncate">${esc(localize(item.studentName))}</span></span>
+      <span class="xs muted block truncate mt-1" dir="auto">${tt ? sreqLessonLabel(item.lesson) : '🧑‍🏫 ' + esc(localize(item.teacherName))} · ${esc(item.text)}</span>
+    </span>
+    ${sreqStatusTag(item.status)}
+  </button>`;
+}
+const sreqView = { filter: 'open' };
+function staffRequestsSection(kind) {
+  const tt = kind === 'tt';
+  const all = tt ? loadTtFeedback() : loadComplaints();
+  const open = all.filter(x => x.status === 'new' || x.status === 'reviewing');
+  const list = sreqView.filter === 'open' ? open : all;
+  return `
+  <div class="card r-3xl p-5 ${open.some(x => x.status === 'new') ? 'jalert' : ''}" id="${tt ? 'tt-feedback' : 'teacher-complaints'}">
+    <div class="flex items-center justify-between wrap gap-3 mb-3">
+      <div class="min-w-0">
+        <h2 class="display w8 lg">${tt ? '🗓️ ' + L('פניות תלמידים על מערכת השעות', 'Student feedback on the timetable') : '📨 ' + L('פניות תלמידים על מורים', 'Student complaints about teachers')}
+          ${open.length ? `<span class="count-pill">${open.length}</span>` : ''}</h2>
+        <p class="xs muted">${tt ? L('תלונות על מיקום של שיעורים והצעות להחלפה ולייעול.', 'Complaints about where lessons are, and ideas for swaps and improvements.') : L(`רק את/ה רואה את הפניות האלה. כל תלמיד/ה יכול/ה לשלוח עד ${COMPLAINT_LIMIT} ב־${COMPLAINT_WINDOW_DAYS} יום.`, `Only you see these. Each student can send up to ${COMPLAINT_LIMIT} in ${COMPLAINT_WINDOW_DAYS} days.`)}</p>
+      </div>
+      <div class="seg small" style="border-radius:0.75rem">
+        <button class="${sreqView.filter === 'open' ? 'on' : ''}" onclick="sreqView.filter='open';renderPage()">${L('פתוחות', 'Open')} (${open.length})</button>
+        <button class="${sreqView.filter === 'all' ? 'on' : ''}" onclick="sreqView.filter='all';renderPage()">${L('הכול', 'All')} (${all.length})</button>
+      </div>
+    </div>
+    ${list.length ? `<div class="col" style="gap:0.5rem">${list.slice(0, 20).map(x => sreqRow(x, kind)).join('')}</div>` : `<p class="sm muted">${L('אין פניות פתוחות.', 'No open requests.')}</p>`}
+  </div>`;
+}
+
 /* ----- Everything students asked the signed-in teacher (Home) ----- */
 function teacherRequests() {
   if (state.role !== 'teacher') return [];
@@ -2244,7 +2564,8 @@ function renderAll() {
   }
   if (!CURRENT_USER) return;
   if (isPrincipal() && !PRINCIPAL_PAGES.includes(window.PAGE_KEY)) { location.replace('home.html'); return; }
-  if (!isPrincipal() && (window.PAGE_KEY === 'timetable' || window.PAGE_KEY === 'classes')) { location.replace('schedule.html'); return; }
+  if (isCoordinator() && !COORDINATOR_PAGES.includes(window.PAGE_KEY)) { location.replace('home.html'); return; }
+  if (!isStaffAdmin() && ['timetable', 'classes', 'achievements'].includes(window.PAGE_KEY)) { location.replace('schedule.html'); return; }
   if (state.role === 'teacher' && window.PAGE_KEY === 'tasks') { location.replace('home.html'); return; }
   applyDocument();
   renderHeaderOnly();
