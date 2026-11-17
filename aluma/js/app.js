@@ -5,6 +5,7 @@ import { buildContext, findUser, ROLE_NAMES, activeLinks, g } from './auth.js';
 import * as T from './tools.js';
 import { answer, welcome } from './engine.js';
 import * as L from './learn.js';
+import { icon, mark } from './icons.js';
 
 const $app = document.getElementById('app');
 const live = document.getElementById('live');
@@ -32,30 +33,34 @@ function boot() {
 // ---------------- login (demo accounts) ----------------
 function renderLogin() {
   const demo = [
-    ['u-noa', 'תלמידה, ט׳2', 'שואלת על ציונים, מטלות ומערכת, ומנסחת הודעות למורה'],
-    ['u-yoav', 'תלמיד, י״א3', 'תלמיד תיכון'],
-    ['u-avi', 'הורה (דנה ז׳1 ויואב י״א3)', 'בורר ילד, סיכום שבועי, הודעה למחנכת'],
-    ['u-ronit', 'הורה – עוד לא מקושרת', 'מקבלת קוד הזמנה מהמנהל כדי להתחבר לנועה'],
-    ['u-rina', 'מורה להיסטוריה, מחנכת ט׳2', 'תיבת הודעות, מי לא הגיש, היעדרויות'],
-    ['u-moshe', 'מורה למתמטיקה', 'מורה מקצועי – רואה רק את המקצוע שלו'],
-    ['u-admin', 'מנהל בית הספר', 'לוח בקרה, קישורי הורים, מדיניות, יומן ביקורת'],
+    ['u-noa', 'תלמידה · ט׳2', 'ציונים, מטלות, מערכת, הודעות וכלי תרגול'],
+    ['u-yoav', 'תלמיד · י״א3', 'תלמיד תיכון'],
+    ['u-avi', 'הורה · דנה ויואב', 'בורר ילד, סיכום שבועי, הודעה למחנכת'],
+    ['u-ronit', 'הורה · לא מקושרת', 'מתחברת לילד בקוד מבית הספר'],
+    ['u-rina', 'מורה · מחנכת ט׳2', 'תיבת הודעות, הגשות והיעדרויות'],
+    ['u-moshe', 'מורה למתמטיקה', 'רואה רק את המקצוע שלו'],
+    ['u-admin', 'הנהלת בית הספר', 'לוח בקרה, קישורים, מדיניות וביקורת'],
   ];
   $app.innerHTML = `
   <main class="login">
-    <div class="hero">
-      <div class="logo" style="justify-content:center"><span class="logo-mark" aria-hidden="true">•••</span></div>
-      <h1>אלומה</h1>
-      <p>פשוט שואלים. סוכנת AI שעונה על מה שקורה בבית הספר – בלי לחפש בתפריטים.</p>
-    </div>
-    <h2 style="font-size:17px">בחרו חשבון לדוגמה</h2>
-    <div class="who-grid">
-      ${demo.map(([id, r, d]) => `<button class="who" data-login="${id}"><div class="r">${esc(r)}</div><div class="n">${esc(nameOf(id))}</div><div class="d">${esc(d)}</div></button>`).join('')}
-    </div>
-    <div class="note">
-      <b>זה אב-טיפוס.</b> ההתחברות האמיתית תהיה דרך Google של בית הספר או קוד חד-פעמי להורים (מסמך 10). כאן כל הנתונים הם נתוני דמה,
-      ובמקום מודל AI עונה מנוע מקומי שמשתמש באותם כלים ובאותן בדיקות הרשאה. ${SCHOOL.name}.
-      <div style="margin-top:8px"><button class="btn link" id="reset">איפוס נתוני הדמה</button></div>
-    </div>
+    <section class="login-brand">
+      <div class="brand-row">${mark(40)}<span>אלומה</span></div>
+      <h1>פשוט שואלים.</h1>
+      <p>סוכנת AI שמחוברת למערכות של בית הספר ועונה לתלמידים, להורים ולמורים – בלי לחפש בתפריטים.</p>
+      <ul class="brand-points">
+        <li>${icon('database')} תשובות מבוססות נתונים, עם מקור לכל עובדה</li>
+        <li>${icon('lock')} כל משתמש רואה רק את מה שמותר לו</li>
+        <li>${icon('check')} שום הודעה לא נשלחת בלי אישור</li>
+      </ul>
+    </section>
+    <section class="login-pick">
+      <h2>כניסה לחשבון לדוגמה</h2>
+      <p class="hint">אב-טיפוס עם נתוני דמה. ההתחברות האמיתית תהיה דרך חשבון בית הספר.</p>
+      <div class="who-list">
+        ${demo.map(([id, r, d]) => `<button class="who" data-login="${id}"><span class="avatar">${esc(nameOf(id)[0])}</span><span class="who-t"><b>${esc(nameOf(id))}</b><small>${esc(r)} · ${esc(d)}</small></span><span class="chev" aria-hidden="true">‹</span></button>`).join('')}
+      </div>
+      <button class="btn link" id="reset">איפוס נתוני הדמה</button>
+    </section>
   </main>`;
   $app.querySelectorAll('[data-login]').forEach(b => b.onclick = () => {
     setSession({ userId: b.dataset.login }); audit(b.dataset.login, 'login', {}); boot();
@@ -65,11 +70,11 @@ function renderLogin() {
 
 // ---------------- shell: top bar + sidebar ----------------
 const PROMPT_TOOLS = {
-  parent: [['📋', 'סיכום שבועי', 'מה המצב השבוע?'], ['📝', 'מטלות פתוחות', 'יש הגשות פתוחות?'], ['📅', 'מה יש מחר', 'מה יש מחר?'], ['✉️', 'הודעה למחנכת', 'תכתוב למחנכת ש']],
-  teacher: [['📥', 'מי לא הגיש', 'מי לא הגיש בט׳2?'], ['📊', 'ממוצע כיתה', 'מה הממוצע במבחן האחרון בט׳2?'], ['🗓️', 'היעדרויות בכיתה', 'מי בט׳2 עם יותר מ-3 היעדרויות?']],
+  parent: [['list', 'סיכום שבועי', 'מה המצב השבוע?'], ['task', 'מטלות פתוחות', 'יש הגשות פתוחות?'], ['calendar', 'מה יש מחר', 'מה יש מחר?'], ['mail', 'הודעה למחנכת', 'תכתוב למחנכת ש']],
+  teacher: [['task', 'מי לא הגיש', 'מי לא הגיש בט׳2?'], ['chart', 'ממוצע כיתה', 'מה הממוצע במבחן האחרון בט׳2?'], ['calendar', 'היעדרויות בכיתה', 'מי בט׳2 עם יותר מ-3 היעדרויות?']],
 };
-const STUDENT_TOOLS = [['path', '🧩', 'מסלול תרגול', 'שיעורים קצרים, XP ורצף'], ['cards', '🃏', 'כרטיסיות זיכרון', 'חזרה חכמה על מושגים'], ['planner', '🗓️', 'תוכנית למידה', 'לפני מבחן או הגשה']];
-const ADMIN_NAV = [['dash', '📈', 'לוח בקרה'], ['links', '👪', 'משתמשים וקישורים'], ['policy', '⚙️', 'מדיניות'], ['audit', '🧾', 'יומן ביקורת']];
+const STUDENT_TOOLS = [['path', 'sparkle', 'מסלול תרגול'], ['cards', 'layers', 'כרטיסיות זיכרון'], ['planner', 'calendar', 'תוכנית למידה']];
+const ADMIN_NAV = [['dash', 'chart', 'לוח בקרה'], ['links', 'users', 'משתמשים וקישורים'], ['policy', 'shield', 'מדיניות'], ['audit', 'log', 'יומן ביקורת']];
 
 function render() {
   if (db().emergencyStop && ctx.role !== 'school_admin') {
@@ -88,22 +93,27 @@ function persistSession() { setSession({ userId: ctx.userId, activeStudentId, vi
 function go(v) { view = v; persistSession(); render(); window.scrollTo(0, 0); }
 
 function sidebar() {
-  const item = (on, icon, label, extra = '', attrs = '') => `<button class="nav ${on ? 'on' : ''}" ${attrs}><span class="ic" aria-hidden="true">${icon}</span><span class="lb">${label}</span>${extra}</button>`;
-  if (ctx.role === 'school_admin') return `<div class="side-sec">ניהול בית הספר</div>${ADMIN_NAV.map(([k, i, l]) => item(view === k, i, l, '', `data-go="${k}"`)).join('')}`;
+  const item = (on, ic, label, extra = '', attrs = '') => `<button class="nav ${on ? 'on' : ''}" ${attrs}>${icon(ic)}<span class="lb">${label}</span>${extra}</button>`;
+  const head = `<div class="side-head">${mark(28)}<span class="side-name">אלומה</span><button class="iconbtn ghost side-close" id="sideclose" aria-label="סגירת התפריט">✕</button></div>`;
+  if (ctx.role === 'school_admin') return `${head}<div class="side-sec">ניהול בית הספר</div>${ADMIN_NAV.map(([k, i, l]) => item(view === k, i, l, '', `data-go="${k}"`)).join('')}${sideUser()}`;
   const convs = convList();
-  let h = `<button class="newchat" id="newchat">＋ שיחה חדשה</button><div class="side-sec">שיחות</div><div class="convs">
-    ${convs.map(c => `<div class="conv ${view === 'chat' && c.id === activeConvId ? 'on' : ''}"><button class="conv-open" data-conv="${c.id}" title="${esc(c.title)}">💬 <span>${esc(c.title)}</span></button>
-      <button class="conv-del" data-delconv="${c.id}" aria-label="מחיקת השיחה">✕</button></div>`).join('') || '<div class="side-empty">עוד אין שיחות</div>'}</div>
-    <div class="side-sec">כלי AI</div>`;
+  let h = `${head}<button class="newchat" id="newchat">${icon('plus')}<span>שיחה חדשה</span></button>`;
+  h += `<div class="side-sec">כלים</div>`;
   if (ctx.role === 'student') {
     const p = L.progress(ctx.userId);
-    h += STUDENT_TOOLS.map(([k, i, l, d]) => item(['path', 'lesson'].includes(view) ? k === 'path' : view === k, i, `${l}<small>${d}</small>`, k === 'path' && p.xp ? `<span class="xp">${p.xp} XP</span>` : '', `data-go="${k}"`)).join('');
+    h += STUDENT_TOOLS.map(([k, i, l]) => item(['path', 'lesson'].includes(view) ? k === 'path' : view === k, i, l, k === 'path' && p.xp ? `<span class="xp">${p.xp} XP</span>` : '', `data-go="${k}"`)).join('');
   } else {
-    if (ctx.role === 'teacher') { const unread = db().inbox.filter(m => m.teacherId === ctx.userId && !m.read).length; h += item(view === 'inbox', '📨', 'תיבת הודעות', unread ? `<span class="badge">${unread}</span>` : '', 'data-go="inbox"'); }
+    if (ctx.role === 'teacher') { const unread = db().inbox.filter(m => m.teacherId === ctx.userId && !m.read).length; h += item(view === 'inbox', 'inbox', 'תיבת הודעות', unread ? `<span class="badge">${unread}</span>` : '', 'data-go="inbox"'); }
     h += PROMPT_TOOLS[ctx.role].map(([i, l, q]) => item(false, i, l, '', `data-prompt="${esc(q)}"`)).join('');
   }
-  h += `<div class="side-bottom">${item(view === 'settings', '⚙️', ctx.role === 'parent' ? 'הגדרות וילדים' : 'הגדרות', '', 'data-go="settings"')}</div>`;
-  return h;
+  h += `<div class="side-sec">שיחות אחרונות</div><div class="convs">
+    ${convs.map(c => `<div class="conv ${view === 'chat' && c.id === activeConvId ? 'on' : ''}"><button class="conv-open" data-conv="${c.id}" title="${esc(c.title)}"><span>${esc(c.title)}</span></button>
+      <button class="conv-del" data-delconv="${c.id}" aria-label="מחיקת השיחה">${icon('trash', 15)}</button></div>`).join('') || '<div class="side-empty">השיחות שלך יופיעו כאן</div>'}</div>`;
+  return h + sideUser();
+}
+function sideUser() {
+  return `<div class="side-bottom"><button class="me-row ${view === 'settings' ? 'on' : ''}" ${ctx.role === 'school_admin' ? '' : 'data-go="settings"'}>
+    <span class="avatar">${esc(ctx.user.name[0])}</span><span class="who-t"><b>${esc(ctx.user.name)}</b><small>${esc(ROLE_NAMES[ctx.role])}</small></span>${ctx.role === 'school_admin' ? '' : icon('settings', 16)}</button></div>`;
 }
 function bindSide() {
   const side = document.getElementById('side');
@@ -120,18 +130,21 @@ function bindSide() {
     if (q.endsWith('ש')) { const i = document.getElementById('q'); i.value = q; i.focus(); } else ask(q);
   });
   document.getElementById('scrim').onclick = () => document.body.classList.remove('side-open');
+  const sc = document.getElementById('sideclose'); if (sc) sc.onclick = () => document.body.classList.remove('side-open');
 }
 
 function topBar() {
   const kids = ctx.role === 'parent' ? ctx.allowedStudentIds : [];
+  const titles = { chat: (currentConv(false) || {}).title || 'שיחה חדשה', path: 'מסלול תרגול', lesson: 'מסלול תרגול', cards: 'כרטיסיות זיכרון', planner: 'תוכנית למידה', settings: 'הגדרות', inbox: 'תיבת הודעות',
+    dash: 'לוח בקרה', links: 'משתמשים וקישורים', policy: 'מדיניות', audit: 'יומן ביקורת' };
   return `<header class="top">
-    <button class="iconbtn burger" id="burger" aria-label="תפריט">☰</button>
-    <div class="logo"><span class="logo-mark" aria-hidden="true">•••</span><span>אלומה</span></div>
-    <span class="pill who-pill">${esc(ctx.user.name)} · ${esc(ROLE_NAMES[ctx.role])}</span>
-    ${kids.length ? `<label class="sr-only" for="kid">על מי מדברים?</label><select id="kid" class="pill">${kids.map(id => `<option value="${id}" ${id === activeStudentId ? 'selected' : ''}>${esc(nameOf(id))}</option>`).join('')}</select>` : ''}
+    <button class="iconbtn ghost burger" id="burger" aria-label="תפריט">${icon('menu')}</button>
+    <div class="top-title">${esc(titles[view] || '')}</div>
+    ${kids.length ? `<label class="sr-only" for="kid">על מי מדברים?</label><div class="kid-pick">${icon('users', 16)}<select id="kid">${kids.map(id => `<option value="${id}" ${id === activeStudentId ? 'selected' : ''}>${esc(nameOf(id))}</option>`).join('')}</select></div>` : ''}
     <span class="spacer"></span>
-    <button class="iconbtn" id="theme" title="מצב כהה/בהיר" aria-label="מצב כהה או בהיר">${document.documentElement.dataset.theme === 'dark' ? '☀️' : '🌙'}</button>
-    <button class="iconbtn" id="logout" title="התנתקות" aria-label="התנתקות">⏻</button>
+    <span class="model-pill" title="אב-טיפוס: מנוע מקומי במקום מודל AI">${icon('sparkle', 14)} אלומה · אב-טיפוס</span>
+    <button class="iconbtn ghost" id="theme" title="מצב כהה/בהיר" aria-label="מצב כהה או בהיר">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon')}</button>
+    <button class="iconbtn ghost" id="logout" title="התנתקות" aria-label="התנתקות">${icon('logout')}</button>
   </header>`;
 }
 function bindTop() {
@@ -156,21 +169,41 @@ function currentConv(create) {
 }
 const transcript = () => currentConv(true).messages;
 
+const SUGGEST = {
+  student: [['מה יש לי מחר?', 'מערכת שעות ושינויים', 'calendar'], ['כמה קיבלתי במבחן האחרון בהיסטוריה?', 'ציונים עם מקור', 'chart'], ['מה להגיש השבוע?', 'מטלות מ-Classroom', 'task'], ['תנסחי למורה שאני חולה היום', 'טיוטה לאישור שלך', 'mail']],
+  parent: [['מה המצב השבוע?', 'סיכום ציונים, מטלות והיעדרויות', 'list'], ['ציונים אחרונים', 'לפי מקצוע', 'chart'], ['יש הגשות פתוחות?', 'מה עוד לא הוגש', 'task'], ['היעדרויות החודש', 'נוכחות מ-30 יום', 'calendar']],
+  teacher: [['מי לא הגיש בט׳2?', 'לפי המטלה האחרונה', 'task'], ['מה הממוצע במבחן האחרון בט׳2?', 'ממוצע, טווח ונבחנים', 'chart'], ['מי בט׳2 עם יותר מ-3 היעדרויות?', 'למחנכים', 'calendar'], ['הודעות חדשות', 'סיכום תיבת ההודעות', 'inbox']],
+};
 function renderChat() {
   const v = document.getElementById('view');
-  const today = (ctx.role === 'student' || (ctx.role === 'parent' && activeStudentId)) ? todayCard() : '';
-  v.innerHTML = `${today}<section class="chat" id="chat" aria-label="שיחה עם אלומה"></section>
-    <div class="composer"><form id="ask"><label for="q" class="sr-only">שאלה לאלומה</label>
-      <input id="q" autocomplete="off" placeholder="שאלו אותי משהו… למשל: מה יש לי מחר?" ${ctx.role === 'parent' && !activeStudentId ? 'disabled' : ''}>
-      <button class="send" aria-label="שליחה">‹</button></form></div>`;
-  const chat = document.getElementById('chat');
   const conv = currentConv(false);
   const tr = conv ? conv.messages : [];
-  if (!tr.length) chat.appendChild(aiMsg(welcome(ctx, activeStudentId && findUser(activeStudentId)), true));
+  const noKids = ctx.role === 'parent' && !activeStudentId;
+  const hello = `${new Date().getHours() < 12 ? 'בוקר טוב' : new Date().getHours() < 18 ? 'צהריים טובים' : 'ערב טוב'}, ${firstNameOf(ctx.user.name)}`;
+  v.innerHTML = `<div class="chat-wrap">
+    ${tr.length ? '' : `<section class="empty">
+      ${mark(52)}<h1>${esc(hello)}</h1>
+      <p>${noKids ? 'כדי להתחיל, קשרו את הילד/ה בעזרת קוד מבית הספר בהגדרות.' : ctx.role === 'parent' ? `מה תרצו לדעת על ${esc(firstNameOf(nameOf(activeStudentId)))}?` : 'במה אפשר לעזור היום?'}</p>
+      ${(ctx.role === 'student' || (ctx.role === 'parent' && activeStudentId)) ? todayCard() : ''}
+      ${noKids ? '' : `<div class="suggest">${SUGGEST[ctx.role].map(([q, d, i]) => `<button class="sug" data-q="${esc(q)}">${icon(i)}<span><b>${esc(q)}</b><small>${esc(d)}</small></span></button>`).join('')}</div>`}
+    </section>`}
+    <section class="chat" id="chat" aria-label="שיחה עם אלומה"></section>
+    <div class="composer"><form id="ask"><label for="q" class="sr-only">שאלה לאלומה</label>
+      <textarea id="q" rows="1" placeholder="שאלו את אלומה…" ${noKids ? 'disabled' : ''}></textarea>
+      <div class="comp-row"><span class="comp-hint">${icon('database', 14)} מחוברת: משוב · Classroom (נתוני דמה)</span><button class="send" aria-label="שליחה">${icon('send', 18)}</button></div></form>
+      <div class="disclaimer">אלומה עלולה לטעות. כל נתון מוצג עם המקור שלו, ושום הודעה לא נשלחת בלי אישור.</div></div>
+  </div>`;
+  const chat = document.getElementById('chat');
   tr.forEach((m, i) => chat.appendChild(m.who === 'me' ? userMsg(m.text) : aiMsg(m.res, i === tr.length - 1)));
-  document.getElementById('ask').onsubmit = e => { e.preventDefault(); const q = document.getElementById('q'); if (q.value.trim()) ask(q.value.trim()); q.value = ''; };
-  scrollDown();
+  v.querySelectorAll('.sug').forEach(b => b.onclick = () => ask(b.dataset.q));
+  const q = document.getElementById('q');
+  const grow = () => { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 180) + 'px'; };
+  q.oninput = grow;
+  q.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('ask').requestSubmit(); } };
+  document.getElementById('ask').onsubmit = e => { e.preventDefault(); if (q.value.trim()) ask(q.value.trim()); q.value = ''; grow(); };
+  if (tr.length) scrollDown();
 }
+const firstNameOf = n => n.split(' ')[0];
 const scrollDown = () => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 
 function todayCard() {
@@ -185,11 +218,11 @@ function todayCard() {
     const soon = asg.filter(a => new Date(a.due) > NOW && new Date(a.due) - NOW < 2 * 864e5).length;
     const late = asg.filter(a => new Date(a.due) < NOW).length;
     const ann = T.getAnnouncements(ctx, { studentId: sid }).data.filter(m => NOW - new Date(m.date) < 3 * 864e5).length;
-    return `<section class="today" aria-label="היום ${ctx.role === 'parent' ? 'של ' + esc(nameOf(sid)) : 'שלי'}">
-      <div class="tcell"><div class="l">השיעור הבא · ${nextLabel}</div><div class="v">${next ? esc(subjectName(next.subject)) : '—'}</div><div class="s">${next ? `${next.start} · חדר ${next.room}` : ''}</div></div>
-      <div class="tcell"><div class="l">להגשה ביומיים הקרובים</div><div class="v">${soon}</div><div class="s">${late ? `<span class="tag bad">${late} באיחור</span>` : 'אין מטלות באיחור'}</div></div>
-      <div class="tcell"><div class="l">הודעות מהמורים (3 ימים)</div><div class="v">${ann}</div><div class="s">מתוך משוב</div></div>
-    </section>`;
+    return `<div class="today" aria-label="תמונת מצב">
+      <span class="tchip">${icon('clock', 15)} השיעור הבא ${nextLabel}: <b>${next ? esc(subjectName(next.subject)) + ' · ' + next.start : '—'}</b></span>
+      <span class="tchip">${icon('task', 15)} להגשה ביומיים: <b>${soon}</b>${late ? ` <span class="tag bad">${late} באיחור</span>` : ''}</span>
+      <span class="tchip">${icon('mail', 15)} הודעות חדשות: <b>${ann}</b></span>
+    </div>`;
   } catch { return ''; }
 }
 
@@ -199,40 +232,53 @@ function userMsg(text) {
 }
 function aiMsg(res, withChips) {
   const d = document.createElement('div'); d.className = 'msg ai';
-  d.innerHTML = `<div class="bubble">${md(res.text)}</div>${res.cards.length ? `<div class="cards">${res.cards.map(cardHTML).join('')}</div>` : ''}
-    ${withChips && res.chips.length ? `<div class="chips">${res.chips.map(c => `<button class="chip">${esc(c)}</button>`).join('')}</div>` : ''}`;
+  d.innerHTML = `<div class="ai-av">${mark(28)}</div><div class="ai-body"><div class="ai-name">אלומה</div><div class="ai-text">${md(res.text)}</div>
+    ${res.cards.length ? `<div class="cards">${res.cards.map(cardHTML).join('')}</div>` : ''}
+    ${withChips && res.chips.length ? `<div class="chips">${res.chips.map(c => `<button class="chip">${esc(c)}</button>`).join('')}</div>` : ''}</div>`;
   d.querySelectorAll('.chip').forEach(b => b.onclick = () => ask(b.textContent));
   d.querySelectorAll('[data-action]').forEach(el => bindAction(el));
   d.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => { if (b.dataset.subject) toolSubject = b.dataset.subject; go(b.dataset.tool); });
   return d;
 }
+function addActions(el, res, question) {
+  const row = document.createElement('div'); row.className = 'fb';
+  row.innerHTML = `<button data-k="copy" aria-label="העתקה" title="העתקה">${icon('copy', 15)}</button><button data-k="up" aria-pressed="false" aria-label="תשובה טובה" title="תשובה טובה">${icon('up', 15)}</button>
+    <button data-k="down" class="flip" aria-pressed="false" aria-label="תשובה לא טובה" title="תשובה לא טובה">${icon('up', 15)}</button>${question ? `<button data-k="again" aria-label="לשאול שוב" title="לשאול שוב">${icon('refresh', 15)}</button>` : ''}`;
+  el.querySelector('.ai-body').appendChild(row);
+  row.querySelector('[data-k=copy]').onclick = e => { try { navigator.clipboard.writeText(res.text.replace(/\*\*/g, '')); } catch { /* ignore */ } e.currentTarget.innerHTML = icon('check', 15); live.textContent = 'הועתק'; };
+  row.querySelectorAll('[data-k=up],[data-k=down]').forEach(b => b.onclick = () => {
+    row.querySelectorAll('[aria-pressed]').forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true');
+    db().feedback.push({ at: new Date().toISOString(), rating: b.dataset.k }); save();
+  });
+  const again = row.querySelector('[data-k=again]'); if (again) again.onclick = () => ask(question);
+}
 
 async function ask(text) {
   if (busy) return; busy = true;
+  document.querySelector('.empty')?.remove();
   const chat = document.getElementById('chat');
   chat.querySelectorAll('.chips').forEach(c => c.remove());
   const conv = currentConv(true);
-  if (!conv.messages.length) { conv.title = text.slice(0, 32); conv.at = new Date().toISOString(); }
+  if (!conv.messages.length) { conv.title = text.slice(0, 40); conv.at = new Date().toISOString(); }
   conv.messages.push({ who: 'me', text }); save();
   const side = document.getElementById('side'); if (side) { side.innerHTML = sidebar(); bindSide(); }
+  const tt = document.querySelector('.top-title'); if (tt) tt.textContent = conv.title;
   chat.appendChild(userMsg(text));
-  const st = document.createElement('div'); st.className = 'msg ai';
-  const where = /מטל|להגיש|הגש|עבוד/.test(text) ? 'ב-Classroom' : /תנסח|תכתב|תכתוב|תשלח|למורה|למחנכ/.test(text) ? '' : 'במשוב';
-  st.innerHTML = `<div class="status"><span class="dots"><i></i><i></i><i></i></span>${where ? `מחפשת ${where}…` : 'מנסחת…'}</div>`;
+  // "thinking" with visible steps (the real agent streams tool-use status, spec 13)
+  const where = /מטל|להגיש|הגש|עבוד/.test(text) ? 'Classroom' : 'משוב';
+  const drafting = /תנסח|תכתב|תכתוב|תשלח|למורה|למחנכ/.test(text);
+  const steps = ['מבינה את השאלה', drafting ? 'בודקת למי מותר לשלוח' : `מחפשת ב${where}`, drafting ? 'מנסחת טיוטה' : 'בודקת שכל נתון מגיע מהמקור'];
+  const st = document.createElement('div'); st.className = 'msg ai thinking';
+  st.innerHTML = `<div class="ai-av">${mark(28)}</div><div class="ai-body"><div class="ai-name">אלומה</div><div class="steps">${steps.map((x, i) => `<div class="step" data-i="${i}"><span class="dot"></span>${x}</div>`).join('')}</div></div>`;
   chat.appendChild(st); scrollDown();
-  await sleep(450 + Math.random() * 450);
+  for (let i = 0; i < steps.length; i++) { st.querySelector(`[data-i="${i}"]`).classList.add('run'); await sleep(260 + Math.random() * 220); st.querySelector(`[data-i="${i}"]`).classList.replace('run', 'done'); }
   const res = answer(ctx, text, { activeStudentId });
   st.remove();
-  // stream the text like the real SSE answer (spec 13)
-  const el = aiMsg({ ...res, text: '' }, false); chat.appendChild(el);
-  const bubble = el.querySelector('.bubble');
-  for (let i = 0; i <= res.text.length; i += 3) { bubble.innerHTML = md(res.text.slice(0, i)); await sleep(8); }
+  const el = aiMsg({ ...res, text: '', cards: [] }, false); chat.appendChild(el);
+  const out = el.querySelector('.ai-text'); out.classList.add('typing');
+  for (let i = 0; i <= res.text.length; i += 3) { out.innerHTML = md(res.text.slice(0, i)); await sleep(7); }
   const final = aiMsg(res, true); el.replaceWith(final);
-  final.insertAdjacentHTML('beforeend', `<div class="fb"><button aria-pressed="false" aria-label="תשובה טובה">👍</button><button aria-pressed="false" aria-label="תשובה לא טובה">👎</button></div>`);
-  final.querySelectorAll('.fb button').forEach((b, i) => b.onclick = () => {
-    final.querySelectorAll('.fb button').forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true');
-    db().feedback.push({ at: new Date().toISOString(), rating: i ? 'down' : 'up' }); save();
-  });
+  addActions(final, res, text);
   conv.messages.push({ who: 'ai', res }); save();
   live.textContent = res.text.replace(/\*\*/g, '');
   busy = false; scrollDown();
@@ -503,8 +549,8 @@ function renderPath() {
   const next = L.nextLesson(ctx.userId, sub);
   const units = L.BANK[sub].units;
   let node = 0;
-  v.innerHTML = `<section class="panel lpanel"><h2>🧩 מסלול תרגול</h2>${statsBar()}
-    <div class="reco">✨ <b>מומלץ לתרגל ${esc(subjectName(w.sub))}</b> – הממוצע בשלושת הציונים האחרונים שלך בו הוא ${w.avg} (מתוך משוב).</div>
+  v.innerHTML = `<section class="panel lpanel"><h2 class="ph">${icon('sparkle', 20)} מסלול תרגול</h2>${statsBar()}
+    <div class="reco">${icon('sparkle', 16)} <b>מומלץ לתרגל ${esc(subjectName(w.sub))}</b> – הממוצע בשלושת הציונים האחרונים שלך בו הוא ${w.avg} (מתוך משוב).</div>
     ${subjectTabs(sub)}
     <div class="path">${units.map((u, ui) => {
       const st = L.unitState(ctx.userId, sub, ui);
@@ -569,7 +615,7 @@ function renderCards() {
   const order = deck.slice().sort((a, b) => a.box - b.box || a.i - b.i);
   const mastered = deck.filter(d => d.box >= 4).length;
   const cur = order[cardIdx % order.length];
-  v.innerHTML = `<section class="panel lpanel"><h2>🃏 כרטיסיות זיכרון</h2>
+  v.innerHTML = `<section class="panel lpanel"><h2 class="ph">${icon('layers', 20)} כרטיסיות זיכרון</h2>
     <p class="hint">לוחצים על הכרטיס כדי להפוך. כרטיסים שלא ידעת חוזרים מהר יותר.</p>${subjectTabs(sub)}
     <div class="flash-meta"><span>${mastered} מתוך ${deck.length} נשלטים</span><div class="bar"><i style="width:${deck.length ? mastered / deck.length * 100 : 0}%"></i></div></div>
     <button class="flash ${cardFlipped ? 'flipped' : ''}" id="flash" aria-live="polite"><span class="side-l">${cardFlipped ? 'תשובה' : 'שאלה'}</span><span class="txt">${esc(cardFlipped ? cur.c[1] : cur.c[0])}</span></button>
@@ -590,7 +636,7 @@ function renderPlanner() {
   const asg = T.getAssignments(ctx, { studentId: ctx.userId, status: 'pending' }).data.filter(a => new Date(a.due) > NOW);
   const fmt = d => `${['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'][new Date(d).getDay()]} ${fmtDate(d)}`;
   const minDate = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10);
-  v.innerHTML = `<section class="panel lpanel"><h2>🗓️ תוכנית למידה</h2>
+  v.innerHTML = `<section class="panel lpanel"><h2 class="ph">${icon('calendar', 20)} תוכנית למידה</h2>
     <h3>מטלות פתוחות (מ-Classroom)</h3>
     ${asg.length ? `<table class="t"><tbody>${asg.map(a => { const start = new Date(Math.max(Date.now(), new Date(a.due) - 2 * 864e5));
       return `<tr><td><b>${esc(a.title)}</b><div class="hint">${esc(subjectName(a.subject))}</div></td><td>הגשה: ${fmt(a.due)}</td><td>מומלץ להתחיל: <b>${fmt(start)}</b></td></tr>`; }).join('')}</tbody></table>` : '<p class="hint">אין מטלות פתוחות. ✅</p>'}
