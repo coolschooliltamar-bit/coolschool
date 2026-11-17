@@ -49,7 +49,7 @@ const emoji = (ctx, e) => (noEmoji(ctx) ? '' : ' ' + e);
 
 const reply = (text, extra = {}) => ({ text, cards: [], chips: [], ...extra });
 const DEFAULT_CHIPS = {
-  student: ['מה יש לי מחר?', 'ציונים אחרונים', 'מה להגיש השבוע?', 'תנסחי למורה שאני חולה היום'],
+  student: ['מה יש לי מחר?', 'ציונים אחרונים', 'מה להגיש השבוע?', 'בואי נתרגל', 'תנסחי למורה שאני חולה היום'],
   parent: ['מה המצב השבוע?', 'ציונים אחרונים', 'יש הגשות פתוחות?', 'היעדרויות החודש'],
   teacher: ['מי לא הגיש בט׳2?', 'מה הממוצע במבחן האחרון בט׳2?', 'מי בט׳2 עם יותר מ-3 היעדרויות?', 'הודעות חדשות'],
 };
@@ -120,6 +120,14 @@ function route(ctx, t, raw, activeStudentId, convo) {
 
   if (/(תכתבי לי (את )?ה?עבודה|תכתוב לי (את )?ה?עבודה|תפתרי|פתרון ל|תעשי לי (את )?ה?ש(יעורי|"?ב)|תכיני לי חיבור)/.test(t)) {
     return reply('עבודות להגשה אני לא כותבת – זה צריך להיות שלך. אבל אני יכולה להגיד לך מתי צריך להגיש ומה כתוב בהנחיות.', { chips: ['מה להגיש השבוע?'] });
+  }
+  if (ctx.role === 'student' && /(תרגל|תרגול|לתרגל|תבחני|חידון|להתכונן|תוכנית למידה|תכנית למידה|כרטיסי|ללמוד למבחן)/.test(t)) {
+    const sub = findSubject(t);
+    const known = ['history', 'english', 'science', 'math'];
+    const subject = known.includes(sub) ? sub : null;
+    if (/כרטיסי/.test(t)) return reply('אפשר לחזור על מושגים בכרטיסיות זיכרון:', { cards: [{ type: 'tool', tool: 'cards', subject, icon: '🃏', title: 'כרטיסיות זיכרון' + (subject ? ` · ${subjectName(subject)}` : ''), desc: 'כרטיסים שלא ידעת חוזרים מהר יותר', cta: 'פתיחה' }] });
+    if (/(להתכונן|תוכנית|תכנית|ללמוד למבחן)/.test(t)) return reply('בואו נבנה תוכנית למידה לפי תאריך המבחן:', { cards: [{ type: 'tool', tool: 'planner', icon: '🗓️', title: 'תוכנית למידה', desc: 'יום אחרי יום, עד המבחן', cta: 'בניית תוכנית' }] });
+    return reply(`מעולה, בואו נתרגל${subject ? ` ${subjectName(subject)}` : ''}! שיעורים קצרים של 5 שאלות, עם XP ורצף ימים.`, { cards: [{ type: 'tool', tool: 'path', subject, icon: '🧩', title: 'מסלול תרגול' + (subject ? ` · ${subjectName(subject)}` : ''), desc: 'אני ממליצה להתחיל מהמקצוע שהציונים בו נמוכים יותר', cta: 'להתחיל' }] });
   }
   if (/(תנסח|תכתוב|תכתבי|תשלח|תשלחי|נסחי|כתבי|שלחי|תודיע|תודיעי).*(מורה|מחנכ|ל(רינה|משה|שירן|אלון|מיכל|יוסי))/.test(t) || /^(הודעה|תגידי) למורה/.test(t)) {
     return draftRoute(ctx, t, raw, studentIds[0], convo);
