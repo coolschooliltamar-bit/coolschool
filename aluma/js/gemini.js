@@ -64,7 +64,7 @@ export async function pickModel() { return (await candidates())[0]; }
 // quota (429) or unknown model (404) → next model right away.
 const wait = ms => new Promise(r => setTimeout(r, ms));
 async function generate(body, onRetry, budgetMs = 60000) {
-  const started = Date.now();
+  const started = Date.now(); const tried = [];
   const list = await candidates();
   let last;
   for (const model of list) {
@@ -76,15 +76,17 @@ async function generate(body, onRetry, budgetMs = 60000) {
         ls.set(MODEL_STORE, model);
         return { j, model };
       } catch (e) {
-        last = e;
-        if (![500, 503, 504, 429, 404].includes(e.status)) throw e;
-        if (e.status === 429 || e.status === 404 || e.status === 504) break;
+        last = e; tried.push(`${model}: ${e.status}`);
+        // 403 on one model (e.g. not in the free tier) → try the next model; 400 (bad request) is our bug → stop
+        if (![500, 503, 504, 429, 404, 403].includes(e.status)) throw e;
+        if ([429, 404, 504, 403].includes(e.status)) break;
         if (Date.now() - started > budgetMs) throw e;
         await wait(800 * (attempt + 1));
       }
     }
   }
-  throw last || new Error('Gemini לא זמין כרגע.');
+  if (last) { last.message += ` (נוסו: ${tried.join(', ')})`; throw last; }
+  throw new Error('Gemini לא זמין כרגע.');
 }
 export async function test(onProgress) {
   CANDIDATES = null;
