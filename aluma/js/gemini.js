@@ -51,8 +51,11 @@ async function candidates() {
   const ok = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace('models/', '')).filter(n => n.startsWith('gemini-'));
   const ver = n => parseFloat((n.match(/gemini-(\d+(\.\d+)?)/) || [0, 0])[1]);
   const bad = /(image|tts|audio|live|embedding|exp)/;
-  const rank = n => (/^gemini-[\d.]+-flash$/.test(n) ? 0 : /flash-lite$/.test(n) ? 2 : /flash/.test(n) && !/preview/.test(n) ? 1 : /preview/.test(n) ? 4 : 3);
-  CANDIDATES = ok.filter(n => !bad.test(n)).sort((a, b) => rank(a) - rank(b) || ver(b) - ver(a)).slice(0, 6);
+  // newest stable flash first, then the "lite" models (they usually have more free quota), then the rest
+  const rank = n => (/^gemini-[\d.]+-flash$/.test(n) ? 0 : /^gemini-[\d.]+-flash-lite$/.test(n) ? 1 : /latest$/.test(n) ? 2 : /flash/.test(n) && !/preview/.test(n) ? 3 : /preview/.test(n) ? 5 : 4);
+  const sorted = ok.filter(n => !bad.test(n)).sort((a, b) => rank(a) - rank(b) || ver(b) - ver(a));
+  // try at most 3 flash models, then all lite models, then a few others – up to 10
+  CANDIDATES = [...sorted.filter(n => rank(n) === 0).slice(0, 3), ...sorted.filter(n => rank(n) === 1), ...sorted.filter(n => rank(n) > 1)].slice(0, 10);
   if (!CANDIDATES.length) throw new Error('לא נמצא מודל Gemini זמין למפתח הזה.');
   const saved = ls.get(MODEL_STORE);                       // the last model that worked goes first
   if (saved && CANDIDATES.includes(saved)) CANDIDATES = [saved, ...CANDIDATES.filter(n => n !== saved)];
@@ -69,7 +72,7 @@ async function generate(body, onRetry, budgetMs = 60000) {
   let last;
   for (const model of list) {
     if (Date.now() - started > budgetMs) break;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < (list.indexOf(model) === 0 ? 2 : 1); attempt++) {   // only the first model gets a retry, so more models fit in the time limit
       try {
         onRetry && attempt + list.indexOf(model) > 0 && onRetry(model);
         const j = await call(`models/${model}:generateContent`, body);
@@ -93,7 +96,7 @@ export async function test(onProgress) {
   onProgress && onProgress('בודקת אילו מודלים זמינים למפתח…');
   const list = await candidates();
   onProgress && onProgress(`נמצאו ${list.length} מודלים. שולחת בקשת בדיקה ל-${list[0]}…`);
-  const { model } = await generate({ contents: [{ role: 'user', parts: [{ text: 'ping' }] }] }, m => onProgress && onProgress(`עמוס – מנסה את ${m}…`), 45000);
+  const { model } = await generate({ contents: [{ role: 'user', parts: [{ text: 'ping' }] }] }, m => onProgress && onProgress(`עמוס – מנסה את ${m}…`), 70000);
   return model;
 }
 
