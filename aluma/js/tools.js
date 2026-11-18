@@ -3,6 +3,8 @@
 import { GRADES, ASSIGNMENTS, SUBMISSIONS, SCHEDULE, SCHEDULE_CHANGES, ATTENDANCE, ANNOUNCEMENTS, STUDENTS, TEACHERS, CLASSES, NOW, dayOffset, subjectName } from './data.js';
 import { Forbidden } from './auth.js';
 import { db, save, audit } from './store.js';
+import { LIVE } from './google.js';
+const liveOnly = (ctx, what) => ({ data: [], source: what, notConnected: true });
 
 const student = id => STUDENTS.find(s => s.id === id);
 
@@ -16,6 +18,7 @@ function requireScope(ctx, scope) { if (!ctx.scopes[scope]) throw new Forbidden(
 const logView = (ctx, studentId, kind) => audit(ctx.userId, 'view', { subjectStudent: studentId, kind });
 
 export function getGrades(ctx, { studentId, subject, limit } = {}) {
+  if (ctx.live) { requireStudent(ctx, studentId); let r = LIVE.grades.filter(g => !subject || g.subject === subject).sort((a, b) => new Date(b.date) - new Date(a.date)); return { data: limit ? r.slice(0, limit) : r, source: 'Google Classroom', fetchedAt: LIVE.fetchedAt }; }
   requireScope(ctx, 'grades'); requireStudent(ctx, studentId); logView(ctx, studentId, 'grades');
   let r = GRADES.filter(g => g.studentId === studentId && (!subject || g.subject === subject));
   r.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -23,6 +26,7 @@ export function getGrades(ctx, { studentId, subject, limit } = {}) {
 }
 
 export function getAssignments(ctx, { studentId, status, subject, dueWithinDays } = {}) {
+  if (ctx.live) { requireStudent(ctx, studentId); let r = LIVE.assignments.filter(a => a.due && (!subject || a.subject === subject)); if (status === 'pending') r = r.filter(a => a.status !== 'submitted'); if (dueWithinDays != null) r = r.filter(a => new Date(a.due) - NOW < dueWithinDays * 864e5 && new Date(a.due) > NOW); r.sort((a, b) => new Date(a.due) - new Date(b.due)); return { data: r, source: 'Google Classroom', fetchedAt: LIVE.fetchedAt }; }
   requireScope(ctx, 'assignments'); requireStudent(ctx, studentId); logView(ctx, studentId, 'assignments');
   const s = student(studentId);
   let r = ASSIGNMENTS.filter(a => a.classId === s.classId && (!subject || a.subject === subject))
@@ -34,6 +38,7 @@ export function getAssignments(ctx, { studentId, status, subject, dueWithinDays 
 }
 
 export function getSchedule(ctx, { studentId, dayOffsetN = 0 } = {}) {
+  if (ctx.live) return { ...liveOnly(ctx, 'משוב'), date: dayOffset(dayOffsetN) };
   requireScope(ctx, 'schedule'); requireStudent(ctx, studentId);
   const s = student(studentId);
   const date = dayOffset(dayOffsetN);
@@ -48,6 +53,7 @@ export function getSchedule(ctx, { studentId, dayOffsetN = 0 } = {}) {
 }
 
 export function getAttendance(ctx, { studentId, days = 30 } = {}) {
+  if (ctx.live) return { ...liveOnly(ctx, 'משוב'), days };
   requireScope(ctx, 'attendance'); requireStudent(ctx, studentId); logView(ctx, studentId, 'attendance');
   const from = dayOffset(-days);
   const r = ATTENDANCE.filter(a => a.studentId === studentId && new Date(a.date) >= from).sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -56,6 +62,7 @@ export function getAttendance(ctx, { studentId, days = 30 } = {}) {
 
 // Announcements contain FREE TEXT from outside – marked as external content (spec 02, T5)
 export function getAnnouncements(ctx, { studentId } = {}) {
+  if (ctx.live) { requireStudent(ctx, studentId); return { data: LIVE.announcements.slice().sort((a, b) => new Date(b.date) - new Date(a.date)), source: 'Google Classroom' }; }
   if (!(ctx.scopes.messages || ctx.scopes.announcements)) throw new Forbidden();
   requireStudent(ctx, studentId);
   const s = student(studentId);
@@ -65,6 +72,7 @@ export function getAnnouncements(ctx, { studentId } = {}) {
 
 // Allowed recipients = the student's own teachers (+ homeroom). Never free-text addresses.
 export function listMyTeachers(ctx, { studentId } = {}) {
+  if (ctx.live) return [];
   requireScope(ctx, 'send'); requireStudent(ctx, studentId);
   const s = student(studentId);
   const subjectsInClass = new Set(SCHEDULE[s.classId].flat().map(l => l.subject));

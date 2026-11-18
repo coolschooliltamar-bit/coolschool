@@ -284,3 +284,8 @@ table.t td { padding: 9px 6px; border-bottom: 1px solid var(--line-2); vertical-
   .ai-text { font-size: 15px; }
   .top-title { max-width: 46vw; }
 }
+.gbtn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 11px 14px; font-weight: 600; font-size: 15px; margin-top: 10px; box-shadow: var(--shadow); }
+.gbtn:hover { background: var(--hover); }
+.gbtn:disabled { opacity: .6; cursor: progress; }
+.or { display: flex; align-items: center; gap: 10px; color: var(--mute); font-size: 12.5px; margin: 22px 0 14px; }
+.or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }

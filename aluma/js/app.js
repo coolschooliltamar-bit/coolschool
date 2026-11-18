@@ -6,6 +6,7 @@ import * as T from './tools.js';
 import { answer, welcome } from './engine.js';
 import * as L from './learn.js';
 import { icon, mark } from './icons.js';
+import * as G from './google.js';
 
 const $app = document.getElementById('app');
 const live = document.getElementById('live');
@@ -22,7 +23,7 @@ let ctx = null, view = 'chat', activeStudentId = null, busy = false, activeConvI
 function boot() {
   const s = getSession();
   if (!s) return renderLogin();
-  ctx = buildContext(s.userId);
+  try { ctx = buildContext(s.userId); } catch { setSession(null); return renderLogin(); }
   if (ctx.role === 'parent') activeStudentId = ctx.allowedStudentIds.includes(s.activeStudentId) ? s.activeStudentId : ctx.allowedStudentIds[0] || null;
   else if (ctx.role === 'student') activeStudentId = ctx.userId;
   view = s.view === 'lesson' ? 'path' : (s.view || (ctx.role === 'school_admin' ? 'dash' : 'chat'));
@@ -54,6 +55,11 @@ function renderLogin() {
       </ul>
     </section>
     <section class="login-pick">
+      <h2>כניסה עם חשבון אמיתי</h2>
+      <p class="hint">קריאה בלבד מ-Google Classroom: כיתות, מטלות, ציונים והודעות. אלומה לא משנה ולא שולחת כלום.</p>
+      <button class="gbtn" id="gsignin"><svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span>התחברות עם Google · Classroom</span></button>
+      <div id="gmsg"></div>
+      <div class="or"><span>או</span></div>
       <h2>כניסה לחשבון לדוגמה</h2>
       <p class="hint">אב-טיפוס עם נתוני דמה. ההתחברות האמיתית תהיה דרך חשבון בית הספר.</p>
       <div class="who-list">
@@ -65,6 +71,15 @@ function renderLogin() {
   $app.querySelectorAll('[data-login]').forEach(b => b.onclick = () => {
     setSession({ userId: b.dataset.login }); audit(b.dataset.login, 'login', {}); boot();
   });
+  document.getElementById('gsignin').onclick = async e => {
+    const b = e.currentTarget, msg = document.getElementById('gmsg');
+    b.disabled = true; msg.innerHTML = '<p class="hint">מתחברת ל-Google ומושכת את הנתונים מ-Classroom…</p>';
+    try {
+      const prof = await G.signIn();
+      ctx = liveContext(prof); activeStudentId = ctx.userId; activeConvId = null; view = 'chat';
+      audit(ctx.userId, 'login', {}); render();
+    } catch (err) { b.disabled = false; msg.innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+  };
   document.getElementById('reset').onclick = () => { if (confirm('לאפס את כל נתוני הדמה בדפדפן הזה?')) { resetAll(); renderLogin(); } };
 }
 
@@ -89,7 +104,12 @@ function render() {
   ({ chat: renderChat, settings: renderSettings, inbox: renderInbox, dash: renderDash, links: renderLinks, policy: renderPolicy, audit: renderAudit,
      path: renderPath, lesson: renderLesson, cards: renderCards, planner: renderPlanner })[view]();
 }
-function persistSession() { setSession({ userId: ctx.userId, activeStudentId, view, convId: activeConvId }); }
+function persistSession() { if (!ctx.live) setSession({ userId: ctx.userId, activeStudentId, view, convId: activeConvId }); }  // live Google sessions are never stored
+function liveContext(profile) {
+  const id = 'g-' + profile.sub;
+  return { userId: id, role: 'student', live: true, user: { id, name: profile.name, email: profile.email, gender: null }, allowedStudentIds: [id], classIds: [],
+    scopes: { grades: true, assignments: true, schedule: true, attendance: true, messages: true, send: true } };
+}
 function go(v) { view = v; persistSession(); render(); window.scrollTo(0, 0); }
 
 function sidebar() {
@@ -156,7 +176,7 @@ function bindTop() {
     document.documentElement.dataset.theme = th; try { localStorage.setItem('aluma-theme', JSON.stringify(th)); } catch { /* ignore */ }
     render();
   };
-  document.getElementById('logout').onclick = () => { audit(ctx.userId, 'logout', {}); setSession(null); ctx = null; document.body.classList.remove('side-open'); renderLogin(); };
+  document.getElementById('logout').onclick = () => { audit(ctx.userId, 'logout', {}); if (ctx.live) G.signOut(); setSession(null); ctx = null; document.body.classList.remove('side-open'); renderLogin(); };
 }
 
 // ---------------- chat (several conversations per user, spec 13) ----------------
@@ -362,7 +382,11 @@ function quietUntil(from, to) {
 function renderSettings() {
   const v = document.getElementById('view');
   const mem = db().memories[ctx.userId] || [];
-  let html = `<section class="panel"><h2>מה אלומה זוכרת עליי</h2><p class="hint">אפשר לבקש בצ׳אט: "תזכרי שתמיד תעני לי בקצרה". מידע רגיש לא נשמר.</p>
+  let html = ctx.live ? `<section class="panel"><h2>חיבורים</h2><table class="t"><tbody>
+    <tr><td><b>Google Classroom</b><div class="hint">${esc(ctx.user.email || '')}</div></td><td><span class="tag ok">מחובר</span></td><td>${G.LIVE.courses.length} כיתות · ${G.LIVE.assignments.length} מטלות · עודכן ${G.LIVE.fetchedAt ? ago(G.LIVE.fetchedAt) : ''}</td></tr>
+    <tr><td><b>משוב</b></td><td><span class="tag warn">לא מחובר</span></td><td>מערכת שעות, נוכחות וציוני מבחנים (Q-01)</td></tr></tbody></table>
+    <div class="btns"><button class="btn" id="grefresh">רענון מ-Classroom</button></div></section>` : '';
+  html += `<section class="panel"><h2>מה אלומה זוכרת עליי</h2><p class="hint">אפשר לבקש בצ׳אט: "תזכרי שתמיד תעני לי בקצרה". מידע רגיש לא נשמר.</p>
     ${mem.length ? `<table class="t"><tbody>${mem.map(m => `<tr><td>${esc(m.text)}</td><td style="width:90px">${fmtDate(m.at)}</td><td style="width:70px"><button class="btn link" data-delmem="${m.id}">מחיקה</button></td></tr>`).join('')}</tbody></table>` : '<p class="hint">עוד לא שמרתי כלום.</p>'}
     <div class="formrow"><button class="btn" id="clearhist">מחיקת כל היסטוריית השיחות</button></div></section>`;
   if (ctx.role === 'student') {
@@ -384,6 +408,8 @@ function renderSettings() {
       <form class="formrow" id="quiet"><label>לא לשלוח הודעות בין</label><input type="time" id="qf" value="${s.quietFrom || db().policies.quietFrom}"> ל- <input type="time" id="qt" value="${s.quietTo || db().policies.quietTo}"><button class="btn primary">שמירה</button></form></section>`;
   }
   v.innerHTML = html;
+  const gr = v.querySelector('#grefresh');
+  if (gr) gr.onclick = async () => { gr.disabled = true; gr.textContent = 'מרעננת…'; try { await G.refresh(); renderSettings(); } catch (e) { gr.disabled = false; gr.insertAdjacentHTML('afterend', `<span class="err">${esc(e.message)}</span>`); } };
   v.querySelectorAll('[data-delmem]').forEach(b => b.onclick = () => { db().memories[ctx.userId] = mem.filter(m => m.id !== b.dataset.delmem); save(); audit(ctx.userId, 'memory_deleted', {}); renderSettings(); });
   v.querySelector('#clearhist').onclick = () => { if (confirm('למחוק את כל השיחות? אי אפשר לשחזר.')) { Object.keys(db().convs || {}).filter(k => k.startsWith(ctx.userId + '|')).forEach(k => delete db().convs[k]); activeConvId = null; save(); audit(ctx.userId, 'history_deleted', {}); alert('ההיסטוריה נמחקה.'); } };
   const lf = v.querySelector('#linkform');

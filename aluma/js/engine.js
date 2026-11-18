@@ -6,6 +6,8 @@ import { SUBJECTS, STUDENTS, TEACHERS, CLASSES, subjectName, NOW, dayOffset } fr
 import * as T from './tools.js';
 import { g, Forbidden } from './auth.js';
 import { db, save, audit } from './store.js';
+import { LIVE } from './google.js';
+let liveMode = false;
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 const fmtDate = d => { d = new Date(d); return `${d.getDate()}.${d.getMonth() + 1}`; };
@@ -14,6 +16,7 @@ const firstName = n => n.split(' ')[0];
 const norm = s => s.replace(/[֑-ׇ]/g, '').replace(/[״"׳']/g, '').replace(/\s+/g, ' ').trim();
 
 function findSubject(t) {
+  if (liveMode) { const c = LIVE.courses.find(c => t.includes(norm(c.name)) || norm(c.name).split(' ').some(w => w.length > 2 && t.includes(w))); if (c) return c.name; }
   for (const s of SUBJECTS) for (const a of s.aliases) if (t.includes(norm(a))) return s.id;
   return null;
 }
@@ -56,6 +59,7 @@ const DEFAULT_CHIPS = {
 
 export function welcome(ctx, activeStudent) {
   const u = ctx.user;
+  if (ctx.live) return reply(`היי ${firstName(u.name)}! מחוברת ל-Google Classroom שלך (${LIVE.courses.length} כיתות).`, { chips: ['מה להגיש השבוע?', 'ציונים אחרונים', 'מה ההודעות?'] });
   if (ctx.role === 'parent' && !ctx.allowedStudentIds.length)
     return reply(`שלום ${firstName(u.name)}! עדיין אין ילדים מקושרים לחשבון. אפשר להזין קוד הזמנה מבית הספר בהגדרות (⚙️).`);
   const who = ctx.role === 'parent' ? `על ${firstName(activeStudent.name)}` : '';
@@ -77,6 +81,13 @@ export function answer(ctx, rawText, { activeStudentId, convo } = {}) {
 
 function route(ctx, t, raw, activeStudentId, convo) {
   const u = ctx.user;
+  liveMode = !!ctx.live;
+  if (ctx.live) {
+    if (/(מערכת|מחר|היום|שיעור|היעדר|נוכחות|איחור)/.test(t) && !/(להגיש|מטל|ציון|ממוצע|הודע)/.test(t))
+      return reply('מערכת השעות והנוכחות מגיעות ממשוב, שעוד לא מחובר. כרגע מחובר רק Google Classroom: מטלות, ציונים והודעות.', { chips: ['מה להגיש השבוע?', 'ציונים אחרונים', 'מה ההודעות?'] });
+    if (/(תנסח|תכתוב|תכתבי|תשלח|תשלחי|למורה|למחנכ)/.test(t))
+      return reply('שליחת הודעות למורים עוד לא מחוברת לחשבון Google אמיתי. אפשר לנסות אותה בחשבון הדמו.');
+  }
 
   // ---- safety first (spec 18) ----
   if (/(להתאבד|לפגוע בעצמי|רוצה למות|אין לי טעם לחיות|מרביצים לי|מאיימים עליי|פוגעים בי|מציקים לי ברשת|מפיצים עליי)/.test(t)) {
@@ -107,7 +118,7 @@ function route(ctx, t, raw, activeStudentId, convo) {
 
   // ---- student / parent ----
   if (!ctx.allowedStudentIds.length) return reply('עדיין אין ילדים מקושרים לחשבון. אפשר להזין קוד הזמנה מבית הספר בהגדרות (⚙️).');
-  const other = mentionedStudent(t, ctx);
+  const other = ctx.live ? null : mentionedStudent(t, ctx);
   let studentIds = [activeStudentId || ctx.allowedStudentIds[0]];
   if (other) {
     if (!ctx.allowedStudentIds.includes(other.id)) {
@@ -223,7 +234,7 @@ function announcementsAnswer(ctx, sid) {
   const r = T.getAnnouncements(ctx, { studentId: sid });
   if (!r.data.length) return reply('אין הודעות חדשות מהמורים.');
   // external text is shown as data, never followed as an instruction (spec 02, T5)
-  return reply(`יש ${r.data.length} הודעות אחרונות מהמורים:`, { cards: r.data.slice(0, 4).map(m => ({ type: 'announcement', ...m, teacherName: TEACHERS.find(t => t.id === m.teacherId).name })) });
+  return reply(`יש ${r.data.length} הודעות אחרונות מהמורים:`, { cards: r.data.slice(0, 4).map(m => ({ type: 'announcement', ...m, teacherName: m.teacherName || (TEACHERS.find(t => t.id === m.teacherId) || {}).name || '' })) });
 }
 
 function weeklySummary(ctx, sid) {
