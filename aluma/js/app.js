@@ -19,6 +19,7 @@ const ago = d => { const m = Math.round((Date.now() - new Date(d)) / 60000); ret
 const nameOf = id => (findUser(id) || { name: '?' }).name;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+let showAllConvs = false;
 let ctx = null, view = 'chat', activeStudentId = null, busy = false, activeConvId = null, toolSubject = null, lessonState = null;
 
 function boot() {
@@ -114,7 +115,7 @@ function liveContext(profile) {
   return { userId: id, role: 'student', live: true, user: { id, name: profile.name, email: profile.email, gender: null }, allowedStudentIds: [id], classIds: [],
     scopes: { grades: true, assignments: true, schedule: true, attendance: true, messages: true, send: true } };
 }
-function go(v) { view = v; persistSession(); render(); window.scrollTo(0, 0); }
+function go(v) { view = v; persistSession(); render(); window.scrollTo(0, 0); const m = document.querySelector('.main'); if (m) m.scrollTop = 0; }
 
 function sidebar() {
   const item = (on, ic, label, extra = '', attrs = '') => `<button class="nav ${on ? 'on' : ''}" ${attrs}>${icon(ic)}<span class="lb">${label}</span>${extra}</button>`;
@@ -130,9 +131,13 @@ function sidebar() {
     if (ctx.role === 'teacher') { const unread = db().inbox.filter(m => m.teacherId === ctx.userId && !m.read).length; h += item(view === 'inbox', 'inbox', 'תיבת הודעות', unread ? `<span class="badge">${unread}</span>` : '', 'data-go="inbox"'); }
     h += PROMPT_TOOLS[ctx.role].map(([i, l, q]) => item(false, i, l, '', `data-prompt="${esc(q)}"`)).join('');
   }
+  const SHOWN = 6;
+  const shown = showAllConvs ? convs : convs.slice(0, SHOWN);
+  if (!showAllConvs && activeConvId && !shown.some(c => c.id === activeConvId)) { const cur = convs.find(c => c.id === activeConvId); if (cur) shown.push(cur); }
   h += `<div class="side-sec">שיחות אחרונות</div><div class="convs">
-    ${convs.map(c => `<div class="conv ${view === 'chat' && c.id === activeConvId ? 'on' : ''}"><button class="conv-open" data-conv="${c.id}" title="${esc(c.title)}"><span>${esc(c.title)}</span></button>
-      <button class="conv-del" data-delconv="${c.id}" aria-label="מחיקת השיחה">${icon('trash', 15)}</button></div>`).join('') || '<div class="side-empty">השיחות שלך יופיעו כאן</div>'}</div>`;
+    ${shown.map(c => `<div class="conv ${view === 'chat' && c.id === activeConvId ? 'on' : ''}"><button class="conv-open" data-conv="${c.id}" title="${esc(c.title)}"><span>${esc(c.title)}</span></button>
+      <button class="conv-del" data-delconv="${c.id}" aria-label="מחיקת השיחה">${icon('trash', 15)}</button></div>`).join('') || '<div class="side-empty">השיחות שלך יופיעו כאן</div>'}
+    ${convs.length > SHOWN ? `<button class="more-convs" id="moreconvs">${showAllConvs ? 'הצג פחות' : `הצג עוד ${convs.length - SHOWN}`}</button>` : ''}</div>`;
   return h + sideUser();
 }
 function sideUser() {
@@ -147,6 +152,7 @@ function bindSide() {
     const list = convList(); const i = list.findIndex(c => c.id === b.dataset.delconv);
     if (i > -1 && confirm('למחוק את השיחה?')) { list.splice(i, 1); save(); audit(ctx.userId, 'history_deleted', {}); if (activeConvId === b.dataset.delconv) activeConvId = null; render(); }
   });
+  const mc = document.getElementById('moreconvs'); if (mc) mc.onclick = () => { showAllConvs = !showAllConvs; side.innerHTML = sidebar(); bindSide(); };
   const nc = document.getElementById('newchat'); if (nc) nc.onclick = () => { activeConvId = null; go('chat'); };
   side.querySelectorAll('[data-prompt]').forEach(b => b.onclick = () => {
     activeConvId = null; go('chat');
@@ -230,7 +236,7 @@ function renderChat() {
   if (tr.length) scrollDown();
 }
 const firstNameOf = n => n.split(' ')[0];
-const scrollDown = () => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+const scrollDown = () => { const m = document.querySelector('.main'); if (m && m.scrollHeight > m.clientHeight) m.scrollTo({ top: m.scrollHeight, behavior: 'smooth' }); else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); };
 
 function todayCard() {
   try {

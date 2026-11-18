@@ -300,3 +300,31 @@ body.in-app .proto-banner { display: none; }
 .side { top: 56px; height: calc(100vh - 56px); height: calc(100dvh - 56px); }   /* below the 56px top bar */
 .main { min-height: calc(100dvh - 56px); }
 @media (max-width: 900px) { .side { top: 0; height: 100vh; height: 100dvh; } }
+
+/* ---- sidebar: only the conversation list scrolls; settings always stay visible at the bottom ---- */
+.side { overflow: hidden; }
+.convs { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.side-bottom { flex: none; }
+.more-convs { border: 0; background: none; color: var(--accent); font-size: 13px; text-align: right; padding: 6px 10px; border-radius: 8px; }
+.more-convs:hover { background: var(--hover); }
+
+/* ---- new chat: everything fits on one screen ---- */
+.main { height: calc(100dvh - 56px); min-height: 0; overflow-y: auto; }
+#view { min-height: 100%; }
+.chat-wrap { min-height: 100%; }
+.empty { padding: 20px 0 8px; gap: 0; }
+.empty .mark { width: 44px !important; height: 44px !important; }
+.empty h1 { font-size: 26px; margin: 12px 0 2px; }
+.empty p { margin-bottom: 14px; }
+.today { margin-bottom: 14px; }
+.sug { padding: 11px 12px; }
+.composer { padding: 8px 0 10px; }
+.disclaimer { margin-top: 6px; }
+@media (max-height: 760px) {
+  .empty { padding-top: 8px; }
+  .empty h1 { font-size: 22px; margin-top: 8px; }
+  .empty .mark { width: 36px !important; height: 36px !important; }
+  .sug small { display: none; }
+  .today { margin-bottom: 10px; }
+}
+@media (max-width: 900px) { .main { height: auto; overflow: visible; } }
