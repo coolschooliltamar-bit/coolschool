@@ -332,10 +332,10 @@ function cardHTML(c) {
     case 'grade': return `<div class="card grade"><div class="score ${c.score < 60 ? 'low' : ''}">${c.score}</div><div><div class="t">${esc(subjectName(c.subject))} · ${esc(c.title)}</div>
       <div class="m">${{ exam: 'מבחן', quiz: 'בוחן', assignment: 'עבודה' }[c.gtype] || ''} · ${fmtDate(c.date)} · מתוך ${c.max}</div>${srcLine(c.source, c.fetchedAt)}</div></div>`;
     case 'assignment': {
-      const late = new Date(c.due) < NOW, soon = !late && new Date(c.due) - NOW < 864e5;
+      const late = !!c.due && new Date(c.due) < NOW, soon = !!c.due && !late && new Date(c.due) - NOW < 864e5;
       const st = c.status === 'submitted' ? '<span class="tag ok">הוגש</span>' : late ? '<span class="tag bad">לא הוגש · באיחור</span>' : '<span class="tag">פתוח</span>';
       return `<div class="card asg"><div class="t">${esc(c.title)}</div><div class="row"><span>${esc(subjectName(c.subject))}</span>
-        <span ${soon ? 'style="color:var(--coral);font-weight:700"' : ''}>הגשה: ${fmtDate(c.due)} ${fmtTime(c.due)}</span>${st}</div>
+        <span ${soon ? 'style="color:var(--coral);font-weight:700"' : ''}>${c.due ? `הגשה: ${fmtDate(c.due)} ${fmtTime(c.due)}` : 'ללא תאריך הגשה'}</span>${st}</div>
         <div class="row"><a href="${esc(c.link)}" target="_blank" rel="noopener">פתיחה ב-Classroom ↗</a></div>${srcLine(c.source, c.fetchedAt)}</div>`;
     }
     case 'schedule': return `<div class="card sched"><table><tbody>${c.lessons.map(l => `<tr class="${l.change ? 'changed' : ''} ${l.change && l.change.kind === 'cancelled' ? 'cancelled' : ''}">

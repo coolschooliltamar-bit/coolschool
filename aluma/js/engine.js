@@ -205,8 +205,8 @@ function averageAnswer(ctx, sid, subject) {
 function assignmentsAnswer(ctx, sid, subject, t) {
   const week = /(השבוע|הקרוב|מחר|היום)/.test(t) || !/(כל)/.test(t);
   const r = T.getAssignments(ctx, { studentId: sid, subject, status: 'pending' });
-  const late = r.data.filter(a => new Date(a.due) < NOW);
-  const upcoming = r.data.filter(a => new Date(a.due) >= NOW && (!week || new Date(a.due) - NOW < 7 * 864e5));
+  const late = r.data.filter(a => a.due && new Date(a.due) < NOW);
+  const upcoming = r.data.filter(a => !a.due || (new Date(a.due) >= NOW && (!week || new Date(a.due) - NOW < 7 * 864e5)));
   if (!late.length && !upcoming.length) return reply(`אין ${childPrefix(ctx, sid)}מטלות פתוחות${week ? ' השבוע' : ''}.${emoji(ctx, '✅')}`);
   let text = upcoming.length ? `יש ${childPrefix(ctx, sid)}${upcoming.length} מטלות להגשה${week ? ' השבוע' : ''}.` : '';
   if (late.length) text += `${text ? ' ' : ''}שימו לב: ${late.length === 1 ? 'מטלה אחת עברה' : late.length + ' מטלות עברו'} את מועד ההגשה ולא ${late.length === 1 ? 'הוגשה' : 'הוגשו'}.`;

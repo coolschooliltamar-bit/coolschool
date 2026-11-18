@@ -25,8 +25,8 @@ export function getGrades(ctx, { studentId, subject, limit } = {}) {
   return { data: limit ? r.slice(0, limit) : r, source: 'משוב', fetchedAt: r[0] ? r[0].fetchedAt : NOW.toISOString() };
 }
 
-export function getAssignments(ctx, { studentId, status, subject, dueWithinDays } = {}) {
-  if (ctx.live) { requireStudent(ctx, studentId); let r = LIVE.assignments.filter(a => a.due && (!subject || a.subject === subject)); if (status === 'pending') r = r.filter(a => a.status !== 'submitted'); if (dueWithinDays != null) r = r.filter(a => new Date(a.due) - NOW < dueWithinDays * 864e5 && new Date(a.due) > NOW); r.sort((a, b) => new Date(a.due) - new Date(b.due)); return { data: r, source: 'Google Classroom', fetchedAt: LIVE.fetchedAt }; }
+export function getAssignments(ctx, { studentId, status, subject, dueWithinDays, title } = {}) {
+  if (ctx.live) { requireStudent(ctx, studentId); let r = LIVE.assignments.filter(a => (!subject || a.subject === subject) && (!title || a.title.includes(title))); if (status === 'pending') r = r.filter(a => a.status !== 'submitted'); if (dueWithinDays != null) r = r.filter(a => a.due && new Date(a.due) - NOW < dueWithinDays * 864e5 && new Date(a.due) > NOW); r.sort((a, b) => (a.due ? new Date(a.due) : Infinity) - (b.due ? new Date(b.due) : Infinity));  // assignments without a due date are kept, at the end return { data: r, source: 'Google Classroom', fetchedAt: LIVE.fetchedAt }; }
   requireScope(ctx, 'assignments'); requireStudent(ctx, studentId); logView(ctx, studentId, 'assignments');
   const s = student(studentId);
   let r = ASSIGNMENTS.filter(a => a.classId === s.classId && (!subject || a.subject === subject))
