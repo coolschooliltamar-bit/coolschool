@@ -3,7 +3,7 @@
 import { GRADES, ASSIGNMENTS, SUBMISSIONS, SCHEDULE, SCHEDULE_CHANGES, ATTENDANCE, ANNOUNCEMENTS, STUDENTS, TEACHERS, CLASSES, NOW, dayOffset, subjectName } from './data.js';
 import { Forbidden } from './auth.js';
 import { db, save, audit } from './store.js';
-import { LIVE } from './google.js';
+import { LIVE, gmailSend } from './google.js';
 const liveOnly = (ctx, what) => ({ data: [], source: what, notConnected: true });
 
 const student = id => STUDENTS.find(s => s.id === id);
@@ -38,7 +38,12 @@ export function getAssignments(ctx, { studentId, status, subject, dueWithinDays 
 }
 
 export function getSchedule(ctx, { studentId, dayOffsetN = 0 } = {}) {
-  if (ctx.live) return { ...liveOnly(ctx, 'משוב'), date: dayOffset(dayOffsetN) };
+  if (ctx.live) {
+    const date = dayOffset(dayOffsetN);
+    if (!LIVE.events) return { ...liveOnly(ctx, 'Google Calendar'), date };
+    const evs = LIVE.events.filter(e => new Date(e.start).toDateString() === date.toDateString());
+    return { data: [], events: evs, date, calendar: true, source: 'Google Calendar', fetchedAt: LIVE.fetchedAt };
+  }
   requireScope(ctx, 'schedule'); requireStudent(ctx, studentId);
   const s = student(studentId);
   const date = dayOffset(dayOffsetN);
@@ -72,7 +77,7 @@ export function getAnnouncements(ctx, { studentId } = {}) {
 
 // Allowed recipients = the student's own teachers (+ homeroom). Never free-text addresses.
 export function listMyTeachers(ctx, { studentId } = {}) {
-  if (ctx.live) return [];
+  if (ctx.live) return LIVE.teachers.slice();
   requireScope(ctx, 'send'); requireStudent(ctx, studentId);
   const s = student(studentId);
   const subjectsInClass = new Set(SCHEDULE[s.classId].flat().map(l => l.subject));
@@ -99,7 +104,7 @@ export function sentToday(userId) {
 }
 
 // Called ONLY from the confirm button handler, with the one-time token.
-export function confirmAction(ctx, actionId, token, editedBody) {
+export async function confirmAction(ctx, actionId, token, editedBody) {
   const a = db().actions[actionId];
   if (!a || a.userId !== ctx.userId) throw new Forbidden('הפעולה לא נמצאה.');
   if (a.status !== 'draft') throw new Error('הפעולה כבר טופלה.');
@@ -108,6 +113,16 @@ export function confirmAction(ctx, actionId, token, editedBody) {
   const limit = db().policies.dailyMessageLimit;
   if (sentToday(ctx.userId) >= limit) throw new Error(`הגעת למגבלה של ${limit} הודעות ליום.`);
   if (editedBody != null) a.body = editedBody.trim();
+  if (ctx.live) {   // real account: send through Gmail to the teacher's real address (from Classroom)
+    const t = LIVE.teachers.find(x => x.id === a.teacherId);
+    if (!t) throw new Forbidden('הנמען לא נמצא ברשימת המורים שלך.');
+    a.confirmToken = null; save();
+    await gmailSend({ to: t.email, subject: a.subject, body: a.body });
+    a.status = 'sent'; a.sentAt = new Date().toISOString(); a.via = 'gmail';
+    const rr = db().rate[ctx.userId] = db().rate[ctx.userId] && db().rate[ctx.userId].date === new Date().toDateString() ? db().rate[ctx.userId] : { date: new Date().toDateString(), sent: 0 };
+    rr.sent++; save(); audit(ctx.userId, 'message_sent', { action: actionId });
+    return a;
+  }
   a.status = 'sent'; a.sentAt = new Date().toISOString(); a.confirmToken = null;
   const r = db().rate[ctx.userId] = db().rate[ctx.userId] && db().rate[ctx.userId].date === new Date().toDateString() ? db().rate[ctx.userId] : { date: new Date().toDateString(), sent: 0 };
   r.sent++;
@@ -120,7 +135,7 @@ export function confirmAction(ctx, actionId, token, editedBody) {
 
 export function undoAction(ctx, actionId) {
   const a = db().actions[actionId];
-  if (!a || a.userId !== ctx.userId || a.status !== 'sent') return false;
+  if (!a || a.userId !== ctx.userId || a.status !== 'sent' || a.via === 'gmail') return false;
   if (Date.now() - new Date(a.sentAt).getTime() > 10500) return false;
   a.status = 'cancelled';
   db().inbox = db().inbox.filter(m => m.actionId !== actionId);

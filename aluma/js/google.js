@@ -13,7 +13,39 @@ const SCOPES = [
 const API = 'https://classroom.googleapis.com/v1';
 
 let token = null;
-export const LIVE = { profile: null, courses: [], assignments: [], grades: [], announcements: [], fetchedAt: null };
+let granted = new Set();
+export const LIVE = { profile: null, courses: [], assignments: [], grades: [], announcements: [], teachers: [], events: null, fetchedAt: null };
+
+// Extra Google services, connected one by one (incremental consent) with the same Client ID.
+export const SERVICES = {
+  calendar: { label: 'Google Calendar', desc: 'אירועים, מבחנים וקישורי Meet מהיומן', scopes: ['https://www.googleapis.com/auth/calendar.readonly'] },
+  drive: { label: 'Google Drive · Docs · Sheets · Slides', desc: 'חיפוש וקריאה של קבצים (קריאה בלבד)', scopes: ['https://www.googleapis.com/auth/drive.readonly'] },
+  gmail: { label: 'Gmail', desc: 'שליחת הודעות למורים – רק אחרי אישור שלך', scopes: ['https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/classroom.rosters.readonly', 'https://www.googleapis.com/auth/classroom.profile.emails'] },
+};
+export const hasService = k => SERVICES[k].scopes.every(x => granted.has(x));
+
+function requestToken(scope, prompt = '') {
+  return new Promise((resolve, reject) => {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID, scope, prompt, include_granted_scopes: true,
+      callback: r => {
+        if (!r || !r.access_token) return reject(new Error(r && r.error_description || 'ההתחברות בוטלה.'));
+        (r.scope || scope).split(' ').forEach(x => granted.add(x));
+        resolve(r.access_token);
+      },
+      error_callback: e => reject(new Error(e && e.type === 'popup_closed' ? 'חלון ההתחברות נסגר.' : 'ההתחברות נכשלה.')),
+    });
+    client.requestAccessToken();
+  });
+}
+export async function connectService(k) {
+  await loadGis();
+  const all = [...new Set([...SCOPES.split(' '), ...granted, ...SERVICES[k].scopes])].join(' ');
+  token = await requestToken(all, 'consent');
+  if (!hasService(k)) throw new Error('לא ניתנה הרשאה לשירות הזה.');
+  if (k === 'gmail') await loadTeachers();
+  if (k === 'calendar') LIVE.events = await calendarEvents(new Date(), 14);
+}
 
 function loadGis() {
   if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
@@ -28,22 +60,15 @@ function loadGis() {
 export async function signIn() {
   if (!GOOGLE_CLIENT_ID) throw new Error('לא הוגדר Client ID של Google.');
   await loadGis();
-  token = await new Promise((resolve, reject) => {
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID, scope: SCOPES, prompt: '',
-      callback: r => (r && r.access_token ? resolve(r.access_token) : reject(new Error(r && r.error_description || 'ההתחברות בוטלה.'))),
-      error_callback: e => reject(new Error(e && e.type === 'popup_closed' ? 'חלון ההתחברות נסגר.' : 'ההתחברות נכשלה.')),
-    });
-    client.requestAccessToken();
-  });
+  token = await requestToken(SCOPES);
   await refresh();
   return LIVE.profile;
 }
 
 export function signOut() {
   if (token && window.google && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(token, () => {});
-  token = null;
-  Object.assign(LIVE, { profile: null, courses: [], assignments: [], grades: [], announcements: [], fetchedAt: null });
+  token = null; granted = new Set();
+  Object.assign(LIVE, { profile: null, courses: [], assignments: [], grades: [], announcements: [], teachers: [], events: null, fetchedAt: null });
 }
 export const isLive = () => !!token;
 
@@ -92,4 +117,56 @@ export async function refresh() {
     for (const a of anns) ann.push({ id: `ga-${a.id}`, subject: c.name, teacherName: c.name, date: a.updateTime || a.creationTime, body: a.text || '', external: true });
   }));
   LIVE.assignments = asg; LIVE.grades = grades; LIVE.announcements = ann; LIVE.fetchedAt = now;
+  if (hasService('calendar')) LIVE.events = await calendarEvents(new Date(), 14).catch(() => []);
+  if (hasService('gmail')) await loadTeachers().catch(() => {});
+}
+
+// ---------- Calendar (and Meet links inside events) ----------
+export async function calendarEvents(fromDate, days = 1) {
+  const from = new Date(fromDate); from.setHours(0, 0, 0, 0);
+  const to = new Date(from.getTime() + days * 864e5);
+  const d = await get(`https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&maxResults=50&timeMin=${from.toISOString()}&timeMax=${to.toISOString()}`);
+  return (d.items || []).map(e => ({ title: e.summary || '(ללא כותרת)', start: e.start.dateTime || e.start.date, end: e.end && (e.end.dateTime || e.end.date),
+    allDay: !e.start.dateTime, meet: e.hangoutLink || null, link: e.htmlLink, location: e.location || '' }));
+}
+
+// ---------- Drive (Docs / Sheets / Slides are Drive files) ----------
+const KIND = { 'application/vnd.google-apps.document': 'מסמך', 'application/vnd.google-apps.spreadsheet': 'גיליון', 'application/vnd.google-apps.presentation': 'מצגת', 'application/pdf': 'PDF', 'application/vnd.google-apps.form': 'טופס' };
+export async function driveSearch(query) {
+  const q = encodeURIComponent(`trashed=false and (name contains '${query.replace(/'/g, "\\'")}' or fullText contains '${query.replace(/'/g, "\\'")}')`);
+  const d = await get(`https://www.googleapis.com/drive/v3/files?q=${q}&pageSize=10&orderBy=modifiedTime desc&fields=files(id,name,mimeType,webViewLink,modifiedTime)`);
+  return (d.files || []).map(f => ({ id: f.id, name: f.name, kind: KIND[f.mimeType] || 'קובץ', link: f.webViewLink, modified: f.modifiedTime, mimeType: f.mimeType }));
+}
+export async function driveRead(id) {
+  const meta = await get(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?fields=id,name,mimeType,webViewLink`);
+  const exportAs = { 'application/vnd.google-apps.document': 'text/plain', 'application/vnd.google-apps.presentation': 'text/plain', 'application/vnd.google-apps.spreadsheet': 'text/csv' }[meta.mimeType];
+  const url = exportAs ? `https://www.googleapis.com/drive/v3/files/${meta.id}/export?mimeType=${encodeURIComponent(exportAs)}`
+    : /^text\//.test(meta.mimeType) ? `https://www.googleapis.com/drive/v3/files/${meta.id}?alt=media` : null;
+  if (!url) return { name: meta.name, link: meta.webViewLink, text: null, note: 'אי אפשר לקרוא את סוג הקובץ הזה כטקסט.' };
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!r.ok) throw new Error(`לא הצלחתי לקרוא את הקובץ (${r.status}).`);
+  const text = (await r.text()).slice(0, 12000);
+  return { name: meta.name, link: meta.webViewLink, text };
+}
+
+// ---------- Gmail (send only) + the student's real teachers from Classroom ----------
+export async function loadTeachers() {
+  const out = [];
+  await Promise.all(LIVE.courses.map(async c => {
+    const d = await get(`${API}/courses/${c.id}/teachers`).catch(() => ({}));
+    for (const t of d.teachers || []) if (t.profile && t.profile.emailAddress)
+      out.push({ id: t.profile.emailAddress, name: t.profile.name ? t.profile.name.fullName : t.profile.emailAddress, email: t.profile.emailAddress, subjects: [c.name], subjectIds: [c.name], homeroom: false, gender: null });
+  }));
+  const seen = new Map(); out.forEach(t => { if (seen.has(t.id)) seen.get(t.id).subjects.push(...t.subjects); else seen.set(t.id, t); });
+  LIVE.teachers = [...seen.values()];
+}
+const b64url = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const encodeHeader = s => `=?UTF-8?B?${btoa(unescape(encodeURIComponent(s)))}?=`;
+export async function gmailSend({ to, subject, body }) {
+  const raw = [`To: ${to}`, `Subject: ${encodeHeader(subject)}`, 'MIME-Version: 1.0', 'Content-Type: text/plain; charset="UTF-8"', 'Content-Transfer-Encoding: 8bit', '',
+    `${body}\n\n—\nנוסחה בעזרת אלומה ואושרה על ידי השולח/ת.`].join('\r\n');
+  const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ raw: b64url(raw) }) });
+  if (!r.ok) throw new Error(`Gmail לא שלח את ההודעה (${r.status}).`);
+  return r.json();
 }

@@ -83,10 +83,10 @@ function route(ctx, t, raw, activeStudentId, convo) {
   const u = ctx.user;
   liveMode = !!ctx.live;
   if (ctx.live) {
-    if (/(מערכת|מחר|היום|שיעור|היעדר|נוכחות|איחור)/.test(t) && !/(להגיש|מטל|ציון|ממוצע|הודע)/.test(t))
-      return reply('מערכת השעות והנוכחות מגיעות ממשוב, שעוד לא מחובר. כרגע מחובר רק Google Classroom: מטלות, ציונים והודעות.', { chips: ['מה להגיש השבוע?', 'ציונים אחרונים', 'מה ההודעות?'] });
-    if (/(תנסח|תכתוב|תכתבי|תשלח|תשלחי|למורה|למחנכ)/.test(t))
-      return reply('שליחת הודעות למורים עוד לא מחוברת לחשבון Google אמיתי. אפשר לנסות אותה בחשבון הדמו.');
+    if (/(היעדר|נוכחות|איחור)/.test(t) || (!LIVE.events && /(מערכת|מחר|היום|שיעור)/.test(t) && !/(להגיש|מטל|ציון|ממוצע|הודע)/.test(t)))
+      return reply('הנוכחות ומערכת השעות מגיעות ממשוב, שעוד לא מחובר. אפשר לחבר את Google Calendar בהגדרות כדי לראות את היומן.', { chips: ['מה להגיש השבוע?', 'ציונים אחרונים', 'מה ההודעות?'] });
+    if (/(תנסח|תכתוב|תכתבי|תשלח|תשלחי|למורה|למחנכ)/.test(t) && !LIVE.teachers.length)
+      return reply('כדי לשלוח הודעות למורים מהחשבון האמיתי, חברו את Gmail בהגדרות. ההודעה תמיד תחכה לאישור שלך.');
   }
 
   // ---- safety first (spec 18) ----
@@ -216,6 +216,9 @@ function assignmentsAnswer(ctx, sid, subject, t) {
 function scheduleAnswer(ctx, sid, d) {
   const r = T.getSchedule(ctx, { studentId: sid, dayOffsetN: d });
   const label = d === 0 ? 'היום' : d === 1 ? 'מחר' : `ביום ${dayName(r.date)}`;
+  if (r.calendar) return r.events.length
+    ? reply(`${label} (${fmtDate(r.date)}) יש ביומן שלך ${r.events.length} אירועים.`, { cards: [{ type: 'events', date: r.date, events: r.events }] })
+    : reply(`${label} (${fmtDate(r.date)}) אין אירועים ביומן שלך.`);
   if (r.weekend) return reply(`${label} (${dayName(r.date)}) אין לימודים.`, { chips: ['מה יש ביום ראשון?'] });
   const changes = r.data.filter(l => l.change);
   let text = `${label} (יום ${dayName(r.date)}, ${fmtDate(r.date)}) ${ctx.role === 'parent' ? `יש ל${nameOf(sid)}` : 'יש לך'} ${r.data.length} שיעורים, ${r.data[0].start}–${r.data[r.data.length - 1].end}.`;
@@ -262,6 +265,7 @@ function draftRoute(ctx, t, raw, sid, convo) {
   if (/מחנכ/.test(t)) teacher = teachers.find(x => x.homeroom);
   if (!teacher && subject) teacher = teachers.find(x => x.subjectIds.includes(subject));
   if (!teacher) teacher = teachers.find(x => t.includes(firstName(x.name)));
+  if (!teacher && teachers.length === 1) teacher = teachers[0];
   if (!teacher) {
     return reply('לאיזה מורה לשלוח?', { chips: teachers.slice(0, 6).map(x => `${raw.replace(/למורה( שלי)?/, '')} ל${x.homeroom ? 'מחנכת' : 'מורה ל' + x.subjects[0]}`.replace(/\s+/g, ' ').trim()) });
   }
@@ -330,3 +334,6 @@ function teacherRoute(ctx, t) {
   if (/(שלום|היי|עזרה|מה את יודעת)/.test(t)) return reply('אני יכולה לעזור עם הכיתות שלך: מי לא הגיש, ממוצעים במבחנים, היעדרויות (למחנכים) וסיכום ההודעות.', { chips: DEFAULT_CHIPS.teacher });
   return reply('אפשר לשאול אותי על הכיתות שלך, למשל:', { chips: DEFAULT_CHIPS.teacher });
 }
+
+// fixed safety answers run before any AI model (spec 18)
+answer.safety = (ctx, raw) => /(להתאבד|לפגוע בעצמי|רוצה למות|אין לי טעם לחיות|מרביצים לי|מאיימים עליי|פוגעים בי|מציקים לי ברשת|מפיצים עליי)/.test(norm(raw));

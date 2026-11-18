@@ -7,6 +7,7 @@ import { answer, welcome } from './engine.js';
 import * as L from './learn.js';
 import { icon, mark } from './icons.js';
 import * as G from './google.js';
+import * as AI from './gemini.js';
 
 const $app = document.getElementById('app');
 const live = document.getElementById('live');
@@ -162,7 +163,7 @@ function topBar() {
     <div class="top-title">${esc(titles[view] || '')}</div>
     ${kids.length ? `<label class="sr-only" for="kid">על מי מדברים?</label><div class="kid-pick">${icon('users', 16)}<select id="kid">${kids.map(id => `<option value="${id}" ${id === activeStudentId ? 'selected' : ''}>${esc(nameOf(id))}</option>`).join('')}</select></div>` : ''}
     <span class="spacer"></span>
-    <span class="model-pill" title="אב-טיפוס: מנוע מקומי במקום מודל AI">${icon('sparkle', 14)} אלומה · אב-טיפוס</span>
+    <span class="model-pill" title="${AI.enabled() ? 'התשובות נוצרות ב-Gemini' : 'מנוע מקומי – אפשר לחבר Gemini בהגדרות'}">${icon('sparkle', 14)} ${AI.enabled() ? `Gemini${AI.currentModel() ? ' · ' + esc(AI.currentModel()) : ''}` : 'מנוע מקומי'}</span>
     <button class="iconbtn ghost" id="theme" title="מצב כהה/בהיר" aria-label="מצב כהה או בהיר">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon')}</button>
     <button class="iconbtn ghost" id="logout" title="התנתקות" aria-label="התנתקות">${icon('logout')}</button>
   </header>`;
@@ -254,6 +255,7 @@ function aiMsg(res, withChips) {
   const d = document.createElement('div'); d.className = 'msg ai';
   d.innerHTML = `<div class="ai-av">${mark(28)}</div><div class="ai-body"><div class="ai-name">אלומה</div><div class="ai-text">${md(res.text)}</div>
     ${res.cards.length ? `<div class="cards">${res.cards.map(cardHTML).join('')}</div>` : ''}
+    ${res.note ? `<div class="ai-note">${esc(res.note)}</div>` : ''}
     ${withChips && res.chips.length ? `<div class="chips">${res.chips.map(c => `<button class="chip">${esc(c)}</button>`).join('')}</div>` : ''}</div>`;
   d.querySelectorAll('.chip').forEach(b => b.onclick = () => ask(b.textContent));
   d.querySelectorAll('[data-action]').forEach(el => bindAction(el));
@@ -291,8 +293,26 @@ async function ask(text) {
   const st = document.createElement('div'); st.className = 'msg ai thinking';
   st.innerHTML = `<div class="ai-av">${mark(28)}</div><div class="ai-body"><div class="ai-name">אלומה</div><div class="steps">${steps.map((x, i) => `<div class="step" data-i="${i}"><span class="dot"></span>${x}</div>`).join('')}</div></div>`;
   chat.appendChild(st); scrollDown();
-  for (let i = 0; i < steps.length; i++) { st.querySelector(`[data-i="${i}"]`).classList.add('run'); await sleep(260 + Math.random() * 220); st.querySelector(`[data-i="${i}"]`).classList.replace('run', 'done'); }
-  const res = answer(ctx, text, { activeStudentId });
+  let res;
+  const quick = answer.safety && answer.safety(ctx, text);
+  if (AI.enabled() && ctx.role !== 'school_admin' && !quick) {
+    const box = st.querySelector('.steps');
+    const STEP = { get_grades: 'מחפשת ציונים', get_assignments: 'בודקת מטלות', get_schedule: 'בודקת את המערכת', get_attendance: 'בודקת נוכחות', get_announcements: 'קוראת הודעות',
+      list_my_teachers: 'בודקת למי מותר לשלוח', draft_message_to_teacher: 'מנסחת טיוטה', open_learning_tool: 'פותחת כלי תרגול', search_drive: 'מחפשת ב-Drive', read_drive_file: 'קוראת את הקובץ',
+      class_summary: 'מסכמת את הכיתה', class_attendance: 'בודקת היעדרויות', inbox_summary: 'בודקת הודעות' };
+    box.innerHTML = '<div class="step run"><span class="dot"></span>חושבת עם Gemini</div>';
+    try {
+      res = await AI.geminiAnswer(ctx, text, { activeStudentId, history: conv.messages.slice(0, -1), onStep: n => {
+        box.querySelectorAll('.run').forEach(x => x.classList.replace('run', 'done'));
+        box.insertAdjacentHTML('beforeend', `<div class="step run"><span class="dot"></span>${STEP[n] || n}</div>`); scrollDown(); } });
+    } catch (e) {
+      res = answer(ctx, text, { activeStudentId });
+      res = { ...res, text: res.text, note: `Gemini לא זמין (${e.message}) – ענה המנוע המקומי.` };
+    }
+  } else {
+    for (let i = 0; i < steps.length; i++) { st.querySelector(`[data-i="${i}"]`).classList.add('run'); await sleep(260 + Math.random() * 220); st.querySelector(`[data-i="${i}"]`).classList.replace('run', 'done'); }
+    res = answer(ctx, text, { activeStudentId });
+  }
   st.remove();
   const el = aiMsg({ ...res, text: '', cards: [] }, false); chat.appendChild(el);
   const out = el.querySelector('.ai-text'); out.classList.add('typing');
@@ -328,6 +348,8 @@ function cardHTML(c) {
     case 'list': return `<div class="card list"><b>${esc(c.title)}</b>${c.rows.map(r => `<div class="row"><span>${esc(r[0])}</span><span>${esc(r[1])}</span></div>`).join('')}</div>`;
     case 'help': return `<div class="card help">${c.lines.map(l => `<div class="line"><span>${esc(l[0])}</span><b>${esc(l[1])}</b></div>`).join('')}</div>`;
     case 'action': return actionHTML(c);
+    case 'events': return `<div class="card list"><b>${fmtDate(c.date)} · מתוך Google Calendar</b>${c.events.map(e => `<div class="row"><span>${e.allDay ? 'כל היום' : fmtTime(e.start)} · ${esc(e.title)}</span><span>${e.meet ? `<a href="${esc(e.meet)}" target="_blank" rel="noopener">Meet ↗</a>` : ''}</span></div>`).join('')}</div>`;
+    case 'files': return `<div class="card list">${c.files.map(f => `<div class="row"><span><span class="tag">${esc(f.kind)}</span> ${esc(f.name)}</span><a href="${esc(f.link)}" target="_blank" rel="noopener">פתיחה ↗</a></div>`).join('')}<div class="src">מתוך Google Drive</div></div>`;
     case 'tool': return `<div class="card toolcard"><div class="ti">${c.icon}</div><div><div class="t">${esc(c.title)}</div><div class="m">${esc(c.desc)}</div></div><button class="btn primary" data-tool="${c.tool}" data-subject="${c.subject || ''}">${esc(c.cta)}</button></div>`;
   }
   return '';
@@ -349,9 +371,15 @@ function bindAction(el) {
   const id = el.dataset.action;
   const send = el.querySelector('[data-do=send]'), cancel = el.querySelector('[data-do=cancel]');
   if (cancel) cancel.onclick = () => { const a = db().actions[id]; if (a && a.status === 'draft') { a.status = 'cancelled'; save(); audit(ctx.userId, 'draft_cancelled', { action: id }); } el.outerHTML = actionHTML(cardFromAction(id)); };
-  if (send) send.onclick = () => {
+  if (send) send.onclick = async () => {
     try {
-      const a = T.confirmAction(ctx, id, el.dataset.token, el.querySelector('textarea').value);
+      send.disabled = true; send.textContent = ctx.live ? 'שולחת ב-Gmail…' : 'שולחת…';
+      const a = await T.confirmAction(ctx, id, el.dataset.token, el.querySelector('textarea').value);
+      if (a.via === 'gmail') {
+        const t = G.LIVE.teachers.find(x => x.id === a.teacherId) || { name: a.teacherId };
+        el.innerHTML = `<div class="to">אל: <b>${esc(t.name)}</b> (${esc(t.email || '')}) · נושא: <b>${esc(a.subject)}</b></div><div class="body">${esc(a.body)}</div><div class="sent">נשלח ב-Gmail ✓</div>`;
+        live.textContent = 'ההודעה נשלחה'; return;
+      }
       const teacher = TEACHERS.find(t => t.id === a.teacherId);
       const qs = db().settings[teacher.id] || {};
       const when = quietUntil(qs.quietFrom || db().policies.quietFrom, qs.quietTo || db().policies.quietTo);
@@ -363,13 +391,14 @@ function bindAction(el) {
       let n = 10; const timer = setInterval(() => { n--; if (undo.isConnected) undo.querySelector('span').textContent = n; if (n <= 0) { clearInterval(timer); undo.remove(); } }, 1000);
       undo.onclick = () => { clearInterval(timer); if (T.undoAction(ctx, id)) { el.outerHTML = actionHTML(cardFromAction(id)); live.textContent = 'השליחה בוטלה'; } };
     } catch (e) {
+      if (send.isConnected) { send.disabled = false; send.textContent = 'אישור ושליחה'; }
       el.querySelector('.err')?.remove();
       el.insertAdjacentHTML('beforeend', `<div class="err">${esc(e.message)}</div>`);
     }
   };
 }
 function cardFromAction(id) {
-  const a = db().actions[id]; const t = TEACHERS.find(x => x.id === a.teacherId);
+  const a = db().actions[id]; const t = TEACHERS.find(x => x.id === a.teacherId) || G.LIVE.teachers.find(x => x.id === a.teacherId) || { name: a.teacherId, subjects: [] };
   return { actionId: id, confirmToken: '', to: { name: t.name, subjects: t.subjects.map(subjectName), homeroom: false }, subject: a.subject, body: a.body };
 }
 function quietUntil(from, to) {
@@ -386,6 +415,14 @@ function renderSettings() {
     <tr><td><b>Google Classroom</b><div class="hint">${esc(ctx.user.email || '')}</div></td><td><span class="tag ok">מחובר</span></td><td>${G.LIVE.courses.length} כיתות · ${G.LIVE.assignments.length} מטלות · עודכן ${G.LIVE.fetchedAt ? ago(G.LIVE.fetchedAt) : ''}</td></tr>
     <tr><td><b>משוב</b></td><td><span class="tag warn">לא מחובר</span></td><td>מערכת שעות, נוכחות וציוני מבחנים (Q-01)</td></tr></tbody></table>
     <div class="btns"><button class="btn" id="grefresh">רענון מ-Classroom</button></div></section>` : '';
+  if (ctx.live) html += `<section class="panel"><h2>שירותי Google נוספים</h2><p class="hint">כל שירות מתחבר בנפרד ומבקש רק את ההרשאה שהוא צריך.</p><table class="t"><tbody>
+    ${Object.entries(G.SERVICES).map(([k, sv]) => `<tr><td><b>${esc(sv.label)}</b><div class="hint">${esc(sv.desc)}</div></td><td>${G.hasService(k) ? '<span class="tag ok">מחובר</span>' : `<button class="btn" data-svc="${k}">חיבור</button>`}</td></tr>`).join('')}
+    </tbody></table><div id="svcmsg"></div></section>`;
+  html += `<section class="panel"><h2>מנוע ה-AI</h2>
+    <p class="hint">${AI.enabled() ? `התשובות נוצרות ב-<b>Gemini</b>${AI.currentModel() ? ` (${esc(AI.currentModel())})` : ''}. ההרשאות עדיין נבדקות בכלים – Gemini רואה רק את מה שמותר לך.` : 'כרגע עונה מנוע מקומי פשוט. אפשר לחבר Gemini עם מפתח API.'}</p>
+    <form class="formrow" id="aiform"><label for="gkey">מפתח Gemini API</label><input type="password" id="gkey" autocomplete="off" placeholder="${AI.getKey() ? '•••••••• (שמור בדפדפן הזה)' : 'AIza…'}" style="flex:1;min-width:200px">
+      <button class="btn primary">שמירה ובדיקה</button>${AI.getKey() ? '<button class="btn link" type="button" id="gkeydel">מחיקת המפתח</button>' : ''}</form><div id="aimsg"></div>
+    <p class="hint">המפתח נשמר <b>רק בדפדפן הזה</b> ולא נכנס לקוד האתר. שימו לב: בשכבה החינמית של Gemini, Google עשויה להשתמש בתוכן לשיפור המוצרים שלה – אל תשתמשו בה עם נתונים אמיתיים של תלמידים. לפיילוט צריך שכבה בתשלום ושרת מתווך.</p></section>`;
   html += `<section class="panel"><h2>מה אלומה זוכרת עליי</h2><p class="hint">אפשר לבקש בצ׳אט: "תזכרי שתמיד תעני לי בקצרה". מידע רגיש לא נשמר.</p>
     ${mem.length ? `<table class="t"><tbody>${mem.map(m => `<tr><td>${esc(m.text)}</td><td style="width:90px">${fmtDate(m.at)}</td><td style="width:70px"><button class="btn link" data-delmem="${m.id}">מחיקה</button></td></tr>`).join('')}</tbody></table>` : '<p class="hint">עוד לא שמרתי כלום.</p>'}
     <div class="formrow"><button class="btn" id="clearhist">מחיקת כל היסטוריית השיחות</button></div></section>`;
@@ -408,6 +445,20 @@ function renderSettings() {
       <form class="formrow" id="quiet"><label>לא לשלוח הודעות בין</label><input type="time" id="qf" value="${s.quietFrom || db().policies.quietFrom}"> ל- <input type="time" id="qt" value="${s.quietTo || db().policies.quietTo}"><button class="btn primary">שמירה</button></form></section>`;
   }
   v.innerHTML = html;
+  v.querySelectorAll('[data-svc]').forEach(b => b.onclick = async () => {
+    b.disabled = true; b.textContent = 'מתחברת…';
+    try { await G.connectService(b.dataset.svc); audit(ctx.userId, 'service_connected', { kind: b.dataset.svc }); renderSettings(); }
+    catch (e) { b.disabled = false; b.textContent = 'חיבור'; v.querySelector('#svcmsg').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+  });
+  const af = v.querySelector('#aiform');
+  if (af) af.onsubmit = async e => {
+    e.preventDefault(); const k = v.querySelector('#gkey').value.trim(); const msg = v.querySelector('#aimsg');
+    if (!k) { msg.innerHTML = '<p class="err">הדביקו מפתח.</p>'; return; }
+    AI.setKey(k); msg.innerHTML = '<p class="hint">בודקת את המפתח…</p>';
+    try { const m = await AI.test(); msg.innerHTML = `<p class="sent">מחובר ✓ המודל: ${esc(m)}</p>`; setTimeout(render, 900); }
+    catch (err) { AI.setKey(''); msg.innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+  };
+  const kd = v.querySelector('#gkeydel'); if (kd) kd.onclick = () => { AI.setKey(''); render(); };
   const gr = v.querySelector('#grefresh');
   if (gr) gr.onclick = async () => { gr.disabled = true; gr.textContent = 'מרעננת…'; try { await G.refresh(); renderSettings(); } catch (e) { gr.disabled = false; gr.insertAdjacentHTML('afterend', `<span class="err">${esc(e.message)}</span>`); } };
   v.querySelectorAll('[data-delmem]').forEach(b => b.onclick = () => { db().memories[ctx.userId] = mem.filter(m => m.id !== b.dataset.delmem); save(); audit(ctx.userId, 'memory_deleted', {}); renderSettings(); });
