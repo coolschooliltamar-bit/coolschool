@@ -200,13 +200,15 @@ function renderChat() {
   const conv = currentConv(false);
   const tr = conv ? conv.messages : [];
   const noKids = ctx.role === 'parent' && !activeStudentId;
+  const sugs = ctx.live ? [['מה להגיש השבוע?', 'מטלות מ-Classroom', 'task'], ['יש לי מטלות באיחור?', 'לפי תאריכי ההגשה', 'clock'], ['ציונים אחרונים', 'ציונים שהמורים החזירו', 'chart'],
+    G.hasService('calendar') ? ['מה יש לי ביומן מחר?', 'מתוך Google Calendar', 'calendar'] : ['מה ההודעות בכיתות?', 'הודעות מ-Classroom', 'mail']] : SUGGEST[ctx.role];
   const hello = `${new Date().getHours() < 12 ? 'בוקר טוב' : new Date().getHours() < 18 ? 'צהריים טובים' : 'ערב טוב'}, ${firstNameOf(ctx.user.name)}`;
   v.innerHTML = `<div class="chat-wrap">
     ${tr.length ? '' : `<section class="empty">
       ${mark(52)}<h1>${esc(hello)}</h1>
       <p>${noKids ? 'כדי להתחיל, קשרו את הילד/ה בעזרת קוד מבית הספר בהגדרות.' : ctx.role === 'parent' ? `מה תרצו לדעת על ${esc(firstNameOf(nameOf(activeStudentId)))}?` : 'במה אפשר לעזור היום?'}</p>
       ${(ctx.role === 'student' || (ctx.role === 'parent' && activeStudentId)) ? todayCard() : ''}
-      ${noKids ? '' : `<div class="suggest">${SUGGEST[ctx.role].map(([q, d, i]) => `<button class="sug" data-q="${esc(q)}">${icon(i)}<span><b>${esc(q)}</b><small>${esc(d)}</small></span></button>`).join('')}</div>`}
+      ${noKids ? '' : `<div class="suggest">${sugs.map(([q, d, i]) => `<button class="sug" data-q="${esc(q)}">${icon(i)}<span><b>${esc(q)}</b><small>${esc(d)}</small></span></button>`).join('')}</div>`}
     </section>`}
     <section class="chat" id="chat" aria-label="שיחה עם אלומה"></section>
     <div class="composer"><form id="ask"><label for="q" class="sr-only">שאלה לאלומה</label>
@@ -234,10 +236,22 @@ function todayCard() {
     const nowHM = `${String(NOW.getHours()).padStart(2, '0')}:${String(NOW.getMinutes()).padStart(2, '0')}`;
     let next = s.weekend ? null : s.data.find(l => l.end > nowHM && !(l.change && l.change.kind === 'cancelled'));
     let nextLabel = 'היום';
+    if (ctx.live) {
+      const ev = (G.LIVE.events || []).find(e => new Date(e.end || e.start) > new Date());
+      next = null;
+      if (ev) { const d = new Date(ev.start); nextLabel = d.toDateString() === new Date().toDateString() ? 'היום' : d.toDateString() === new Date(Date.now() + 864e5).toDateString() ? 'מחר' : fmtDate(d); }
+      const asg2 = T.getAssignments(ctx, { studentId: sid, status: 'pending' }).data;
+      const soon2 = asg2.filter(a => a.due && new Date(a.due) > NOW && new Date(a.due) - NOW < 2 * 864e5).length, late2 = asg2.filter(a => a.due && new Date(a.due) < NOW).length;
+      return `<div class="today" aria-label="תמונת מצב">
+        <span class="tchip">${icon('clock', 15)} ${G.LIVE.events ? `הבא ביומן ${ev ? nextLabel : ''}: <b>${ev ? esc(ev.title) + (ev.allDay ? '' : ' · ' + fmtTime(ev.start)) : 'אין אירועים'}</b>` : 'היומן לא מחובר'}</span>
+        <span class="tchip">${icon('task', 15)} מטלות פתוחות: <b>${asg2.length}</b>${soon2 ? ` · ${soon2} ביומיים` : ''}${late2 ? ` <span class="tag bad">${late2} באיחור</span>` : ''}</span>
+        <span class="tchip">${icon('mail', 15)} הודעות ב-Classroom: <b>${G.LIVE.announcements.length}</b></span>
+      </div>`;
+    }
     if (!next) { for (let d = 1; d < 4; d++) { const s2 = T.getSchedule(ctx, { studentId: sid, dayOffsetN: d }); if (!s2.weekend) { next = s2.data.find(l => !(l.change && l.change.kind === 'cancelled')); nextLabel = d === 1 ? 'מחר' : `ביום ${['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי'][new Date(s2.date).getDay()]}`; break; } } }
     const asg = T.getAssignments(ctx, { studentId: sid, status: 'pending' }).data;
-    const soon = asg.filter(a => new Date(a.due) > NOW && new Date(a.due) - NOW < 2 * 864e5).length;
-    const late = asg.filter(a => new Date(a.due) < NOW).length;
+    const soon = asg.filter(a => a.due && new Date(a.due) > NOW && new Date(a.due) - NOW < 2 * 864e5).length;
+    const late = asg.filter(a => a.due && new Date(a.due) < NOW).length;   // no due date is never late
     const ann = T.getAnnouncements(ctx, { studentId: sid }).data.filter(m => NOW - new Date(m.date) < 3 * 864e5).length;
     return `<div class="today" aria-label="תמונת מצב">
       <span class="tchip">${icon('clock', 15)} השיעור הבא ${nextLabel}: <b>${next ? esc(subjectName(next.subject)) + ' · ' + next.start : '—'}</b></span>
