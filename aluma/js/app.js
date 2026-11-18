@@ -211,7 +211,7 @@ function renderChat() {
     <section class="chat" id="chat" aria-label="שיחה עם אלומה"></section>
     <div class="composer"><form id="ask"><label for="q" class="sr-only">שאלה לאלומה</label>
       <textarea id="q" rows="1" placeholder="שאלו את אלומה…" ${noKids ? 'disabled' : ''}></textarea>
-      <div class="comp-row"><span class="comp-hint">${icon('database', 14)} מחוברת: משוב · Classroom (נתוני דמה)</span><button class="send" aria-label="שליחה">${icon('send', 18)}</button></div></form>
+      <div class="comp-row"><span class="comp-hint">${icon('database', 14)} ${ctx.live ? `מחוברת: Google Classroom (${G.LIVE.courses.length} כיתות)${G.hasService('calendar') ? ' · Calendar' : ''}${G.hasService('drive') ? ' · Drive' : ''}${G.hasService('gmail') ? ' · Gmail' : ''}` : 'מחוברת: משוב · Classroom (נתוני דמה)'}</span><button class="send" aria-label="שליחה">${icon('send', 18)}</button></div></form>
       <div class="disclaimer">אלומה עלולה לטעות. כל נתון מוצג עם המקור שלו, ושום הודעה לא נשלחת בלי אישור.</div></div>
   </div>`;
   const chat = document.getElementById('chat');
@@ -412,8 +412,12 @@ function renderSettings() {
   const v = document.getElementById('view');
   const mem = db().memories[ctx.userId] || [];
   let html = ctx.live ? `<section class="panel"><h2>חיבורים</h2><table class="t"><tbody>
-    <tr><td><b>Google Classroom</b><div class="hint">${esc(ctx.user.email || '')}</div></td><td><span class="tag ok">מחובר</span></td><td>${G.LIVE.courses.length} כיתות · ${G.LIVE.assignments.length} מטלות · עודכן ${G.LIVE.fetchedAt ? ago(G.LIVE.fetchedAt) : ''}</td></tr>
+    <tr><td><b>Google Classroom</b><div class="hint">${esc(ctx.user.email || '')}</div></td><td>${G.LIVE.courses.length ? '<span class="tag ok">מחובר</span>' : '<span class="tag warn">מחובר, בלי כיתות</span>'}</td>
+      <td>${G.LIVE.courses.filter(c => c.role === 'student').length} כיתות כתלמיד/ה · ${G.LIVE.courses.filter(c => c.role === 'teacher').length} כמורה · ${G.LIVE.assignments.length} מטלות · ${G.LIVE.grades.length} ציונים · עודכן ${G.LIVE.fetchedAt ? ago(G.LIVE.fetchedAt) : ''}</td></tr>
     <tr><td><b>משוב</b></td><td><span class="tag warn">לא מחובר</span></td><td>מערכת שעות, נוכחות וציוני מבחנים (Q-01)</td></tr></tbody></table>
+    ${G.LIVE.courses.length ? `<h3>הכיתות שנמצאו</h3><ul class="hint">${G.LIVE.courses.map(c => `<li>${esc(c.name)}${c.section ? ' · ' + esc(c.section) : ''} – ${c.role === 'teacher' ? 'מורה' : 'תלמיד/ה'} · ${G.LIVE.assignments.filter(a => a.subject === c.name).length} מטלות</li>`).join('')}</ul>`
+      : '<p class="hint">Google לא החזירה אף כיתה לחשבון הזה. בדקו שהחשבון רשום לכיתה ב-Classroom (classroom.google.com) – כתלמיד או כמורה – ושזה אותו חשבון שאיתו התחברתם.</p>'}
+    ${G.LIVE.errors.length ? `<h3>שגיאות בקריאה מ-Classroom</h3><ul class="err">${G.LIVE.errors.map(e => `<li>${esc(e)}</li>`).join('')}</ul>` : ''}
     <div class="btns"><button class="btn" id="grefresh">רענון מ-Classroom</button></div></section>` : '';
   if (ctx.live) html += `<section class="panel"><h2>שירותי Google נוספים</h2><p class="hint">כל שירות מתחבר בנפרד ומבקש רק את ההרשאה שהוא צריך.</p><table class="t"><tbody>
     ${Object.entries(G.SERVICES).map(([k, sv]) => `<tr><td><b>${esc(sv.label)}</b><div class="hint">${esc(sv.desc)}</div></td><td>${G.hasService(k) ? '<span class="tag ok">מחובר</span>' : `<button class="btn" data-svc="${k}">חיבור</button>`}</td></tr>`).join('')}

@@ -14,7 +14,7 @@ const API = 'https://classroom.googleapis.com/v1';
 
 let token = null;
 let granted = new Set();
-export const LIVE = { profile: null, courses: [], assignments: [], grades: [], announcements: [], teachers: [], events: null, fetchedAt: null };
+export const LIVE = { profile: null, courses: [], assignments: [], grades: [], announcements: [], teachers: [], events: null, errors: [], fetchedAt: null };
 
 // Extra Google services, connected one by one (incremental consent) with the same Client ID.
 export const SERVICES = {
@@ -94,31 +94,40 @@ const dueOf = w => w.dueDate ? new Date(Date.UTC(w.dueDate.year, w.dueDate.month
 export async function refresh() {
   const me = await get('https://www.googleapis.com/oauth2/v3/userinfo');
   LIVE.profile = { sub: me.sub, name: me.name || me.email, email: me.email };
-  const courses = await getAll(`${API}/courses?studentId=me&courseStates=ACTIVE`, 'courses');
-  LIVE.courses = courses.map(c => ({ id: c.id, name: c.name, section: c.section || '', link: c.alternateLink }));
+  LIVE.errors = [];
+  const note = (where, e) => LIVE.errors.push(`${where}: ${e.message}`);
+  // courses where the account is a student AND where it is a teacher (a personal Gmail often owns its own classes)
+  const [asStudent, asTeacher] = await Promise.all([
+    getAll(`${API}/courses?studentId=me&courseStates=ACTIVE`, 'courses').catch(e => (note('כיתות כתלמיד', e), [])),
+    getAll(`${API}/courses?teacherId=me&courseStates=ACTIVE`, 'courses').catch(e => (note('כיתות כמורה', e), [])),
+  ]);
+  const seen = new Set();
+  LIVE.courses = [...asStudent.map(c => ({ c, role: 'student' })), ...asTeacher.map(c => ({ c, role: 'teacher' }))]
+    .filter(({ c }) => !seen.has(c.id) && seen.add(c.id))
+    .map(({ c, role }) => ({ id: c.id, name: c.name, section: c.section || '', link: c.alternateLink, role }));
   const now = new Date().toISOString();
   const asg = [], grades = [], ann = [];
   await Promise.all(LIVE.courses.map(async c => {
     const [work, subs, anns] = await Promise.all([
-      getAll(`${API}/courses/${c.id}/courseWork?orderBy=dueDate%20desc`, 'courseWork').catch(() => []),
-      getAll(`${API}/courses/${c.id}/courseWork/-/studentSubmissions?userId=me`, 'studentSubmissions').catch(() => []),
-      get(`${API}/courses/${c.id}/announcements?pageSize=10`).then(d => d.announcements || []).catch(() => []),
+      getAll(`${API}/courses/${c.id}/courseWork?orderBy=dueDate%20desc`, 'courseWork').catch(e => (note(`מטלות ב"${c.name}"`, e), [])),
+      c.role === 'student' ? getAll(`${API}/courses/${c.id}/courseWork/-/studentSubmissions?userId=me`, 'studentSubmissions').catch(e => (note(`הגשות ב"${c.name}"`, e), [])) : [],
+      get(`${API}/courses/${c.id}/announcements?pageSize=10`).then(d => d.announcements || []).catch(e => (note(`הודעות ב"${c.name}"`, e), [])),
     ]);
     const subBy = Object.fromEntries(subs.map(s => [s.courseWorkId, s]));
     for (const w of work) {
       const s = subBy[w.id] || {};
       const due = dueOf(w);
       const done = ['TURNED_IN', 'RETURNED'].includes(s.state);
-      asg.push({ id: `gc-${w.id}`, subject: c.name, title: w.title, due: due ? due.toISOString() : null, link: w.alternateLink,
-        status: done ? 'submitted' : (due && due < new Date() ? 'missing' : 'open'), late: !!s.late, source: 'Google Classroom', fetchedAt: now });
+      asg.push({ id: `gc-${w.id}`, subject: c.name, title: w.title, due: due ? due.toISOString() : null, link: w.alternateLink, courseRole: c.role,
+        status: c.role === 'teacher' ? 'open' : done ? 'submitted' : (due && due < new Date() ? 'missing' : 'open'), late: !!s.late, source: 'Google Classroom', fetchedAt: now });
       if (s.assignedGrade != null) grades.push({ id: `gg-${w.id}`, subject: c.name, type: 'assignment', title: w.title, score: s.assignedGrade,
         max: w.maxPoints || 100, date: s.updateTime || w.updateTime || now, source: 'Google Classroom', fetchedAt: now });
     }
     for (const a of anns) ann.push({ id: `ga-${a.id}`, subject: c.name, teacherName: c.name, date: a.updateTime || a.creationTime, body: a.text || '', external: true });
   }));
   LIVE.assignments = asg; LIVE.grades = grades; LIVE.announcements = ann; LIVE.fetchedAt = now;
-  if (hasService('calendar')) LIVE.events = await calendarEvents(new Date(), 14).catch(() => []);
-  if (hasService('gmail')) await loadTeachers().catch(() => {});
+  if (hasService('calendar')) LIVE.events = await calendarEvents(new Date(), 14).catch(e => (note('יומן', e), []));
+  if (hasService('gmail')) await loadTeachers().catch(e => note('מורים', e));
 }
 
 // ---------- Calendar (and Meet links inside events) ----------
