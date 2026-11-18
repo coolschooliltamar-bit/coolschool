@@ -24,26 +24,55 @@ async function call(path, body) {
   if (!r.ok) {
     const m = (j.error && j.error.message) || '';
     if (r.status === 400 && /API key/i.test(m)) throw new Error('מפתח ה-Gemini לא תקין.');
-    if (r.status === 429) throw new Error('הגעת למכסת השימוש של Gemini. נסו שוב מאוחר יותר.');
-    throw new Error(`Gemini החזיר שגיאה (${r.status}).`);
+    const err = new Error(r.status === 429 ? 'הגעת למכסת השימוש של Gemini. נסו שוב מאוחר יותר.'
+      : r.status === 503 ? 'השרתים של Gemini עמוסים כרגע.' : `Gemini החזיר שגיאה (${r.status}).`);
+    err.status = r.status; throw err;
   }
   return j;
 }
 
-// pick the newest stable "flash" model the key can use (names change over time)
-export async function pickModel() {
-  if (currentModel()) return currentModel();
+// Models the key can use, best first: newest stable "flash", then other flash / lite, then anything.
+let CANDIDATES = null;
+async function candidates() {
+  if (GEMINI_MODEL) return [GEMINI_MODEL];
+  if (CANDIDATES) return CANDIDATES;
   const j = await call('models?pageSize=200');
-  const ok = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace('models/', ''));
+  const ok = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace('models/', '')).filter(n => n.startsWith('gemini-'));
   const ver = n => parseFloat((n.match(/gemini-(\d+(\.\d+)?)/) || [0, 0])[1]);
-  const clean = ok.filter(n => /^gemini-[\d.]+-flash$/.test(n)).sort((a, b) => ver(b) - ver(a));
-  const any = ok.filter(n => /^gemini-.*flash/.test(n) && !/(lite|image|tts|audio|live|exp|preview)/.test(n)).sort((a, b) => ver(b) - ver(a));
-  const m = clean[0] || any[0] || ok.find(n => n.startsWith('gemini-'));
-  if (!m) throw new Error('לא נמצא מודל Gemini זמין למפתח הזה.');
-  ls.set(MODEL_STORE, m);
-  return m;
+  const bad = /(image|tts|audio|live|embedding|exp)/;
+  const rank = n => (/^gemini-[\d.]+-flash$/.test(n) ? 0 : /flash-lite$/.test(n) ? 2 : /flash/.test(n) && !/preview/.test(n) ? 1 : /preview/.test(n) ? 4 : 3);
+  CANDIDATES = ok.filter(n => !bad.test(n)).sort((a, b) => rank(a) - rank(b) || ver(b) - ver(a)).slice(0, 6);
+  if (!CANDIDATES.length) throw new Error('לא נמצא מודל Gemini זמין למפתח הזה.');
+  const saved = ls.get(MODEL_STORE);                       // the last model that worked goes first
+  if (saved && CANDIDATES.includes(saved)) CANDIDATES = [saved, ...CANDIDATES.filter(n => n !== saved)];
+  return CANDIDATES;
 }
-export async function test() { const m = await pickModel(); await call(`models/${m}:generateContent`, { contents: [{ role: 'user', parts: [{ text: 'ping' }] }] }); return m; }
+export async function pickModel() { return (await candidates())[0]; }
+
+// generateContent with retries: busy (503/500) → wait and retry, then move to the next model;
+// quota (429) or unknown model (404) → next model right away.
+const wait = ms => new Promise(r => setTimeout(r, ms));
+async function generate(body, onRetry) {
+  const list = await candidates();
+  let last;
+  for (const model of list) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const j = await call(`models/${model}:generateContent`, body);
+        ls.set(MODEL_STORE, model);
+        return { j, model };
+      } catch (e) {
+        last = e;
+        if (![500, 503, 429, 404].includes(e.status)) throw e;
+        if (e.status === 429 || e.status === 404) break;
+        onRetry && onRetry(model);
+        await wait(800 * (attempt + 1));
+      }
+    }
+  }
+  throw last || new Error('Gemini לא זמין כרגע.');
+}
+export async function test() { const { model } = await generate({ contents: [{ role: 'user', parts: [{ text: 'ping' }] }] }); return model; }
 
 // ---------- tool declarations (by role) ----------
 const S = (props, required = []) => ({ type: 'OBJECT', properties: props, required });
@@ -161,7 +190,7 @@ function grounded(text, toolJson, question) {
 }
 
 export async function geminiAnswer(ctx, question, { activeStudentId, history = [], onStep } = {}) {
-  const model = await pickModel();
+  let model = await pickModel();
   const contents = [];
   for (const m of history.slice(-10)) contents.push({ role: m.who === 'me' ? 'user' : 'model', parts: [{ text: m.who === 'me' ? m.text : m.res.text }] });
   contents.push({ role: 'user', parts: [{ text: question }] });
@@ -169,11 +198,12 @@ export async function geminiAnswer(ctx, question, { activeStudentId, history = [
   const allCards = {}; let toolJson = '';
   db().stats.questions++; save(); audit(ctx.userId, 'question', {});
   for (let round = 0; round < 6; round++) {
-    const j = await call(`models/${model}:generateContent`, {
+    const out = await generate({
       systemInstruction: { parts: [{ text: systemPrompt(ctx, activeStudentId) }] },
       contents, tools: tools.length ? [{ functionDeclarations: tools }] : undefined,
       generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
-    });
+    }, m => onStep && onStep('__retry'));
+    const j = out.j; model = out.model;
     const cand = (j.candidates || [])[0];
     if (!cand || !cand.content) return { text: 'לא הצלחתי לענות על זה. אפשר לנסח אחרת?', cards: [], chips: [] };
     const parts = cand.content.parts || [];

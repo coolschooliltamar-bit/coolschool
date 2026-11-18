@@ -299,7 +299,7 @@ async function ask(text) {
     const box = st.querySelector('.steps');
     const STEP = { get_grades: 'מחפשת ציונים', get_assignments: 'בודקת מטלות', get_schedule: 'בודקת את המערכת', get_attendance: 'בודקת נוכחות', get_announcements: 'קוראת הודעות',
       list_my_teachers: 'בודקת למי מותר לשלוח', draft_message_to_teacher: 'מנסחת טיוטה', open_learning_tool: 'פותחת כלי תרגול', search_drive: 'מחפשת ב-Drive', read_drive_file: 'קוראת את הקובץ',
-      class_summary: 'מסכמת את הכיתה', class_attendance: 'בודקת היעדרויות', inbox_summary: 'בודקת הודעות' };
+      class_summary: 'מסכמת את הכיתה', class_attendance: 'בודקת היעדרויות', inbox_summary: 'בודקת הודעות', __retry: 'Gemini עמוס – מנסה שוב' };
     box.innerHTML = '<div class="step run"><span class="dot"></span>חושבת עם Gemini</div>';
     try {
       res = await AI.geminiAnswer(ctx, text, { activeStudentId, history: conv.messages.slice(0, -1), onStep: n => {
