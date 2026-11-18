@@ -17,13 +17,24 @@ export const setKey = k => { ls.set(KEY_STORE, (k || '').trim()); ls.set(MODEL_S
 export const enabled = () => !!(GEMINI_PROXY_URL || getKey());
 export const currentModel = () => GEMINI_MODEL || ls.get(MODEL_STORE) || '';
 
-async function call(path, body) {
-  const url = `${BASE}/v1beta/${path}${GEMINI_PROXY_URL ? '' : `${path.includes('?') ? '&' : '?'}key=${encodeURIComponent(getKey())}`}`;
-  const r = await fetch(url, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+// every request has a time limit, so a busy Gemini can never leave the page waiting forever
+async function call(path, body, timeoutMs = 25000) {
+  const url = `${BASE}/v1beta/${path}`;
+  const headers = { 'Content-Type': 'application/json' };
+  if (!GEMINI_PROXY_URL) headers['x-goog-api-key'] = getKey();          // key in a header, not in the URL
+  const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  let r;
+  try { r = await fetch(url, { method: body ? 'POST' : 'GET', headers, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal }); }
+  catch (e) {
+    const err = new Error(e.name === 'AbortError' ? 'Gemini לא ענה בזמן.' : 'אין חיבור לשרתים של Gemini.');
+    err.status = e.name === 'AbortError' ? 504 : 0; throw err;
+  } finally { clearTimeout(timer); }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) {
     const m = (j.error && j.error.message) || '';
-    if (r.status === 400 && /API key/i.test(m)) throw new Error('מפתח ה-Gemini לא תקין.');
+    if ([400, 401, 403].includes(r.status)) {   // show Google's own reason – it says exactly what to fix
+      const err = new Error(`Gemini דחה את הבקשה (${r.status}): ${m.slice(0, 220) || 'ללא פירוט'}`); err.status = r.status; throw err;
+    }
     const err = new Error(r.status === 429 ? 'הגעת למכסת השימוש של Gemini. נסו שוב מאוחר יותר.'
       : r.status === 503 ? 'השרתים של Gemini עמוסים כרגע.' : `Gemini החזיר שגיאה (${r.status}).`);
     err.status = r.status; throw err;
@@ -52,27 +63,37 @@ export async function pickModel() { return (await candidates())[0]; }
 // generateContent with retries: busy (503/500) → wait and retry, then move to the next model;
 // quota (429) or unknown model (404) → next model right away.
 const wait = ms => new Promise(r => setTimeout(r, ms));
-async function generate(body, onRetry) {
+async function generate(body, onRetry, budgetMs = 60000) {
+  const started = Date.now();
   const list = await candidates();
   let last;
   for (const model of list) {
+    if (Date.now() - started > budgetMs) break;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
+        onRetry && attempt + list.indexOf(model) > 0 && onRetry(model);
         const j = await call(`models/${model}:generateContent`, body);
         ls.set(MODEL_STORE, model);
         return { j, model };
       } catch (e) {
         last = e;
-        if (![500, 503, 429, 404].includes(e.status)) throw e;
-        if (e.status === 429 || e.status === 404) break;
-        onRetry && onRetry(model);
+        if (![500, 503, 504, 429, 404].includes(e.status)) throw e;
+        if (e.status === 429 || e.status === 404 || e.status === 504) break;
+        if (Date.now() - started > budgetMs) throw e;
         await wait(800 * (attempt + 1));
       }
     }
   }
   throw last || new Error('Gemini לא זמין כרגע.');
 }
-export async function test() { const { model } = await generate({ contents: [{ role: 'user', parts: [{ text: 'ping' }] }] }); return model; }
+export async function test(onProgress) {
+  CANDIDATES = null;
+  onProgress && onProgress('בודקת אילו מודלים זמינים למפתח…');
+  const list = await candidates();
+  onProgress && onProgress(`נמצאו ${list.length} מודלים. שולחת בקשת בדיקה ל-${list[0]}…`);
+  const { model } = await generate({ contents: [{ role: 'user', parts: [{ text: 'ping' }] }] }, m => onProgress && onProgress(`עמוס – מנסה את ${m}…`), 45000);
+  return model;
+}
 
 // ---------- tool declarations (by role) ----------
 const S = (props, required = []) => ({ type: 'OBJECT', properties: props, required });

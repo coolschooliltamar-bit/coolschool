@@ -455,7 +455,7 @@ function renderSettings() {
     e.preventDefault(); const k = v.querySelector('#gkey').value.trim(); const msg = v.querySelector('#aimsg');
     if (!k) { msg.innerHTML = '<p class="err">הדביקו מפתח.</p>'; return; }
     AI.setKey(k); msg.innerHTML = '<p class="hint">בודקת את המפתח…</p>';
-    try { const m = await AI.test(); msg.innerHTML = `<p class="sent">מחובר ✓ המודל: ${esc(m)}</p>`; setTimeout(render, 900); }
+    try { const m = await AI.test(t => { msg.innerHTML = `<p class="hint">${esc(t)}</p>`; }); msg.innerHTML = `<p class="sent">מחובר ✓ המודל: ${esc(m)}</p>`; setTimeout(render, 900); }
     catch (err) { AI.setKey(''); msg.innerHTML = `<p class="err">${esc(err.message)}</p>`; }
   };
   const kd = v.querySelector('#gkeydel'); if (kd) kd.onclick = () => { AI.setKey(''); render(); };
