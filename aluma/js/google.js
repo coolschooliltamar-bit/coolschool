@@ -43,7 +43,7 @@ function requestToken(scope, prompt = '') {
 export async function connectServices(keys) {
   keys = keys.filter(k => SERVICES[k]);
   if (!keys.length) return [];
-  await loadGis();
+  if (!gisReady()) await loadGis();
   keys.forEach(k => paused.delete(k));
   const need = keys.flatMap(k => SERVICES[k].scopes).filter(x => !granted.has(x));
   if (need.length) token = await requestToken([...new Set([...SCOPES.split(' '), ...granted, ...need])].join(' '), 'consent');
@@ -65,19 +65,27 @@ export function disconnectService(k) {
 // Revoke Aluma's whole access at Google (all services, including Classroom) and clear everything.
 export function disconnectAll() { signOut(); paused = new Set(); }
 
+// The Google script is loaded as soon as the page opens, so that when the user clicks, the
+// sign-in window opens inside that same click (browsers block pop-ups opened later – which made
+// people click twice).
+let gisPromise = null;
 function loadGis() {
   if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
-  return new Promise((resolve, reject) => {
+  if (gisPromise) return gisPromise;
+  gisPromise = new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
-    s.onload = () => resolve(); s.onerror = () => reject(new Error('לא הצלחתי לטעון את ההתחברות של Google.'));
+    s.onload = () => resolve(); s.onerror = () => { gisPromise = null; reject(new Error('לא הצלחתי לטעון את ההתחברות של Google.')); };
     document.head.appendChild(s);
   });
+  return gisPromise;
 }
+export const gisReady = () => !!(window.google && google.accounts && google.accounts.oauth2);
+export function preload() { loadGis().catch(() => {}); }
 
 export async function signIn() {
   if (!GOOGLE_CLIENT_ID) throw new Error('לא הוגדר Client ID של Google.');
-  await loadGis();
+  if (!gisReady()) await loadGis();          // normally already loaded by preload(), so no wait before the pop-up
   token = await requestToken(SCOPES);
   await refresh();
   return LIVE.profile;

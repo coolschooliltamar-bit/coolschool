@@ -34,6 +34,8 @@ function boot() {
 
 // ---------------- login (demo accounts) ----------------
 function renderLogin() {
+  document.body.classList.remove('in-app');
+  G.preload();
   const demo = [
     ['u-noa', 'תלמידה · ט׳2', 'ציונים, מטלות, מערכת, הודעות וכלי תרגול'],
     ['u-yoav', 'תלמיד · י״א3', 'תלמיד תיכון'],
@@ -93,6 +95,7 @@ const STUDENT_TOOLS = [['path', 'sparkle', 'מסלול תרגול'], ['cards', '
 const ADMIN_NAV = [['dash', 'chart', 'לוח בקרה'], ['links', 'users', 'משתמשים וקישורים'], ['policy', 'shield', 'מדיניות'], ['audit', 'log', 'יומן ביקורת']];
 
 function render() {
+  document.body.classList.add('in-app');
   if (db().emergencyStop && ctx.role !== 'school_admin') {
     $app.innerHTML = `${topBar()}<div class="stopped"><h1>אלומה מושבתת זמנית</h1><p>בית הספר הפסיק את השירות באופן זמני. המידע שלך זמין כרגיל במערכות בית הספר.</p></div>`;
     bindTop(); return;

@@ -295,3 +295,8 @@ table.t td { padding: 9px 6px; border-bottom: 1px solid var(--line-2); vertical-
 .pick span { display: flex; flex-direction: column; } .pick small { color: var(--mute); font-size: 12.5px; }
 .pick.all { background: var(--side); }
 .pick input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--accent); }
+/* inside the app the prototype note lives in the top bar badge, so the sidebar gets the full height */
+body.in-app .proto-banner { display: none; }
+.side { top: 56px; height: calc(100vh - 56px); height: calc(100dvh - 56px); }   /* below the 56px top bar */
+.main { min-height: calc(100dvh - 56px); }
+@media (max-width: 900px) { .side { top: 0; height: 100vh; height: 100dvh; } }
