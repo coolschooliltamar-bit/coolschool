@@ -290,3 +290,8 @@ table.t td { padding: 9px 6px; border-bottom: 1px solid var(--line-2); vertical-
 .or { display: flex; align-items: center; gap: 10px; color: var(--mute); font-size: 12.5px; margin: 22px 0 14px; }
 .or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 .ai-note { font-size: 12px; color: var(--warn); margin-top: 8px; }
+.pick { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; margin-top: 8px; cursor: pointer; }
+.pick:hover { background: var(--hover); }
+.pick span { display: flex; flex-direction: column; } .pick small { color: var(--mute); font-size: 12.5px; }
+.pick.all { background: var(--side); }
+.pick input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--accent); }

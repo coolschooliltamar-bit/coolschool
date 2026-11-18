@@ -22,7 +22,8 @@ export const SERVICES = {
   drive: { label: 'Google Drive · Docs · Sheets · Slides', desc: 'חיפוש וקריאה של קבצים (קריאה בלבד)', scopes: ['https://www.googleapis.com/auth/drive.readonly'] },
   gmail: { label: 'Gmail', desc: 'שליחת הודעות למורים – רק אחרי אישור שלך', scopes: ['https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/classroom.rosters.readonly', 'https://www.googleapis.com/auth/classroom.profile.emails'] },
 };
-export const hasService = k => SERVICES[k].scopes.every(x => granted.has(x));
+let paused = new Set();          // services the user turned off inside Aluma
+export const hasService = k => !paused.has(k) && SERVICES[k].scopes.every(x => granted.has(x));
 
 function requestToken(scope, prompt = '') {
   return new Promise((resolve, reject) => {
@@ -38,14 +39,31 @@ function requestToken(scope, prompt = '') {
     client.requestAccessToken();
   });
 }
-export async function connectService(k) {
+// Connect several services in ONE Google consent window.
+export async function connectServices(keys) {
+  keys = keys.filter(k => SERVICES[k]);
+  if (!keys.length) return [];
   await loadGis();
-  const all = [...new Set([...SCOPES.split(' '), ...granted, ...SERVICES[k].scopes])].join(' ');
-  token = await requestToken(all, 'consent');
-  if (!hasService(k)) throw new Error('לא ניתנה הרשאה לשירות הזה.');
-  if (k === 'gmail') await loadTeachers();
-  if (k === 'calendar') LIVE.events = await calendarEvents(new Date(), 14);
+  keys.forEach(k => paused.delete(k));
+  const need = keys.flatMap(k => SERVICES[k].scopes).filter(x => !granted.has(x));
+  if (need.length) token = await requestToken([...new Set([...SCOPES.split(' '), ...granted, ...need])].join(' '), 'consent');
+  const missing = keys.filter(k => !hasService(k));
+  if (keys.includes('gmail') && hasService('gmail')) await loadTeachers();
+  if (keys.includes('calendar') && hasService('calendar')) LIVE.events = await calendarEvents(new Date(), 14);
+  if (missing.length) throw new Error(`לא ניתנה הרשאה ל: ${missing.map(k => SERVICES[k].label).join(', ')}.`);
+  return keys;
 }
+export const connectService = k => connectServices([k]);
+
+// Turn a service off inside Aluma: it stops being used and its data is cleared from memory.
+// (Google cannot take back a single permission from a browser app; "disconnect all" revokes everything.)
+export function disconnectService(k) {
+  paused.add(k);
+  if (k === 'calendar') LIVE.events = null;
+  if (k === 'gmail') LIVE.teachers = [];
+}
+// Revoke Aluma's whole access at Google (all services, including Classroom) and clear everything.
+export function disconnectAll() { signOut(); paused = new Set(); }
 
 function loadGis() {
   if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
@@ -67,7 +85,7 @@ export async function signIn() {
 
 export function signOut() {
   if (token && window.google && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(token, () => {});
-  token = null; granted = new Set();
+  token = null; granted = new Set(); paused = new Set();
   Object.assign(LIVE, { profile: null, courses: [], assignments: [], grades: [], announcements: [], teachers: [], events: null, fetchedAt: null });
 }
 export const isLive = () => !!token;

@@ -433,9 +433,27 @@ function renderSettings() {
       : '<p class="hint">Google לא החזירה אף כיתה לחשבון הזה. בדקו שהחשבון רשום לכיתה ב-Classroom (classroom.google.com) – כתלמיד או כמורה – ושזה אותו חשבון שאיתו התחברתם.</p>'}
     ${G.LIVE.errors.length ? `<h3>שגיאות בקריאה מ-Classroom</h3><ul class="err">${G.LIVE.errors.map(e => `<li>${esc(e)}</li>`).join('')}</ul>` : ''}
     <div class="btns"><button class="btn" id="grefresh">רענון מ-Classroom</button></div></section>` : '';
-  if (ctx.live) html += `<section class="panel"><h2>שירותי Google נוספים</h2><p class="hint">כל שירות מתחבר בנפרד ומבקש רק את ההרשאה שהוא צריך.</p><table class="t"><tbody>
-    ${Object.entries(G.SERVICES).map(([k, sv]) => `<tr><td><b>${esc(sv.label)}</b><div class="hint">${esc(sv.desc)}</div></td><td>${G.hasService(k) ? '<span class="tag ok">מחובר</span>' : `<button class="btn" data-svc="${k}">חיבור</button>`}</td></tr>`).join('')}
-    </tbody></table><div id="svcmsg"></div></section>`;
+  if (ctx.live) {
+    const svcs = Object.entries(G.SERVICES);
+    const off = svcs.filter(([k]) => !G.hasService(k));
+    html += `<section class="panel"><h2>כלי Google</h2>
+    <p class="hint">Classroom מחובר תמיד (זה החשבון שאיתו נכנסתם). את שאר הכלים אפשר לחבר ולנתק מתי שרוצים.</p>
+    <table class="t"><tbody>
+      <tr><td><b>Google Classroom</b><div class="hint">כיתות, מטלות, ציונים והודעות · קריאה בלבד</div></td><td><span class="tag ok">מחובר</span></td><td></td></tr>
+      ${svcs.map(([k, sv]) => `<tr><td><b>${esc(sv.label)}</b><div class="hint">${esc(sv.desc)}</div></td>
+        <td>${G.hasService(k) ? '<span class="tag ok">מחובר</span>' : '<span class="tag">לא מחובר</span>'}</td>
+        <td>${G.hasService(k) ? `<button class="btn link" data-disc="${k}">ניתוק</button>` : ''}</td></tr>`).join('')}
+    </tbody></table>
+    <div class="btns">${off.length ? '<button class="btn primary" id="gpick">חיבור כלי Google</button>' : ''}<button class="btn" id="gdiscall">ניתוק מכל שירותי Google</button></div>
+    <div id="gpicker" hidden>
+      <h3>מה לחבר?</h3>
+      <label class="pick all"><input type="checkbox" id="gall"> <b>סמן הכל</b></label>
+      ${off.map(([k, sv]) => `<label class="pick"><input type="checkbox" data-pick="${k}"> <span><b>${esc(sv.label)}</b><small>${esc(sv.desc)}</small></span></label>`).join('')}
+      <div class="btns"><button class="btn primary" id="gconnect" disabled>חיבור הנבחרים</button><button class="btn link" id="gcancel">ביטול</button></div>
+      <p class="hint">ייפתח חלון אחד של Google לאישור כל ההרשאות יחד.</p>
+    </div>
+    <div id="svcmsg"></div></section>`;
+  }
   html += `<section class="panel"><h2>מנוע ה-AI</h2>
     <p class="hint">${AI.enabled() ? `התשובות נוצרות ב-<b>Gemini</b>${AI.currentModel() ? ` (${esc(AI.currentModel())})` : ''}. ההרשאות עדיין נבדקות בכלים – Gemini רואה רק את מה שמותר לך.` : 'כרגע עונה מנוע מקומי פשוט. אפשר לחבר Gemini עם מפתח API.'}</p>
     <form class="formrow" id="aiform"><label for="gkey">מפתח Gemini API</label><input type="password" id="gkey" autocomplete="off" placeholder="${AI.getKey() ? '•••••••• (שמור בדפדפן הזה)' : 'AIza…'}" style="flex:1;min-width:200px">
@@ -463,11 +481,29 @@ function renderSettings() {
       <form class="formrow" id="quiet"><label>לא לשלוח הודעות בין</label><input type="time" id="qf" value="${s.quietFrom || db().policies.quietFrom}"> ל- <input type="time" id="qt" value="${s.quietTo || db().policies.quietTo}"><button class="btn primary">שמירה</button></form></section>`;
   }
   v.innerHTML = html;
-  v.querySelectorAll('[data-svc]').forEach(b => b.onclick = async () => {
-    b.disabled = true; b.textContent = 'מתחברת…';
-    try { await G.connectService(b.dataset.svc); audit(ctx.userId, 'service_connected', { kind: b.dataset.svc }); renderSettings(); }
-    catch (e) { b.disabled = false; b.textContent = 'חיבור'; v.querySelector('#svcmsg').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+  const picker = v.querySelector('#gpicker');
+  if (picker) {
+    const boxes = [...picker.querySelectorAll('[data-pick]')], all = picker.querySelector('#gall'), go = picker.querySelector('#gconnect');
+    const sync = () => { const n = boxes.filter(b => b.checked).length; go.disabled = !n; go.textContent = n ? `חיבור הנבחרים (${n})` : 'חיבור הנבחרים'; all.checked = n === boxes.length; all.indeterminate = n > 0 && n < boxes.length; };
+    all.onchange = () => { boxes.forEach(b => (b.checked = all.checked)); sync(); };
+    boxes.forEach(b => (b.onchange = sync));
+    const open = v.querySelector('#gpick'); if (open) open.onclick = () => { picker.hidden = false; open.hidden = true; boxes[0] && boxes[0].focus(); };
+    picker.querySelector('#gcancel').onclick = () => { picker.hidden = true; if (open) open.hidden = false; };
+    go.onclick = async () => {
+      const keys = boxes.filter(b => b.checked).map(b => b.dataset.pick);
+      go.disabled = true; go.textContent = 'מתחברת…';
+      try { await G.connectServices(keys); keys.forEach(k => audit(ctx.userId, 'service_connected', { kind: k })); renderSettings(); }
+      catch (e) { sync(); v.querySelector('#svcmsg').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+    };
+  }
+  v.querySelectorAll('[data-disc]').forEach(b => b.onclick = () => {
+    G.disconnectService(b.dataset.disc); audit(ctx.userId, 'service_disconnected', { kind: b.dataset.disc }); renderSettings();
   });
+  const da = v.querySelector('#gdiscall');
+  if (da) da.onclick = () => {
+    if (!confirm('לנתק את אלומה מכל שירותי Google? הגישה תבוטל אצל Google, הנתונים יימחקו מהדף ותחזרו למסך הכניסה.')) return;
+    audit(ctx.userId, 'service_disconnected', { kind: 'all' }); G.disconnectAll(); ctx = null; document.body.classList.remove('side-open'); renderLogin();
+  };
   const af = v.querySelector('#aiform');
   if (af) af.onsubmit = async e => {
     e.preventDefault(); const k = v.querySelector('#gkey').value.trim(); const msg = v.querySelector('#aimsg');
