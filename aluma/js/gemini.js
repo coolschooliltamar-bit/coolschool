@@ -20,7 +20,7 @@ export const viaServer = () => !useOwnKey();
 export const currentModel = () => GEMINI_MODEL || ls.get(MODEL_STORE) || '';
 
 // every request has a time limit, so a busy Gemini can never leave the page waiting forever
-async function call(path, body, timeoutMs = 25000) {
+async function call(path, body, timeoutMs = 15000) {   // a slow model is skipped quickly for the next one
   const url = `${useOwnKey() ? 'https://generativelanguage.googleapis.com' : GEMINI_PROXY_URL}/v1beta/${path}`;
   const headers = { 'Content-Type': 'application/json' };
   if (useOwnKey()) headers['x-goog-api-key'] = getKey();                 // tester's own key (in a header, not the URL)
@@ -55,10 +55,11 @@ async function candidates() {
   const ver = n => parseFloat((n.match(/gemini-(\d+(\.\d+)?)/) || [0, 0])[1]);
   const bad = /(image|tts|audio|live|embedding|exp)/;
   // newest stable flash first, then the "lite" models (they usually have more free quota), then the rest
-  const rank = n => (/^gemini-[\d.]+-flash$/.test(n) ? 0 : /^gemini-[\d.]+-flash-lite$/.test(n) ? 1 : /latest$/.test(n) ? 2 : /flash/.test(n) && !/preview/.test(n) ? 3 : /preview/.test(n) ? 5 : 4);
+  // speed first: stable flash-lite models answer in 1–5s while flash is often busy (503) – measured on our server
+  const rank = n => (/^gemini-[\d.]+-flash-lite$/.test(n) ? 0 : /^gemini-[\d.]+-flash$/.test(n) ? 1 : /latest$/.test(n) ? 2 : /flash/.test(n) && !/preview/.test(n) ? 3 : /preview/.test(n) ? 5 : 4);
   const sorted = ok.filter(n => !bad.test(n)).sort((a, b) => rank(a) - rank(b) || ver(b) - ver(a));
   // try at most 3 flash models, then all lite models, then a few others – up to 10
-  CANDIDATES = [...sorted.filter(n => rank(n) === 0).slice(0, 3), ...sorted.filter(n => rank(n) === 1), ...sorted.filter(n => rank(n) > 1)].slice(0, 10);
+  CANDIDATES = [...sorted.filter(n => rank(n) === 0).slice(0, 3), ...sorted.filter(n => rank(n) === 1).slice(0, 2), ...sorted.filter(n => rank(n) > 1)].slice(0, 8);
   if (!CANDIDATES.length) throw new Error('לא נמצא מודל Gemini זמין למפתח הזה.');
   const saved = ls.get(MODEL_STORE);                       // the last model that worked goes first
   if (saved && CANDIDATES.includes(saved)) CANDIDATES = [saved, ...CANDIDATES.filter(n => n !== saved)];
@@ -69,7 +70,7 @@ export async function pickModel() { return (await candidates())[0]; }
 // generateContent with retries: busy (503/500) → wait and retry, then move to the next model;
 // quota (429) or unknown model (404) → next model right away.
 const wait = ms => new Promise(r => setTimeout(r, ms));
-async function generate(body, onRetry, budgetMs = 60000) {
+async function generate(body, onRetry, budgetMs = 45000) {
   const started = Date.now(); const tried = [];
   const list = await candidates();
   let last;
@@ -78,8 +79,10 @@ async function generate(body, onRetry, budgetMs = 60000) {
     for (let attempt = 0; attempt < (list.indexOf(model) === 0 ? 2 : 1); attempt++) {   // only the first model gets a retry, so more models fit in the time limit
       try {
         onRetry && attempt + list.indexOf(model) > 0 && onRetry(model);
+        const t0 = Date.now();
         const j = await call(`models/${model}:generateContent`, body);
-        ls.set(MODEL_STORE, model);
+        if (Date.now() - t0 < 8000) ls.set(MODEL_STORE, model);           // remember only models that answered fast
+        else if (ls.get(MODEL_STORE) === model) ls.set(MODEL_STORE, '');
         return { j, model };
       } catch (e) {
         last = e; tried.push(`${model}: ${e.status}`);
