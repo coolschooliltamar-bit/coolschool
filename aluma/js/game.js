@@ -4,7 +4,8 @@
 // so no single source can carry the whole score. Every rule is shown to the student.
 // Rewards: every 100 XP earns a card box. The odds inside a box are fixed and always shown
 // (50 / 25 / 15 / 7.5 / 2.5 %, the same as each rarity's share of the collection). Boxes are earned by
-// learning only – no money, nothing to buy, no countdowns, boxes never expire, and no duplicates.
+// learning only – no money, nothing to buy, no countdowns, boxes never expire. Duplicates happen:
+// 4 copies of one card can be combined into a new box (3 copies go, 1 stays).
 import { db, save } from './store.js';
 import * as T from './tools.js';
 import * as L from './learn.js';
@@ -81,38 +82,49 @@ export function drawRarity(u) {
   return ORDER[ORDER.length - 1];
 }
 const fairRandom = () => { try { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296; } catch { return Math.random(); } };
-// one card from a box. No duplicates: if every card of the drawn rarity is already owned, the card comes
-// from the nearest rarity that still has missing cards (first the more common side, then the rarer side).
-export function pickCard(ownedIds, rand = fairRandom) {
-  const have = new Set(ownedIds);
-  const missing = r => CARDS.filter(c => c.rarity === r && !have.has(c.id));
+// one card from a box: the rarity by the published odds, then any card of that rarity (duplicates happen)
+export function pickCard(rand = fairRandom) {
   const drawn = drawRarity(rand());
-  if (!missing(drawn).length && CARDS.every(c => have.has(c.id))) return null;
-  const i = ORDER.indexOf(drawn);
-  const tryOrder = [drawn, ...ORDER.map((r, j) => ({ r, d: Math.abs(j - i) + (j > i ? 0.5 : 0) })).filter(x => x.r !== drawn).sort((a, b) => a.d - b.d).map(x => x.r)];
-  const r = tryOrder.find(x => missing(x).length);
-  const list = missing(r);
-  return { card: list[Math.floor(rand() * list.length)], drawn, given: r };
+  const list = CARDS.filter(c => c.rarity === drawn);
+  return { card: list[Math.floor(rand() * list.length)], drawn };
 }
+// 4 copies of the same card → combine: 3 copies go away, 1 stays, and you get a new box
+export const COMBINE_NEED = 4, COMBINE_TAKES = 3;
 // boxes earned so far never go away, even if a later recalculation of XP is lower
 export function boxInfo(userId, s) {
   const st = state(userId);
-  const earned = Math.max(st.boxesEarned || 0, Math.floor(s.xp / BOX_EVERY));
-  if (earned !== st.boxesEarned) { st.boxesEarned = earned; save(); }
+  const fromXp = Math.max(st.boxesEarned || 0, Math.floor(s.xp / BOX_EVERY));
+  if (fromXp !== st.boxesEarned) { st.boxesEarned = fromXp; save(); }
+  const bonus = st.bonusBoxes || 0, earned = fromXp + bonus;
   const opened = (st.opened || []).length;
-  const done = (st.owned || []).length >= CARDS.length;
-  return { earned, opened, ready: done ? 0 : Math.max(0, earned - opened), toNext: BOX_EVERY - (s.xp % BOX_EVERY), complete: done };
+  return { earned, fromXp, bonus, opened, ready: Math.max(0, earned - opened), toNext: BOX_EVERY - (s.xp % BOX_EVERY), complete: ownedCards(userId).length >= CARDS.length };
 }
 export function openBox(userId, s) {
-  const info = boxInfo(userId, s);
-  if (!info.ready) throw new Error('אין תיבות לפתיחה כרגע.');
+  if (!boxInfo(userId, s).ready) throw new Error('אין תיבות לפתיחה כרגע.');
   const st = state(userId);
-  const res = pickCard(st.owned || []);
-  if (!res) throw new Error('השלמת את כל האוסף!');
+  const res = pickCard();
+  res.copies = count(userId, res.card.id) + 1;
+  res.isNew = res.copies === 1;
   st.owned = [...(st.owned || []), res.card.id];
   st.opened = [...(st.opened || []), { at: new Date().toISOString(), card: res.card.id, drawn: res.drawn }];
   save();
   return res;
+}
+export const count = (userId, id) => (state(userId).owned || []).filter(x => x === +id).length;
+export const counts = userId => (state(userId).owned || []).reduce((a, id) => (a[id] = (a[id] || 0) + 1, a), {});
+export const canCombine = userId => CARDS.filter(c => count(userId, c.id) >= COMBINE_NEED);
+export function combine(userId, id) {
+  id = +id;
+  if (count(userId, id) < COMBINE_NEED) throw new Error(`צריך ${COMBINE_NEED} עותקים של אותו קלף כדי לשלב.`);
+  const st = state(userId);
+  let left = COMBINE_TAKES;
+  // remove the 3 most recent copies; the first copy (and the avatar) stays
+  const rev = [...st.owned].reverse().filter(x => !(x === id && left > 0 && left--));
+  st.owned = rev.reverse();
+  st.bonusBoxes = (st.bonusBoxes || 0) + 1;
+  st.combined = [...(st.combined || []), { at: new Date().toISOString(), card: id }];
+  save();
+  return { card: cardById(id), copies: count(userId, id) };
 }
 export const ownedCards = userId => { const o = new Set(state(userId).owned || []); return CARDS.filter(c => o.has(c.id)); };
 export const owns = (userId, c) => (state(userId).owned || []).includes(c.id);
@@ -152,7 +164,7 @@ export function classmates(ctx) {
     // demo classmates also "practised" a little, so the class view is lively
     sc.xp = Math.min(SEMESTER_MAX, sc.xp + (h % 180)); sc.level = levelOf(sc.xp);
     // their boxes, opened with a fixed seed so the demo stays the same
-    if (!st.owned) { const R = seeded(h); st.owned = []; for (let i = 0; i < Math.floor(sc.xp / BOX_EVERY); i++) { const r = pickCard(st.owned, R); if (r) st.owned.push(r.card.id); } }
+    if (!st.owned) { const R = seeded(h); st.owned = []; for (let i = 0; i < Math.floor(sc.xp / BOX_EVERY); i++) st.owned.push(pickCard(R).card.id); }
     const cards = ownedCards(s.id);
     return { id: s.id, first: shortName(s.name), share: true, race: st.race, level: sc.level, levelName: LEVELS[sc.level], cards: cards.map(c => c.id),
       avatar: cards[cards.length - 1] || null, badges: Object.keys(sc.ach).filter(k => sc.ach[k]), week: st.demoWeek };

@@ -257,7 +257,7 @@ export async function geminiAnswer(ctx, question, { activeStudentId, history = [
   for (const m of history.slice(-10)) contents.push({ role: m.who === 'me' ? 'user' : 'model', parts: [{ text: m.who === 'me' ? m.text : m.res.text }] });
   contents.push({ role: 'user', parts: [{ text: question }] });
   const tools = declarations(ctx);
-  const allCards = {}; let toolJson = '';
+  const allCards = {}; let toolJson = ''; const used = [];
   db().stats.questions++; save(); audit(ctx.userId, 'question', {});
   for (let round = 0; round < 6; round++) {
     const out = await generate({
@@ -273,14 +273,14 @@ export async function geminiAnswer(ctx, question, { activeStudentId, history = [
     if (!calls.length) {
       const text = parts.map(p => p.text || '').join('').trim() || 'לא מצאתי תשובה.';
       const cards = Object.values(allCards).flat();
-      if (!grounded(text, toolJson, question)) return { text: 'הנה הנתונים כפי שהם במערכת:', cards, chips: [], model };
-      return { text: text.replace(/^#+\s*/gm, ''), cards, chips: [], model };
+      if (!grounded(text, toolJson, question)) return { text: 'הנה הנתונים כפי שהם במערכת:', cards, chips: [], model, toolsUsed: used };
+      return { text: text.replace(/^#+\s*/gm, ''), cards, chips: [], model, toolsUsed: used };
     }
     contents.push(cand.content);                     // keep the model turn exactly (incl. any thought signatures)
     const responses = [];
     for (const p of calls) {
       const { name, args = {} } = p.functionCall;
-      onStep && onStep(name);
+      onStep && onStep(name); used.push(name);
       let out;
       try { out = await runTool(ctx, name, args, activeStudentId); }
       catch (e) { out = { result: { error: e instanceof Forbidden ? 'אין הרשאה למידע הזה.' : e.message }, cards: [] }; }

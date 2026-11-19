@@ -3,7 +3,7 @@ import { STUDENTS, TEACHERS, PARENTS, ADMINS, CLASSES, SCHOOL, NOW, subjectName 
 import { db, save, audit, getSession, setSession, resetAll } from './store.js';
 import { buildContext, findUser, ROLE_NAMES, activeLinks, g } from './auth.js';
 import * as T from './tools.js';
-import { answer, welcome, intent, rememberMiss } from './engine.js';
+import { answer, welcome, intent, rememberMiss, rememberHit, learnFromModel, keywordIntent, canonical } from './engine.js';
 import * as L from './learn.js';
 import { icon, mark } from './icons.js';
 import * as G from './google.js';
@@ -331,6 +331,7 @@ function addActions(el, res, question) {
     row.querySelectorAll('[aria-pressed]').forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true');
     db().feedback.push({ at: new Date().toISOString(), rating: b.dataset.k }); save();
     if (b.dataset.k === 'down' && res.fast && res.q) rememberMiss(res.q);   // a wrong fast answer teaches the router
+    if (b.dataset.k === 'up' && res.fallback && res.q) { const it = keywordIntent(ctx, canonical(res.q)); if (it) rememberHit(res.q, it); }   // a good local answer: answer fast next time
   });
   const again = row.querySelector('[data-k=again]'); if (again) again.onclick = () => ask(question);
 }
@@ -403,15 +404,16 @@ async function ask(text, { full = false } = {}) {
         }
         box.querySelectorAll('.run').forEach(x => x.classList.replace('run', 'done'));
         box.insertAdjacentHTML('beforeend', `<div class="step run"><span class="dot"></span>${STEP[n] || n}</div>`); scrollDown(); } });
+      if (!file && !full) learnFromModel(ctx, text, res.toolsUsed);   // Gemini needed just one data tool → next time the fast engine answers
     } catch (e) {
       // Gemini busy or too slow → never leave the user waiting: answer locally right away (ו)
       res = answer(ctx, text, { activeStudentId });
-      res = { ...res, fallback: true, chips: res.chips && res.chips.length ? res.chips : [text],
+      res = { ...res, fallback: true, q: text, chips: res.chips && res.chips.length ? res.chips : [text],
         note: e.deadline ? 'Gemini עמוס כרגע אצל Google, אז ענתה המנוע המהיר של אלומה. אפשר לשאול שוב בעוד רגע לתשובה מלאה.' : `Gemini לא זמין (${e.message}) – ענה המנוע המהיר של אלומה.` };
     }
   } else {
     for (let i = 0; i < steps.length; i++) { st.querySelector(`[data-i="${i}"]`).classList.add('run'); await sleep(fastIntent ? 90 : 260 + Math.random() * 220); st.querySelector(`[data-i="${i}"]`).classList.replace('run', 'done'); }
-    res = answer(ctx, text, { activeStudentId });
+    res = answer(ctx, text, { activeStudentId, intent: fastIntent && fastIntent !== 'safety' ? fastIntent : undefined });
     if (fastIntent && fastIntent !== 'safety' && AI.enabled()) res = { ...res, fast: true, q: text };
   }
   st.remove();

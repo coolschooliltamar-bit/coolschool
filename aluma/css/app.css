@@ -484,3 +484,12 @@ body.in-app .proto-banner { display: none; }
 @keyframes burstfade { to { opacity: 0 } }
 @keyframes cardin { from { transform: rotateY(90deg) scale(.6); opacity: 0 } to { transform: none; opacity: 1 } }
 @media (prefers-reduced-motion: reduce) { .box-art.has svg, .box-open .bo-box, .box-open.revealed .bo-card { animation: none !important; } }
+/* duplicates & combining */
+.stk-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.stk-wrap .stk-card { width: 100%; }
+.stk-x { position: absolute; top: -8px; inset-inline-end: -6px; min-width: 30px; height: 26px; padding: 0 7px; border-radius: 99px; background: var(--ink); color: var(--bg); font-weight: 800; font-size: 13px; display: grid; place-items: center; box-shadow: var(--shadow); }
+.stk-prog { font-size: 12px; color: var(--mute); font-weight: 600; }
+.btn.combine { font-size: 12.5px; padding: 5px 10px; background: linear-gradient(135deg, #ffe27a, #ffb347); border-color: #e8a92a; color: #3b2400; }
+.combine-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.combine-row .btn.combine { font-size: 13.5px; padding: 7px 12px; }
+.bo-copy { font-weight: 700; } .bo-copy.new { color: #ffe27a; }

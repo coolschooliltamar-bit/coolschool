@@ -21,8 +21,13 @@ export function init(env) { E = env; }
 const view = () => document.getElementById('view');
 
 // ---------- sticker card (small, in-app) ----------
-export function cardTile(c, { locked = false, isNew = false, size = 'm', pick = false, on = false } = {}) {
+export function cardTile(c, { locked = false, isNew = false, size = 'm', pick = false, on = false, copies = 1, combine = false } = {}) {
   const r = RARITY[c.rarity];
+  if (!locked && (copies > 1 || combine)) {
+    const need = Game.COMBINE_NEED;
+    return `<div class="stk-wrap ${size}">${cardTile(c, { isNew, size, pick, on })}${copies > 1 ? `<span class="stk-x" dir="ltr" aria-label="${copies} עותקים">×${copies}</span>` : ''}
+      ${combine && copies >= need ? `<button class="btn combine" data-combine="${c.id}">✨ שילוב ${need} → תיבה</button>` : combine && copies > 1 ? `<span class="stk-prog">${copies}/${need} לשילוב</span>` : ''}</div>`;
+  }
   if (!locked) return `<button class="stk-card ${c.rarity} ${size} ${on ? 'on' : ''}" ${pick ? `data-avatar="${c.id}"` : 'tabindex="-1"'} aria-label="${esc(c.name)} – ${r.he} – ${c.no}/40${on ? ' – הדמות שלך' : ''}" title="${esc(c.bio)}">${cardSVG(c, { w: 240 })}${isNew ? '<span class="stk-new">חדש!</span>' : ''}${on ? '<span class="stk-on">הדמות שלי</span>' : ''}</button>`;
   return `<button class="stk ${c.rarity} ${locked ? 'locked' : ''} ${size} ${on ? 'on' : ''}" ${pick && !locked ? `data-avatar="${c.id}"` : 'tabindex="-1"'} aria-label="${esc(c.name)} – ${r.he}${locked ? ' – נעול: ' + esc(unlockText(c, Game.achName)) : ''}">
     <span class="stk-art">${locked ? `<span class="stk-lock">${icon('lock', 22)}</span>` : cardArt(c, { mini: true })}</span>
@@ -42,33 +47,35 @@ export function boxArt(open = false) {
     <path d="M80 40 C64 18 44 24 52 38 C56 44 70 42 80 40 C90 42 104 44 108 38 C116 24 96 18 80 40Z" fill="url(#bxg)" stroke="#b8761a" stroke-width="2"/></g>
     <path d="M40 84 l4 -8 l4 8 l-4 8z M118 100 l3 -6 l3 6 l-3 6z" fill="#fff" opacity=".85"/><ellipse cx="48" cy="72" rx="14" ry="4" fill="#fff" opacity=".35" transform="rotate(-10 48 72)"/></svg>`;
 }
-let boxFocus = false;
+let boxFocus = false, flash = '';
 export const showBoxes = () => { gameTab = 'progress'; boxFocus = true; };
 function boxPanel(sid, s, own) {
   const b = Game.boxInfo(sid, s);
   const counts = Object.fromEntries(RARITY_ORDER.map(r => [r, CARDS.filter(c => c.rarity === r && Game.owns(sid, c)).length]));
+  const ready4 = own ? Game.canCombine(sid) : [];
   return `<section class="boxes" id="boxes" aria-label="תיבות קלפים">
     <div class="box-art ${b.ready ? 'has' : ''}">${boxArt()}${b.ready ? `<span class="box-n">${b.ready}</span>` : ''}</div>
-    <div class="box-main"><h3>${b.complete ? 'השלמת את כל האוסף! 🏆' : b.ready ? `${b.ready === 1 ? 'תיבת קלפים אחת מחכה' : `${b.ready} תיבות קלפים מחכות`}${own ? ' לך' : ''}` : 'תיבת הקלפים הבאה'}</h3>
-      <div class="hint">כל ${Game.BOX_EVERY} XP = תיבה עם קלף אחד. ${b.complete ? '' : `עוד <b>${b.toNext} XP</b> לתיבה הבאה.`} נפתחו עד עכשיו: ${b.opened}.</div>
+    <div class="box-main"><h3>${b.complete && !b.ready ? 'השלמת את כל האוסף! 🏆' : b.ready ? `${b.ready === 1 ? 'תיבת קלפים אחת מחכה' : `${b.ready} תיבות קלפים מחכות`}${own ? ' לך' : ''}` : 'תיבת הקלפים הבאה'}</h3>
+      <div class="hint">כל ${Game.BOX_EVERY} XP = תיבה עם קלף אחד. עוד <b>${b.toNext} XP</b> לתיבה הבאה. נפתחו עד עכשיו: ${b.opened}${b.bonus ? ` · ${b.bonus} מהן משילובים` : ''}.</div>
       ${own && b.ready ? '<button class="btn primary" id="openbox">🎁 פתיחת תיבה</button>' : ''}
-      ${!own && b.ready ? '<div class="hint">רק התלמיד/ה פותח/ת את התיבות.</div>' : ''}</div>
+      ${!own && b.ready ? '<div class="hint">רק התלמיד/ה פותח/ת את התיבות.</div>' : ''}
+      ${ready4.length ? `<div class="combine-row">${ready4.map(c => `<button class="btn combine" data-combine="${c.id}">✨ שילוב 4 × ${esc(c.name)} → תיבה חדשה</button>`).join('')}</div>` : ''}</div>
     <table class="odds" aria-label="הסיכויים בכל תיבה"><caption>הסיכויים בכל תיבה (קבועים)</caption><tbody>
       ${RARITY_ORDER.map(r => `<tr><td><span style="color:${RARITY[r].color}">${RARITY[r].symbol}</span> ${RARITY[r].he}</td><td class="pct">${RARITY[r].share}</td><td class="hint">${counts[r]}/${RARITY[r].count}</td></tr>`).join('')}
     </tbody></table>
-    <p class="hint box-rule">אין כפולים: אם כבר יש לך את כל הקלפים ברמה שיצאה, מקבלים קלף מהרמה הקרובה שעוד חסרים בה קלפים. התיבות לא נקנות בכסף ולא פגות.</p></section>`;
+    <p class="hint box-rule">אותו קלף יכול לצאת יותר מפעם אחת. <b>4 עותקים של אותו קלף = שילוב:</b> 3 עותקים יוצאים מהאוסף, אחד נשאר, ומקבלים תיבה חדשה. התיבות לא נקנות בכסף ולא פגות.</p></section>`;
 }
 function openBoxFlow(sid) {
   const s = Game.score(E.ctx(), sid);
   let res;
   try { res = Game.openBox(sid, s); } catch (e) { E.live(e.message); return; }
-  const { card, drawn, given } = res, R = RARITY[card.rarity];
+  const { card, copies, isNew } = res, R = RARITY[card.rarity];
   const left = Game.boxInfo(sid, s).ready;
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const ov = document.createElement('div'); ov.className = `box-open ${card.rarity}`; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'פתיחת תיבת קלפים');
   ov.innerHTML = `<div class="bo-stage"><div class="bo-box">${boxArt()}</div><div class="bo-card" hidden>${cardSVG(card, { w: 300 })}</div>
     <div class="bo-text" hidden><div class="bo-r" style="color:${R.color}">${R.symbol} ${R.he} · ${R.en}</div><h2>${esc(card.name)}</h2><p>${esc(card.bio)}</p>
-      ${drawn !== given ? `<p class="hint">יצא ${RARITY[drawn].he}, אבל כבר היו לך כל הקלפים ברמה הזאת – אז קיבלת קלף ${R.he} שעוד חסר לך.</p>` : ''}
+      <p class="bo-copy ${isNew ? 'new' : ''}">${isNew ? '✨ קלף חדש באוסף!' : `עותק ${copies} של הקלף הזה${copies >= Game.COMBINE_NEED ? ` – אפשר לשלב ${Game.COMBINE_NEED} עותקים לתיבה חדשה!` : ` (${copies}/${Game.COMBINE_NEED} לשילוב)`}`}</p>
       <div class="btns">${left ? `<button class="btn primary" data-bo="again">🎁 עוד תיבה (${left})</button>` : ''}<button class="btn" data-bo="avatar">בחירה כדמות שלי</button><button class="btn link" data-bo="close">סגירה</button></div></div></div>`;
   document.body.appendChild(ov);
   const reveal = () => { ov.classList.add('revealed'); ov.querySelector('.bo-box').hidden = true; ov.querySelector('.bo-card').hidden = false; ov.querySelector('.bo-text').hidden = false; (ov.querySelector('[data-bo=again]') || ov.querySelector('[data-bo=close]')).focus(); E.live(`קיבלת את ${card.name} – ${R.he}`); };
@@ -104,15 +111,20 @@ export function renderGame() {
         <div class="bar big" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${last ? 100 : inLevel}" aria-label="התקדמות לרמה הבאה"><i style="width:${last ? 100 : inLevel}%"></i></div>
         <div class="hint">${s.xp} XP מתוך ${Game.SEMESTER_MAX} בסמסטר${last ? ' · הרמה הגבוהה ביותר!' : ` · עוד ${100 - inLevel} XP לרמה ${lv + 1} (${esc(Game.LEVELS[lv + 1])})`}</div></div>
     </div>
-    <div class="note-xp">${icon('sparkle', 15)} <span><b>XP הוא מדד – לא המטרה.</b> הוא משקף כמה ${own ? 'את/ה משקיע/ה' : 'יש השקעה'} בלמידה: הגשות בזמן ובאיכות, מבחנים ותרגול. כל ${Game.BOX_EVERY} XP = תיבת קלפים, עם סיכויים קבועים שמוצגים כאן. אין מה לקנות, אין כפולים, ותיבות לא פגות – אין לחץ זמן.</span></div>
+    <div class="note-xp">${icon('sparkle', 15)} <span><b>XP הוא מדד – לא המטרה.</b> הוא משקף כמה ${own ? 'את/ה משקיע/ה' : 'יש השקעה'} בלמידה: הגשות בזמן ובאיכות, מבחנים ותרגול. כל ${Game.BOX_EVERY} XP = תיבת קלפים, עם סיכויים קבועים שמוצגים כאן. 4 עותקים של אותו קלף אפשר לשלב לתיבה חדשה. אין מה לקנות, ותיבות לא פגות – אין לחץ זמן.</span></div>
     <div class="subj-tabs" role="tablist">${tabs.map(([k, l]) => `<button class="tab" role="tab" aria-selected="${gameTab === k}" data-gtab="${k}">${l}</button>`).join('')}</div>
     <div id="gbody"></div></section>`;
   v.querySelectorAll('[data-gtab]').forEach(b => b.onclick = () => { gameTab = b.dataset.gtab; peek = null; renderGame(); });
   const body = v.querySelector('#gbody');
-  if (gameTab === 'progress') body.innerHTML = boxPanel(sid, s, own) + progressTab(s, own, fresh);
-  if (gameTab === 'album') body.innerHTML = boxPanel(sid, s, own) + albumTab(sid, s, own, fresh);
+  const fl = flash ? `<div class="reco flash" role="status">${esc(flash)}</div>` : ''; flash = '';
+  if (gameTab === 'progress') body.innerHTML = fl + boxPanel(sid, s, own) + progressTab(s, own, fresh);
+  if (gameTab === 'album') body.innerHTML = fl + boxPanel(sid, s, own) + albumTab(sid, s, own, fresh);
   const ob = body.querySelector('#openbox'); if (ob) ob.onclick = () => openBoxFlow(sid);
   if (gameTab === 'class') { classTab(body, ctx, s); return; }
+  body.querySelectorAll('[data-combine]').forEach(b => b.onclick = () => {
+    try { const r = Game.combine(sid, b.dataset.combine); flash = `✨ שילבת 4 עותקים של ${r.card.name}: 3 יצאו מהאוסף, אחד נשאר – וקיבלת תיבה חדשה 🎁`; E.live(flash); renderGame(); E.refreshSide(); }
+    catch (e) { E.live(e.message); }
+  });
   body.querySelectorAll('[data-avatar]').forEach(b => b.onclick = () => { Game.setState(sid, { avatar: +b.dataset.avatar }); E.live(`הדמות שלך עכשיו: ${cardById(b.dataset.avatar).name}`); renderGame(); E.refreshSide(); });
   const go = body.querySelector('[data-goto]'); if (go) go.onclick = () => { gameTab = go.dataset.goto; renderGame(); };
   body.querySelectorAll('[data-go]').forEach(b => b.onclick = () => E.go(b.dataset.go));
@@ -135,11 +147,11 @@ function progressTab(s, own, fresh) {
 }
 function albumTab(sid, s, own, fresh) {
   const av = Game.avatarOf(sid);
-  const isNew = new Set(fresh.map(c => c.id));
+  const isNew = new Set(fresh.map(c => c.id)); const n = Game.counts(sid);
   return `<p class="hint">${own ? 'לחצו על קלף שקיבלתם כדי לבחור אותו כדמות שלכם. ' : ''}כל 40 הקלפים מוצגים מראש, גם אלה שעוד לא יצאו לכם.</p>
     ${RARITY_ORDER.map(r => { const list = CARDS.filter(c => c.rarity === r); const got = list.filter(c => Game.owns(sid, c)).length;
       return `<div class="alb-h ${r}"><span style="color:${RARITY[r].color}">${RARITY[r].symbol}</span> <b>${RARITY[r].he}</b> · ${RARITY[r].en} <span class="hint">${got}/${list.length} · סיכוי ${RARITY[r].share} בכל תיבה</span></div>
-        <div class="stk-grid">${list.map(c => cardTile(c, { locked: !Game.owns(sid, c), isNew: isNew.has(c.id), pick: own, on: av && av.id === c.id })).join('')}</div>`; }).join('')}`;
+        <div class="stk-grid">${list.map(c => cardTile(c, { locked: !Game.owns(sid, c), isNew: isNew.has(c.id), pick: own, on: av && av.id === c.id, copies: n[c.id] || 0, combine: own })).join('')}</div>`; }).join('')}`;
 }
 function classTab(body, ctx, s) {
   const st = Game.state(ctx.userId);

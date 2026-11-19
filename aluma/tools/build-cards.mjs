@@ -52,7 +52,7 @@ const preview = `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><sty
   h1{margin:0 0 4px;font-size:44px;font-weight:900;letter-spacing:.5px} p{margin:0 0 22px;opacity:.8;font-size:20px}
   .row{display:flex;align-items:center;gap:10px;margin:18px 0 10px;font-size:22px;font-weight:800}.row span{opacity:.7;font-weight:600;font-size:18px}
   .g{display:grid;grid-template-columns:repeat(${cols},${cw}px);gap:16px}.g svg{width:${cw}px;height:auto;display:block;filter:drop-shadow(0 8px 16px rgba(0,0,0,.45))}</style></head><body>
-  <h1>אלומה · חבילת קלפי המדבקות</h1><p>40 דמויות מקוריות · 5 רמות נדירות · כל 100 XP = תיבת קלפים עם סיכויים גלויים – בלי קנייה ובלי כפולים</p>
+  <h1>אלומה · חבילת קלפי המדבקות</h1><p>40 דמויות מקוריות · 5 רמות נדירות · כל 100 XP = תיבת קלפים עם סיכויים גלויים · 4 עותקים = שילוב לתיבה חדשה</p>
   ${RARITY_ORDER.map(r => `<div class="row"><b style="color:${RARITY[r].color}">${RARITY[r].symbol}</b> ${RARITY[r].he} · ${RARITY[r].en} <span>${RARITY[r].count} קלפים · ${RARITY[r].share}</span></div>
   <div class="g">${files.filter(f => f.c.rarity === r).map(f => f.svg).join('')}</div>`).join('')}</body></html>`;
 await page.setViewportSize({ width: 40 * 2 + cols * cw + (cols - 1) * 16, height: 800 });
@@ -69,7 +69,7 @@ if (only) { console.log('preview written'); process.exit(0); }
 const rule = c => unlockText(c, achName);
 const md = `# קטלוג – חבילת קלפי המדבקות של אלומה
 
-כל 100 XP = תיבת קלפים. הסיכויים בכל תיבה קבועים: ${RARITY_ORDER.map(r => `${RARITY[r].he} ${RARITY[r].share}`).join(' · ')}. בלי כפולים, בלי קנייה.
+כל 100 XP = תיבת קלפים. הסיכויים בכל תיבה קבועים: ${RARITY_ORDER.map(r => `${RARITY[r].he} ${RARITY[r].share}`).join(' · ')}. 4 עותקים של אותו קלף = שילוב לתיבה חדשה. בלי קנייה.
 
 40 קלפים · ${RARITY_ORDER.map(r => `${RARITY[r].he} (${RARITY[r].en}) ${RARITY[r].count}`).join(' · ')}
 
@@ -117,8 +117,9 @@ check(RARITY_ORDER.every(r => Math.abs(RARITY[r].odds - RARITY[r].count / 40 * 1
 const G = await import('../js/game.js');
 const sim = { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 }; for (let i = 0; i < 200000; i++) sim[G.drawRarity(Math.random())]++;
 check(RARITY_ORDER.every(r => Math.abs(sim[r] / 2000 - RARITY[r].odds) < 0.5), `סימולציה של 200,000 תיבות תואמת לסיכויים (${RARITY_ORDER.map(r => `${RARITY[r].en} ${(sim[r] / 2000).toFixed(1)}%`).join(' · ')})`);
-let owned = []; for (let i = 0; i < 40; i++) owned.push(G.pickCard(owned).card.id);
-check(new Set(owned).size === 40 && G.pickCard(owned) === null, '40 תיבות נותנות בדיוק את 40 הקלפים – בלי כפולים');
+const perCard = {}; for (let i = 0; i < 200000; i++) { const c = G.pickCard().card; perCard[c.id] = (perCard[c.id] || 0) + 1; }
+check(CARDS.every(c => Math.abs(perCard[c.id] / 2000 - RARITY[c.rarity].odds / RARITY[c.rarity].count) < 0.25), 'בתוך כל רמה לכל קלף אותו סיכוי (למשל כל קלף רגיל 2.5%, הקלף האגדי 2.5%)');
+check(G.COMBINE_NEED === 4 && G.COMBINE_TAKES === 3, 'שילוב: 4 עותקים של אותו קלף → 3 יוצאים, 1 נשאר, ומתקבלת תיבה חדשה');
 check(CARDS.every(c => !/\s{2,}|^\s|\s$/.test(c.name) && !/[a-z]/i.test(c.name)), 'שמות בעברית בלי רווחים כפולים ובלי אותיות לטיניות');
 const report = `# בדיקת איכות – חבילת קלפי המדבקות
 
