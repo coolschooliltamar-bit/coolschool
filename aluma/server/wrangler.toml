@@ -1,0 +1,12 @@
+name = "aluma"
+main = "worker.js"
+compatibility_date = "2025-06-01"
+account_id = "729900229f33cf6dba35ba62e17566cb"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "aluma-db"
+database_id = "TO_BE_FILLED_AFTER_CREATE"
+
+# The Gemini key is a SECRET, not set here:  Worker → Settings → Variables and Secrets → GEMINI_API_KEY
