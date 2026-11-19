@@ -8,3 +8,7 @@ export const GOOGLE_CLIENT_ID = '1054746371715-vpsff7knc52n61rmhgrgotf0ag3t90u2.
 export const GEMINI_PROXY_URL = 'https://aluma.aluma-school.workers.dev';   // Aluma's Cloudflare Worker (aluma/server)
 // Leave empty to pick the newest available "flash" model automatically.
 export const GEMINI_MODEL = '';
+
+// Security settings (security-hardening – see aluma-spec/19-security-compliance.md)
+export const DEMO_ACCOUNTS = true;        // the demo-account picker with fictional data. MUST be false in a deployment with real students.
+export const IDLE_MINUTES = 30;           // real (Google) sessions end after this much inactivity – shared school computers

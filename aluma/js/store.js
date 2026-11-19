@@ -39,3 +39,15 @@ export const getSession = () => { try { return JSON.parse(sessionStorage.getItem
 export const setSession = s => { try { s ? sessionStorage.setItem(SKEY, JSON.stringify(s)) : sessionStorage.removeItem(SKEY); } catch { /* ignore */ } };
 
 export const userSettings = id => (state.settings[id] = state.settings[id] || { theme: 'light', quietFrom: '20:00', quietTo: '07:30' });
+
+// Removes everything this browser keeps about one user (security-hardening):
+// used when a real Google account logs out on a shared school computer, or deletes the account.
+export function forgetUser(userId) {
+  if (!userId) return;
+  for (const k of Object.keys(state.convs || {})) if (k.startsWith(userId + '|')) delete state.convs[k];
+  for (const col of ['memories', 'learn', 'game', 'interests', 'settings', 'rate']) if (state[col]) delete state[col][userId];
+  if (state.paths) for (const [id, p] of Object.entries(state.paths)) if (p.ownerId === userId) delete state.paths[id];
+  if (state.projects) state.projects = state.projects.filter(p => p.studentId !== userId);
+  state.audit = (state.audit || []).filter(a => a.actor !== userId);
+  save();
+}

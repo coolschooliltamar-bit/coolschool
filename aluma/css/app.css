@@ -512,3 +512,4 @@ body.in-app .proto-banner { display: none; }
 @media (max-width: 760px) { .cz-inner { flex-direction: column; gap: 14px; } .cz-tilt { width: min(86vw, calc(64vh * .75)); } .cz-info { text-align: center; } .cz-info .btns { justify-content: center; } }
 @media (prefers-reduced-motion: reduce) { .card-zoom, .cz-tilt { transition: none; } }
 .stk-card[data-zoom] { cursor: zoom-in; }
+.danger-zone { border-color: var(--coral); }

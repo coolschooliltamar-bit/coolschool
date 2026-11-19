@@ -11,6 +11,7 @@ import { STUDENTS, CLASSES, TEACHERS, subjectName } from './data.js';
 import { icon } from './icons.js';
 import { db, save, audit } from './store.js';
 import { LIVE } from './google.js';
+import { safeUrl } from './security.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtDate = d => { d = new Date(d); return `${d.getDate()}.${d.getMonth() + 1}`; };
@@ -345,7 +346,7 @@ function projectCard(p, as) {
   return `<article class="proj"><div class="proj-h"><b>${esc(p.title || 'בלי שם')}</b><span class="tag ${cls}">${st}</span></div>
     <div class="hint">${esc(subjectName(p.subject))} · ${who} · ${fmtDate(p.updatedAt)}${p.cap ? ` · עד ${p.cap} נקודות` : ''}${p.status === 'graded' ? ` · <b>ניתנו ${p.awarded} נקודות בונוס</b>` : ''}</div>
     <p>${esc(p.summary)}</p>${p.steps && p.steps.length ? `<ol class="steps-l">${p.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>` : ''}
-    ${p.submission ? `<div class="sub-box"><b>ההגשה:</b> ${esc(p.submission.text)} ${p.submission.link ? `<a href="${esc(p.submission.link)}" target="_blank" rel="noopener noreferrer">קישור ↗</a>` : ''}</div>` : ''}
+    ${p.submission ? `<div class="sub-box"><b>ההגשה:</b> ${esc(p.submission.text)} ${p.submission.link ? `<a href="${esc(safeUrl(p.submission.link))}" target="_blank" rel="noopener noreferrer">קישור ↗</a>` : ''}</div>` : ''}
     ${p.comment && p.status !== 'returned' ? `<div class="hint">הערת המורה: ${esc(p.comment)}</div>` : ''}${actions}</article>`;
 }
 function bindProjectCards(root, ctx) {

@@ -36,7 +36,12 @@ export function push(userId) {
     } catch (e) { status.error = e.message; }
   }, 1500);
 }
-export async function wipe() { if (on()) { try { await fetch(`${GEMINI_PROXY_URL}/db/me`, { method: 'DELETE', headers: { Authorization: `Bearer ${G.accessToken()}` } }); } catch { /* ignore */ } } }
+// deletes everything the server keeps about this account; true only when the server confirmed it
+export async function wipe() {
+  if (!on()) return false;
+  try { const r = await fetch(`${GEMINI_PROXY_URL}/db/me`, { method: 'DELETE', headers: { Authorization: `Bearer ${G.accessToken()}` } }); return r.ok; }
+  catch { return false; }
+}
 
 // rewards, practice progress, own paths, projects and the interests questionnaire of a real account
 function gameDoc(userId) {

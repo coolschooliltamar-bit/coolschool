@@ -7,7 +7,15 @@
 //  - demo visitors (no Google sign-in): Gemini only, with a small per-IP daily limit, no storage.
 // Only requests from the Aluma site are accepted (CORS + Origin check).
 
-const ALLOWED_ORIGINS = ['https://coolschooliltamar-bit.github.io', 'http://localhost:8765'];
+// production origin only; the local development origin is allowed only when env.ALLOW_DEV_ORIGIN === '1'
+// (set on a separate development worker – never on production) – security-hardening
+const PROD_ORIGINS = ['https://coolschooliltamar-bit.github.io'];
+const DEV_ORIGINS = ['http://localhost:8765'];
+const originsFor = env => (env && env.ALLOW_DEV_ORIGIN === '1' ? [...PROD_ORIGINS, ...DEV_ORIGINS] : PROD_ORIGINS);
+// how long data is kept (days) – the retention job (scheduled) deletes older rows
+const RETENTION = { userDocsIdle: 365, auditLog: 365, usage: 30, routerVotes: 730 };
+const SECURITY_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Cross-Origin-Resource-Policy': 'same-site', 'X-Frame-Options': 'DENY', 'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'" };
 const GOOGLE_CLIENT_ID = '1054746371715-vpsff7knc52n61rmhgrgotf0ag3t90u2.apps.googleusercontent.com';
 const LIMITS = { user: 400, demoIp: 600, total: 8000 };     // Gemini calls per day (a whole school shares one IP behind NAT, so the demo limit per IP is high)
 const DOC_COLLECTIONS = ['convs', 'memories', 'settings', 'game'];
@@ -23,18 +31,21 @@ const ROUTER_BLOCK = new Set(('לא אל למה איך כדי אם צריך עצ
 const routerBlocked = k => { const w = k.replace(/^~/, ''); return ROUTER_BLOCK.has(w) || [...ROUTER_BLOCK].some(b => b.length >= 3 && w === b.replace(/[םןץףך]/g, c => ({ 'ם': 'מ', 'ן': 'נ', 'ץ': 'צ', 'ף': 'פ', 'ך': 'כ' }[c])).replace(/(?!^)[וי]/g, '')); };
 let vocabCache = null;
 async function hmac(env, text) {
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.GEMINI_API_KEY || 'aluma'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  // its own secret (ROUTER_SALT) when set – keys should not be reused across purposes; GEMINI_API_KEY is a fallback
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.ROUTER_SALT || env.GEMINI_API_KEY || 'aluma'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('router|' + text)));
   return [...sig.slice(0, 16)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 export default {
+  async scheduled(event, env, ctx) { ctx.waitUntil(retention(env)); },
   async fetch(req, env) {
     const origin = req.headers.get('Origin') || '';
+    const ALLOWED_ORIGINS = originsFor(env);
     const allow = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
     const cors = { 'Access-Control-Allow-Origin': allow, 'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Max-Age': '86400', Vary: 'Origin' };
-    const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+    const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...SECURITY_HEADERS, ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     const url = new URL(req.url);
     if (url.pathname === '/health') return json({ ok: true, gemini: !!env.GEMINI_API_KEY, db: !!env.DB });
@@ -59,7 +70,7 @@ export default {
         if (body && body.length > 400_000) return json({ error: { message: 'Request too large' } }, 413);
         const up = await fetch(`https://generativelanguage.googleapis.com${url.pathname}${isList ? '?pageSize=200' : ''}`, {
           method: req.method, body, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY } });
-        return new Response(up.body, { status: up.status, headers: { ...cors, 'Content-Type': 'application/json' } });
+        return new Response(up.body, { status: up.status, headers: { ...SECURITY_HEADERS, ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
       }
 
       // ---------- shared learning of the fast-answer router ----------
@@ -85,7 +96,7 @@ export default {
           const vocab = {}; for (const r of rows.results || []) (vocab[r.intent] = vocab[r.intent] || {})[r.word] = 1;
           vocabCache = { vocab, exp: Date.now() + 300000 };
         }
-        return new Response(JSON.stringify({ vocab: vocabCache.vocab, k: ROUTER_K }), { headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'max-age=300' } });
+        return new Response(JSON.stringify({ vocab: vocabCache.vocab, k: ROUTER_K }), { headers: { ...SECURITY_HEADERS, ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'max-age=300' } });
       }
 
       // ---------- class view of the rewards (opt-in) ----------
@@ -114,6 +125,24 @@ export default {
       }
 
       // ---------- per-user storage ----------
+      // (before the /db/<collection> rule – it used to swallow /db/me and answer 404)
+      // "delete my account": every row about this user, in every table (security-hardening)
+      if (url.pathname === '/db/me' && req.method === 'DELETE') {
+        if (!who) return json({ error: { message: 'Unauthorized' } }, 401);
+        const voter = await hmac(env, `u:${who.sub}`);
+        await env.DB.batch([
+          env.DB.prepare('DELETE FROM user_docs WHERE user_sub = ?').bind(who.sub),
+          env.DB.prepare('DELETE FROM class_members WHERE user_sub = ?').bind(who.sub),
+          env.DB.prepare('DELETE FROM router_votes WHERE voter = ?').bind(voter),
+          env.DB.prepare('DELETE FROM usage WHERE key = ? OR key = ?').bind(`u:${who.sub}`, `rl:${voter}`),
+          env.DB.prepare('DELETE FROM audit_log WHERE user_sub = ?').bind(who.sub),
+          env.DB.prepare('DELETE FROM users WHERE sub = ?').bind(who.sub),
+          // one pseudonymous record that a deletion happened (no account id): accountability without personal data
+          env.DB.prepare('INSERT INTO audit_log (user_sub, action, at) VALUES (?, ?, ?)').bind('deleted:' + voter.slice(0, 12), 'account_deleted', new Date().toISOString()),
+        ]);
+        tokenCache.delete((req.headers.get('Authorization') || '').slice(7));
+        return json({ ok: true, deleted: true });
+      }
       const m = url.pathname.match(/^\/db\/([a-z]+)$/);
       if (m) {
         if (!who) return json({ error: { message: 'צריך להתחבר עם Google כדי לשמור.' } }, 401);
@@ -133,18 +162,25 @@ export default {
           return json({ ok: true, updatedAt: now });
         }
       }
-      if (url.pathname === '/db/me' && req.method === 'DELETE') {
-        if (!who) return json({ error: { message: 'Unauthorized' } }, 401);
-        await env.DB.prepare('DELETE FROM user_docs WHERE user_sub = ?').bind(who.sub).run();
-        await audit(env, who.sub, 'delete_all');
-        return json({ ok: true });
-      }
       return json({ error: { message: 'Not found' } }, 404);
     } catch (e) {
+      if (e instanceof SyntaxError) return json({ error: { message: 'bad request' } }, 400);
       return json({ error: { message: e.status === 401 ? 'ההתחברות ל-Google לא תקפה. התחברו מחדש.' : 'שגיאת שרת.' } }, e.status || 500);
     }
   },
 };
+
+// Retention job (needs a Cron Trigger on the worker, e.g. daily) – deletes data past RETENTION.
+export async function retention(env, now = Date.now()) {
+  const ago = d => new Date(now - d * 864e5).toISOString();
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM user_docs WHERE updated_at < ?').bind(ago(RETENTION.userDocsIdle)),
+    env.DB.prepare('DELETE FROM audit_log WHERE at < ?').bind(ago(RETENTION.auditLog)),
+    env.DB.prepare('DELETE FROM usage WHERE day < ?').bind(ago(RETENTION.usage).slice(0, 10)),
+    env.DB.prepare('DELETE FROM router_votes WHERE at < ?').bind(ago(RETENTION.routerVotes)),
+    env.DB.prepare('DELETE FROM class_members WHERE updated_at < ?').bind(ago(RETENTION.userDocsIdle)),
+  ]);
+}
 
 // Verify a Google access token: it must be valid AND issued to Aluma's own OAuth client.
 async function identify(req, env) {
