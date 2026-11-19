@@ -11,4 +11,5 @@ export const GEMINI_MODEL = '';
 
 // Security settings (security-hardening – see aluma-spec/19-security-compliance.md)
 export const DEMO_ACCOUNTS = true;        // the demo-account picker with fictional data. MUST be false in a deployment with real students.
-export const IDLE_MINUTES = 30;           // real (Google) sessions end after this much inactivity – shared school computers
+export const IDLE_MINUTES = 30;          // Annex C 4.1.7: half an hour for personal/sensitive data
+export const MAX_SESSION_HOURS = 8;      // Annex C 4.1.6: a session with personal/sensitive data ends after 8 hours           // real (Google) sessions end after this much inactivity – shared school computers

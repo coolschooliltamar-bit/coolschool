@@ -2,7 +2,9 @@
 import { STUDENTS, TEACHERS, PARENTS, ADMINS, CLASSES, SCHOOL, NOW, subjectName } from './data.js';
 import { db, save, audit, getSession, setSession, resetAll, forgetUser } from './store.js';
 import { safeUrl, fence } from './security.js';
-import { DEMO_ACCOUNTS, IDLE_MINUTES } from './config.js';
+import { DEMO_ACCOUNTS, IDLE_MINUTES, MAX_SESSION_HOURS } from './config.js';
+import { buildExport, PERSONAL_DATA_NOTICE } from './security.js';
+import { MAX_QUESTION } from './gemini.js';
 import { buildContext, findUser, ROLE_NAMES, activeLinks, g } from './auth.js';
 import * as T from './tools.js';
 import { answer, welcome, routeQuestion, rememberMiss, rememberHit, learnFromModel, keywordIntent, canonical, setSharedVocab, setLearnSink, sharedSize } from './engine.js';
@@ -95,7 +97,7 @@ function renderLogin(notice = '', kind = 'hint') {
       const prof = await G.signIn();
       ctx = liveContext(prof); activeStudentId = ctx.userId; activeConvId = null; view = 'chat';
       await Cloud.pull(ctx.userId);
-      audit(ctx.userId, 'login', {}); armIdle(); render();
+      audit(ctx.userId, 'login', {}); armIdle(); armSessionCap(); render();
     } catch (err) { b.disabled = false; msg.innerHTML = `<p class="err">${esc(err.message)}</p>`; }
   };
   const rs = document.getElementById('reset'); if (rs) rs.onclick = () => { if (confirm('לאפס את כל נתוני הדמה בדפדפן הזה?')) { resetAll(); renderLogin(); } };
@@ -224,10 +226,14 @@ function signOutNow(reason) {
   if (!ctx) return;
   audit(ctx.userId, 'logout', {});
   if (ctx.live) { G.signOut(); forgetUser(ctx.userId); }
-  setSession(null); ctx = null; clearTimeout(idleTimer); document.body.classList.remove('side-open'); renderLogin(reason || '');
+  setSession(null); ctx = null; clearTimeout(idleTimer); clearTimeout(capTimer); document.body.classList.remove('side-open'); renderLogin(reason || '');
 }
-// real sessions end after IDLE_MINUTES without activity (shared school computers)
-let idleTimer = null;
+// real sessions end after IDLE_MINUTES without activity (shared school computers), and after MAX_SESSION_HOURS in any case
+let idleTimer = null, capTimer = null;
+function armSessionCap() {
+  clearTimeout(capTimer);
+  if (ctx && ctx.live) capTimer = setTimeout(() => signOutNow(`הגעת למשך המרבי של חיבור (${MAX_SESSION_HOURS} שעות). אפשר להתחבר שוב.`), MAX_SESSION_HOURS * 3600000);
+}
 function armIdle() {
   clearTimeout(idleTimer);
   if (ctx && ctx.live) idleTimer = setTimeout(() => signOutNow(`נותקת אוטומטית אחרי ${IDLE_MINUTES} דקות בלי פעילות.`), IDLE_MINUTES * 60000);
@@ -267,7 +273,7 @@ function renderChat() {
     <section class="chat" id="chat" aria-label="שיחה עם אלומה"></section>
     <div class="composer"><form id="ask"><label for="q" class="sr-only">שאלה לאלומה</label>
       <div id="attach" class="attach"></div>
-      <textarea id="q" rows="1" placeholder="שאלו את אלומה…" ${noKids ? 'disabled' : ''}></textarea>
+      <textarea id="q" rows="1" maxlength="${MAX_QUESTION}" placeholder="שאלו את אלומה…" ${noKids ? 'disabled' : ''}></textarea>
       <div class="comp-row">${['student', 'teacher'].includes(ctx.role) ? `<label class="clip" title="צירוף קובץ (TXT, PDF, Word)" aria-label="צירוף קובץ">${icon('clip', 17)}<input type="file" id="qfile" hidden accept=".txt,.md,.pdf,.docx"></label>` : ''}<span class="comp-hint">${icon('database', 14)} ${ctx.live ? `מחוברת: Google Classroom (${G.LIVE.courses.length} כיתות)${G.hasService('calendar') ? ' · Calendar' : ''}${G.hasService('drive') ? ' · Drive' : ''}${G.hasService('gmail') ? ' · Gmail' : ''}` : 'מחוברת: משוב · Classroom (נתוני דמה)'}</span><button class="send" aria-label="שליחה">${icon('send', 18)}</button></div></form>
       <div class="disclaimer">אלומה עלולה לטעות. כל נתון מוצג עם המקור שלו, ושום הודעה לא נשלחת בלי אישור.</div></div>
   </div>`;
@@ -381,7 +387,9 @@ function showAttachment() {
 }
 
 async function ask(text, { full = false } = {}) {
-  if (busy) return; busy = true;
+  if (busy) return;
+  text = String(text || '').slice(0, MAX_QUESTION);                 // input length limit (Annex C 4.9.14)
+  busy = true;
   document.querySelector('.empty')?.remove();
   const chat = document.getElementById('chat');
   chat.querySelectorAll('.chips').forEach(c => c.remove());
@@ -587,7 +595,8 @@ function renderSettings() {
     <p class="hint">המפתח נשמר <b>רק בדפדפן הזה</b> ולא נכנס לקוד האתר. שימו לב: בשכבה החינמית של Gemini, Google עשויה להשתמש בתוכן לשיפור המוצרים שלה – אל תשתמשו בה עם נתונים אמיתיים של תלמידים. לפיילוט צריך שכבה בתשלום ושרת מתווך.</p></section>`;
   html += `<section class="panel"><h2>מה אלומה זוכרת עליי</h2><p class="hint">אפשר לבקש בצ׳אט: "תזכרי שתמיד תעני לי בקצרה". מידע רגיש לא נשמר.</p>
     ${mem.length ? `<table class="t"><tbody>${mem.map(m => `<tr><td>${esc(m.text)}</td><td style="width:90px">${fmtDate(m.at)}</td><td style="width:70px"><button class="btn link" data-delmem="${m.id}">מחיקה</button></td></tr>`).join('')}</tbody></table>` : '<p class="hint">עוד לא שמרתי כלום.</p>'}
-    <div class="formrow"><button class="btn" id="clearhist">מחיקת כל היסטוריית השיחות</button></div></section>`;
+    <div class="formrow"><button class="btn" id="clearhist">מחיקת כל היסטוריית השיחות</button><button class="btn" id="exportme">הורדת המידע שלי</button></div>
+    <p class="hint">הקובץ מסומן: "${esc(PERSONAL_DATA_NOTICE)}". שמרו אותו במקום מאובטח.</p></section>`;
   if (ctx.live) html += `<section class="panel danger-zone"><h2>מחיקת החשבון</h2>
     <p class="hint">מוחק מהשרת של אלומה את כל מה שנשמר עליך (שיחות, זיכרונות, התקדמות, פרסים, פרויקטים, הפרופיל שמשותף עם הכיתה וההצבעות ללמידה המשותפת), מוחק את המידע מהדפדפן הזה ומבטל את ההרשאות של אלומה ב-Google. הנתונים ב-Classroom עצמו לא נמחקים – הם של בית הספר.</p>
     <form class="formrow" id="delacc"><label for="delconfirm">כדי לאשר, הקלידו: מחיקה</label><input id="delconfirm" autocomplete="off" style="width:120px"><button class="btn danger">מחיקת החשבון והנתונים שלי</button></form><div id="delmsg"></div></section>`;
@@ -647,6 +656,13 @@ function renderSettings() {
   if (gr) gr.onclick = async () => { gr.disabled = true; gr.textContent = 'מרעננת…'; try { await G.refresh(); renderSettings(); } catch (e) { gr.disabled = false; gr.insertAdjacentHTML('afterend', `<span class="err">${esc(e.message)}</span>`); } };
   v.querySelectorAll('[data-delmem]').forEach(b => b.onclick = () => { db().memories[ctx.userId] = mem.filter(m => m.id !== b.dataset.delmem); save(); audit(ctx.userId, 'memory_deleted', {}); if (ctx.live) Cloud.push(ctx.userId); renderSettings(); });
   v.querySelector('#clearhist').onclick = () => { if (confirm('למחוק את כל השיחות? אי אפשר לשחזר.')) { Object.keys(db().convs || {}).filter(k => k.startsWith(ctx.userId + '|')).forEach(k => delete db().convs[k]); activeConvId = null; if (ctx.live) Cloud.push(ctx.userId); save(); audit(ctx.userId, 'history_deleted', {}); alert('ההיסטוריה נמחקה.'); } };
+  const ex = v.querySelector('#exportme');
+  if (ex) ex.onclick = () => {
+    const data = buildExport(db(), ctx.userId, ctx.user);
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'aluma-my-data_PERSONAL-DATA.json'; /* Hebrew file names are dropped by some browsers; the legal marking is inside the file (first field) */ document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000); audit(ctx.userId, 'data_exported', {});
+  };
   const dz = v.querySelector('#delacc');
   if (dz) dz.onsubmit = async e => {
     e.preventDefault(); const msg = v.querySelector('#delmsg');

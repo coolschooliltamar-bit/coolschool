@@ -107,21 +107,22 @@ export default {
         if (!who) return json({ error: { message: 'Unauthorized' } }, 401);
         const b = JSON.parse((await req.text()).slice(0, 8000) || '{}');
         const courseId = String(b.courseId || '').slice(0, 40);
-        if (!/^[\w-]+$/.test(courseId) || !(await inCourse(req, courseId))) return json({ error: { message: 'Not a member' } }, 403);
+        if (!/^[\w-]+$/.test(courseId) || !(await inCourse(req, courseId))) { await audit(env, who.sub, 'game_share:denied'); return json({ error: { message: 'Not a member' } }, 403); }
         if (!b.profile) { await env.DB.prepare('DELETE FROM class_members WHERE course_id = ? AND user_sub = ?').bind(courseId, who.sub).run(); return json({ ok: true }); }
         const p = b.profile, ints = (a, max) => (Array.isArray(a) ? a : []).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= max).slice(0, 40);
         const profile = { first: String(p.first || '').replace(/[<>]/g, '').slice(0, 24), level: Math.max(0, Math.min(10, p.level | 0)), cards: ints(p.cards, 40),
           badges: (Array.isArray(p.badges) ? p.badges : []).map(String).filter(x => /^[a-z0-9_]{2,20}$/.test(x)).slice(0, 12), avatar: ints([p.avatar], 40)[0] || null, race: !!p.race, week: Math.max(0, Math.min(200, p.week | 0)) };
         await env.DB.prepare(`INSERT INTO class_members (course_id, user_sub, profile, updated_at) VALUES (?, ?, ?, ?)
-          ON CONFLICT(course_id, user_sub) DO UPDATE SET profile = excluded.profile, updated_at = excluded.updated_at`).bind(courseId, who.sub, JSON.stringify(profile), new Date().toISOString()).run();
+          ON CONFLICT(course_id, user_sub) DO UPDATE SET profile = excluded.profile, updated_at = excluded.updated_at`).bind(courseId, who.sub, await encrypt(env, JSON.stringify(profile)), new Date().toISOString()).run();
         return json({ ok: true });
       }
       const gm = url.pathname.match(/^\/game\/class\/([\w-]{1,40})$/);
       if (gm && req.method === 'GET') {
         if (!who) return json({ error: { message: 'Unauthorized' } }, 401);
-        if (!(await inCourse(req, gm[1]))) return json({ error: { message: 'Not a member' } }, 403);
+        if (!(await inCourse(req, gm[1]))) { await audit(env, who.sub, 'game_class:denied'); return json({ error: { message: 'Not a member' } }, 403); }
         const rows = await env.DB.prepare('SELECT user_sub, profile FROM class_members WHERE course_id = ? ORDER BY updated_at DESC LIMIT 60').bind(gm[1]).all();
-        return json({ members: (rows.results || []).map(r => ({ ...JSON.parse(r.profile), me: r.user_sub === who.sub })) });
+        const members = []; for (const r of rows.results || []) members.push({ ...JSON.parse(await decrypt(env, r.profile)), me: r.user_sub === who.sub });
+        return json({ members });
       }
 
       // ---------- per-user storage ----------
@@ -149,7 +150,8 @@ export default {
         if (!DOC_COLLECTIONS.includes(m[1])) return json({ error: { message: 'Unknown collection' } }, 404);
         if (req.method === 'GET') {
           const row = await env.DB.prepare('SELECT data, updated_at FROM user_docs WHERE user_sub = ? AND collection = ?').bind(who.sub, m[1]).first();
-          return json(row ? { data: JSON.parse(row.data), updatedAt: row.updated_at } : { data: null });
+          await audit(env, who.sub, `read_${m[1]}:ok`);
+          return json(row ? { data: JSON.parse(await decrypt(env, row.data)), updatedAt: row.updated_at } : { data: null });
         }
         if (req.method === 'PUT') {
           const text = await req.text();
@@ -157,14 +159,15 @@ export default {
           JSON.parse(text);                                    // must be valid JSON
           const now = new Date().toISOString();
           await env.DB.prepare(`INSERT INTO user_docs (user_sub, collection, data, updated_at) VALUES (?, ?, ?, ?)
-            ON CONFLICT(user_sub, collection) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`).bind(who.sub, m[1], text, now).run();
-          await audit(env, who.sub, `save_${m[1]}`);
+            ON CONFLICT(user_sub, collection) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`).bind(who.sub, m[1], await encrypt(env, text), now).run();
+          await audit(env, who.sub, `save_${m[1]}:ok`);
           return json({ ok: true, updatedAt: now });
         }
       }
       return json({ error: { message: 'Not found' } }, 404);
     } catch (e) {
       if (e instanceof SyntaxError) return json({ error: { message: 'bad request' } }, 400);
+      if (e.status === 401) { try { await audit(env, 'anon', `auth:denied ${url.pathname.split('/')[1] || ''}`); } catch { /* ignore */ } }
       return json({ error: { message: e.status === 401 ? 'ההתחברות ל-Google לא תקפה. התחברו מחדש.' : 'שגיאת שרת.' } }, e.status || 500);
     }
   },
@@ -218,6 +221,34 @@ async function take(env, key, limit) {
   const row = await env.DB.prepare(`INSERT INTO usage (key, day, count) VALUES (?, ?, 1)
     ON CONFLICT(key, day) DO UPDATE SET count = count + 1 RETURNING count`).bind(key, day).first();
   return row.count <= limit;
+}
+
+// ---------- encryption at rest (AES-256-GCM) – security-hardening ----------
+// User documents and class profiles are encrypted with DATA_KEY (a Worker secret: 32 random bytes, base64),
+// on top of the provider's own disk encryption. Rows written before the key existed are read as plain text.
+let keyCache = null;
+async function dataKey(env) {
+  if (!env.DATA_KEY) return null;
+  if (keyCache && keyCache.raw === env.DATA_KEY) return keyCache.key;
+  const raw = Uint8Array.from(atob(env.DATA_KEY), c => c.charCodeAt(0));
+  if (raw.length !== 32) throw new Error('DATA_KEY must be 32 bytes (AES-256)');
+  const key = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  keyCache = { raw: env.DATA_KEY, key }; return key;
+}
+const b64 = u8 => btoa(String.fromCharCode(...u8));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+export async function encrypt(env, text) {
+  const key = await dataKey(env); if (!key) return text;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(text)));
+  let s = ''; for (let i = 0; i < ct.length; i += 8192) s += String.fromCharCode(...ct.subarray(i, i + 8192));
+  return `enc:v1:${b64(iv)}:${btoa(s)}`;
+}
+export async function decrypt(env, stored) {
+  if (!String(stored).startsWith('enc:v1:')) return stored;            // older, unencrypted row
+  const key = await dataKey(env); if (!key) throw new Error('encrypted data but no DATA_KEY');
+  const [, , iv, ct] = stored.split(':');
+  return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(iv) }, key, unb64(ct)));
 }
 
 async function audit(env, sub, action) {

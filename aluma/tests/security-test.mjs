@@ -76,6 +76,18 @@ ok(!/דנה|יואב|אבי|כהן/.test(wire), 'no real student or parent name 
 ok(!/@/.test(wire), 'no e-mail address sent to the AI model');
 ok(res.text.includes('דנה'), `the answer shows the real name to the parent: "${res.text}"`);
 ok(res.cards.length > 0 && res.cards.every(c => c.studentId === 'u-dana'), 'data cards are about the requested child');
+ok(sent.filter(x => x.body && x.body.contents).every(x => (x.body.safetySettings || []).length === 4 && x.body.safetySettings.every(z => z.threshold === 'BLOCK_LOW_AND_ABOVE')), 'every AI request has strict content filtering (4.9.12)');
+ok(sent.filter(x => x.body && x.body.generationConfig).every(x => x.body.generationConfig.maxOutputTokens <= 4096 && x.body.generationConfig.temperature <= 0.6), 'output length and temperature are limited (4.9.13–4.9.14)');
+
+// a blocked (unsafe) model answer is replaced by a safe reply
+globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ candidates: [{ finishReason: 'SAFETY' }] }) });
+const blocked = await AI.geminiAnswer(noa, 'שאלה', { activeStudentId: 'u-noa' });
+ok(blocked.blocked && /לא יכולה לענות/.test(blocked.text), 'content blocked by the model\'s filter gets a safe reply');
+
+section('5b. "download my data" (3.13.1) is marked as personal data (3.2.9)');
+const ex = S.buildExport({ convs: { 'u-noa|u-noa': [{ id: 'c' }], 'u-dana|u-dana': [{ id: 'x' }] }, memories: { 'u-noa': [{ text: 'a' }], 'u-dana': [{ text: 'b' }] } }, 'u-noa', { name: 'נועה' });
+ok(ex.notice === 'מכיל מידע אישי לפי חוק הגנת הפרטיות - המוסר שלא כדין עובר עבירה', 'the export carries the legal marking');
+ok(ex.conversations.length === 1 && ex.memories.length === 1 && !JSON.stringify(ex).includes('u-dana'), 'the export contains only this user\'s data');
 
 section('6. the model cannot call tools outside the role');
 const sent2 = sent.length;
@@ -124,6 +136,28 @@ ok(r.status === 200 && tables.every(t => log.some(x => new RegExp(`DELETE FROM $
 ok(!log.some(x => /INSERT INTO audit_log/.test(x.sql) && x.args.includes('sub-1')), 'the deletion record does not contain the account id');
 log.length = 0; const { retention } = await import('../server/worker.js'); await retention(env);
 ok(['user_docs', 'audit_log', 'usage', 'router_votes', 'class_members'].every(t => log.some(x => new RegExp(`DELETE FROM ${t}`).test(x.sql))), 'retention job deletes old data in every table');
+globalThis.fetch = realFetch;
+
+section('7b. encryption at rest (AES-256-GCM) and audit of reads / refusals');
+const W2 = await import('../server/worker.js');
+const key = Buffer.from(Array.from({ length: 32 }, (_, i) => i)).toString('base64');
+const envE = { ...env, DATA_KEY: key };
+const ct = await W2.encrypt(envE, '{"secret":"שיחה"}');
+ok(ct.startsWith('enc:v1:') && !ct.includes('שיחה'), 'stored text is ciphertext');
+ok(await W2.decrypt(envE, ct) === '{"secret":"שיחה"}', 'and decrypts back');
+ok(await W2.decrypt(envE, '{"old":1}') === '{"old":1}', 'rows from before the key are still readable');
+let tampered = false; try { await W2.decrypt(envE, ct.slice(0, -4) + 'AAAA'); } catch { tampered = true; } ok(tampered, 'tampered ciphertext is rejected (authenticated encryption)');
+let wrongLen = false; try { await W2.encrypt({ DATA_KEY: Buffer.from('short').toString('base64') }, 'x'); } catch { wrongLen = true; } ok(wrongLen, 'a key that is not 256 bits is refused');
+globalThis.fetch = async url => { url = String(url); if (url.includes('tokeninfo')) return { ok: url.includes('GOOD'), json: async () => ({ sub: 'sub-1', azp: '1054746371715-vpsff7knc52n61rmhgrgotf0ag3t90u2.apps.googleusercontent.com', expires_in: 300 }) }; return { ok: false, status: 404 }; };
+const callE = (path, o = {}) => W.fetch(new Request('https://aluma.example' + path, { method: o.method || 'GET', headers: { Origin: 'https://coolschooliltamar-bit.github.io', ...(o.token ? { Authorization: 'Bearer ' + o.token } : {}) }, body: o.body }), envE);
+log.length = 0; await callE('/db/convs', { method: 'PUT', token: 'GOOD', body: JSON.stringify([{ title: 'שיחה פרטית' }]) });
+const ins = log.find(x => /INSERT INTO user_docs/.test(x.sql));
+ok(ins && String(ins.args[2]).startsWith('enc:v1:') && !String(ins.args[2]).includes('שיחה'), 'conversations are written to the database encrypted');
+ok(log.some(x => /INSERT INTO audit_log/.test(x.sql) && x.args.includes('save_convs:ok')), 'writes are audited');
+log.length = 0; await callE('/db/convs', { token: 'GOOD' });
+ok(log.some(x => /INSERT INTO audit_log/.test(x.sql) && x.args.includes('read_convs:ok')), 'reads are audited (3.7.1)');
+log.length = 0; await callE('/db/convs', { token: 'BAD' });
+ok(log.some(x => /INSERT INTO audit_log/.test(x.sql) && String(x.args[1]).startsWith('auth:denied')), 'refused sign-ins are audited (3.7.1)');
 globalThis.fetch = realFetch;
 
 section('8. secrets');

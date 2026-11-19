@@ -119,6 +119,10 @@ export async function test(onProgress) {
 }
 
 // ---------- tool declarations (by role) ----------
+// content filtering in the model itself (Annex C 4.9.12): block harmful content at the strictest level
+export const SAFETY = ['HARM_CATEGORY_HARASSMENT', 'HARM_CATEGORY_HATE_SPEECH', 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'HARM_CATEGORY_DANGEROUS_CONTENT']
+  .map(category => ({ category, threshold: 'BLOCK_LOW_AND_ABOVE' }));
+export const MAX_QUESTION = 2000;            // input length limit (Annex C 4.9.14)
 const S = (props, required = []) => ({ type: 'OBJECT', properties: props, required });
 const str = d => ({ type: 'STRING', description: d });
 const int = d => ({ type: 'INTEGER', description: d });
@@ -270,7 +274,7 @@ export async function geminiAnswer(ctx, question, { activeStudentId, history = [
   const contents = [];
   P = pseudonymsFor(ctx);
   for (const m of history.slice(-10)) contents.push({ role: m.who === 'me' ? 'user' : 'model', parts: [{ text: P.hide(m.who === 'me' ? m.text : m.res.text) }] });
-  contents.push({ role: 'user', parts: [{ text: P.hide(question) }] });
+  contents.push({ role: 'user', parts: [{ text: P.hide(String(question).slice(0, MAX_QUESTION + 9000)) }] });   // question + an attached file excerpt at most
   const tools = declarations(ctx);
   const allCards = {}; let toolJson = ''; const used = [];
   db().stats.questions++; save(); audit(ctx.userId, 'question', {});
@@ -278,10 +282,11 @@ export async function geminiAnswer(ctx, question, { activeStudentId, history = [
     const out = await generate({
       systemInstruction: { parts: [{ text: systemPrompt(ctx, activeStudentId) }] },
       contents, tools: tools.length ? [{ functionDeclarations: tools }] : undefined,
-      generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
+      generationConfig: { maxOutputTokens: 2048, temperature: 0.3 }, safetySettings: SAFETY,
     }, (m, n) => onStep && onStep('__retry', n), 60000, until);
     const j = out.j; model = out.model;
     const cand = (j.candidates || [])[0];
+    if ((cand && cand.finishReason === 'SAFETY') || (j.promptFeedback && j.promptFeedback.blockReason)) return { text: 'על זה אני לא יכולה לענות. אפשר לשאול אותי על הלימודים – ציונים, מטלות, מערכת שעות או תרגול.', cards: [], chips: [], blocked: true };
     if (!cand || !cand.content) return { text: 'לא הצלחתי לענות על זה. אפשר לנסח אחרת?', cards: [], chips: [] };
     const parts = cand.content.parts || [];
     const calls = parts.filter(p => p.functionCall);
@@ -316,7 +321,7 @@ export async function generateJSON(prompt, schema, { deadlineMs = 20000, system 
   const { j } = await generate({
     systemInstruction: { parts: [{ text: system || 'את "אלומה", עוזרת למידה בבית ספר בישראל. כותבת בעברית תקינה, ברורה ומתאימה לגיל. תוכן בטוח לילדים בלבד. מחזירה JSON בלבד.' }] },
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { maxOutputTokens: 4096, temperature: 0.6, responseMimeType: 'application/json', responseSchema: schema },
+    generationConfig: { maxOutputTokens: 4096, temperature: 0.6, responseMimeType: 'application/json', responseSchema: schema }, safetySettings: SAFETY,
   }, null, 40000, until);
   const text = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || '').join('');
   return JSON.parse(text);

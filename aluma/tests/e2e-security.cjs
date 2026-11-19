@@ -121,6 +121,30 @@ const ask = async (p, q) => { const k = await p.locator('.fb').count(); await p.
   ok((await p.locator('#gmsg').innerText()).includes('בלי פעילות'), 'signed out after 30 idle minutes, with an explanation');
   await p.close();
 
+  console.log('\n== 7. session cap: 8 hours even when active (4.1.6)');
+  p = await page(b); await p.clock.install(); await mockGoogle(p);
+  await p.goto(base); await p.evaluate(() => { localStorage.clear(); sessionStorage.clear(); }); await p.goto(base);
+  await p.click('#gsignin'); await p.waitForSelector('#q', { timeout: 15000 });
+  for (let i = 0; i < 23; i++) { await p.clock.fastForward('20:00'); await p.mouse.click(600, 300); }   // active every 20 min – 7h40m
+  ok(await p.locator('#q').count() + await p.locator('#view').count() > 0 && await p.locator('#gsignin').count() === 0, 'still signed in while active (7h40m)');
+  for (let i = 0; i < 2; i++) { await p.clock.fastForward('20:00'); await p.mouse.click(600, 300); }
+  await p.waitForSelector('#gsignin', { timeout: 5000 });
+  ok((await p.locator('#gmsg').innerText()).includes('8 שעות'), 'signed out after 8 hours, with an explanation');
+  await p.close();
+
+  console.log('\n== 8. download my data (3.13.1) – marked as personal data (3.2.9)');
+  p = await page(b);
+  await p.goto(base); await p.evaluate(() => { localStorage.clear(); sessionStorage.clear(); }); await p.goto(base);
+  await p.click('[data-login="u-noa"]'); await p.waitForSelector('#q'); await ask(p, 'כמה קיבלתי בהיסטוריה?');
+  await p.click('[data-go=settings]');
+  const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#exportme')]);
+  const file = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'));
+  ok(file.notice === 'מכיל מידע אישי לפי חוק הגנת הפרטיות - המוסר שלא כדין עובר עבירה' && dl.suggestedFilename().includes('PERSONAL-DATA') && Object.keys(file)[0] === 'notice', 'the file carries the legal marking as its first field, and the name says PERSONAL-DATA');
+  ok(file.conversations.length === 1 && file.user.id === 'u-noa', 'the file holds the user\'s own data');
+  ok(await p.locator('#q').count() === 0 && await p.evaluate(() => document.querySelector('textarea#q') === null), 'export from settings');
+  await p.click('#newchat'); ok(await p.locator('#q').getAttribute('maxlength') === '2000', 'questions are limited to 2,000 characters (4.9.14)');
+  await p.close();
+
   await b.close();
   console.log(`\n${n - bad}/${n} end-to-end security checks passed`);
   process.exit(bad ? 1 : 0);
