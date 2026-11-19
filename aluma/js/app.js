@@ -3,7 +3,7 @@ import { STUDENTS, TEACHERS, PARENTS, ADMINS, CLASSES, SCHOOL, NOW, subjectName 
 import { db, save, audit, getSession, setSession, resetAll } from './store.js';
 import { buildContext, findUser, ROLE_NAMES, activeLinks, g } from './auth.js';
 import * as T from './tools.js';
-import { answer, welcome, intent } from './engine.js';
+import { answer, welcome, intent, rememberMiss } from './engine.js';
 import * as L from './learn.js';
 import { icon, mark } from './icons.js';
 import * as G from './google.js';
@@ -136,8 +136,8 @@ function sidebar() {
   let h = `${head}<button class="newchat" id="newchat">${icon('plus')}<span>שיחה חדשה</span></button>`;
   h += `<div class="side-sec">כלים</div>`;
   if (ctx.role === 'student') {
-    const sc = Game.score(ctx, ctx.userId), fresh = Game.newCards(ctx.userId, sc).length;
-    const extra = { game: `<span class="xp">רמה ${sc.level}</span>${fresh ? `<span class="badge" title="קלפים חדשים">${fresh}</span>` : ''}`,
+    const sc = Game.score(ctx, ctx.userId), fresh = Game.boxInfo(ctx.userId, sc).ready;
+    const extra = { game: `<span class="xp">רמה ${sc.level}</span>${fresh ? `<span class="badge" title="תיבות קלפים לפתיחה">🎁 ${fresh}</span>` : ''}`,
       project: (() => { const n = P.forStudent(ctx.userId).filter(x => ['approved', 'returned'].includes(x.status)).length; return n ? `<span class="badge">${n}</span>` : ''; })() };
     h += STUDENT_TOOLS.map(([k, i, l]) => item(['path', 'lesson'].includes(view) ? k === 'path' : view === k, i, l, extra[k] || '', `data-go="${k}"`)).join('');
   } else {
@@ -307,8 +307,10 @@ function aiMsg(res, withChips) {
   d.innerHTML = `<div class="ai-av">${mark(28)}</div><div class="ai-body"><div class="ai-name">אלומה${res.fast ? ' <span class="fast-tag" title="שאלה פשוטה – נענתה מיד במנוע המהיר, בלי מודל שפה">⚡ תשובה מהירה</span>' : ''}</div><div class="ai-text">${md(res.text)}</div>
     ${res.cards.length ? `<div class="cards">${res.cards.map(cardHTML).join('')}</div>` : ''}
     ${res.note ? `<div class="ai-note">${esc(res.note)}</div>` : ''}
-    ${withChips && res.chips.length ? `<div class="chips">${res.chips.map(c => `<button class="chip">${esc(c)}</button>`).join('')}</div>` : ''}</div>`;
-  d.querySelectorAll('.chip').forEach(b => b.onclick = () => ask(b.textContent));
+    ${withChips && (res.chips.length || res.fast) ? `<div class="chips">${res.fast && res.q ? `<button class="chip full" data-full="1">${icon('sparkle', 14)} לא מה ששאלתי – תשובה מלאה</button>` : ''}${res.chips.map(c => `<button class="chip">${esc(c)}</button>`).join('')}</div>` : ''}</div>`;
+  d.querySelectorAll('.chip:not([data-full])').forEach(b => b.onclick = () => ask(b.textContent));
+  // the fast engine misunderstood → ask the language model, and remember this phrasing for next time
+  d.querySelectorAll('[data-full]').forEach(b => b.onclick = () => { rememberMiss(res.q); ask(res.q, { full: true }); });
   d.querySelectorAll('[data-action]').forEach(el => bindAction(el));
   d.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => {
     if (b.dataset.subject) toolSubject = b.dataset.subject;
@@ -328,6 +330,7 @@ function addActions(el, res, question) {
   row.querySelectorAll('[data-k=up],[data-k=down]').forEach(b => b.onclick = () => {
     row.querySelectorAll('[aria-pressed]').forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true');
     db().feedback.push({ at: new Date().toISOString(), rating: b.dataset.k }); save();
+    if (b.dataset.k === 'down' && res.fast && res.q) rememberMiss(res.q);   // a wrong fast answer teaches the router
   });
   const again = row.querySelector('[data-k=again]'); if (again) again.onclick = () => ask(question);
 }
@@ -350,7 +353,7 @@ function showAttachment() {
   const x = box.querySelector('.att-x'); if (x) x.onclick = () => { attachment = null; showAttachment(); };
 }
 
-async function ask(text) {
+async function ask(text, { full = false } = {}) {
   if (busy) return; busy = true;
   document.querySelector('.empty')?.remove();
   const chat = document.getElementById('chat');
@@ -375,7 +378,7 @@ async function ask(text) {
   const quick = answer.safety && answer.safety(ctx, text);
   const file = attachment; attachment = null; showAttachment();
   const create = !quick && ['student', 'teacher'].includes(ctx.role) ? S.parseCreate(ctx, text) : null;
-  const fastIntent = quick ? 'safety' : file ? null : intent(ctx, text);
+  const fastIntent = quick ? 'safety' : file || full ? null : intent(ctx, text);
   if (create) {
     // "create a path / flashcards ..." -> built directly from the level, the request and the file
     st.querySelector('.steps').innerHTML = ['מבינה את הבקשה', ctx.role === 'teacher' ? 'בודקת את הרמה של הכיתה' : 'בודקת את הרמה שלך ושל הכיתה', file ? `קוראת את ${esc(file.name)}` : 'בוחרת נושאים לחיזוק', AI.enabled() ? 'בונה את התוכן עם Gemini' : 'בונה את התוכן מהמאגר']
@@ -409,7 +412,7 @@ async function ask(text) {
   } else {
     for (let i = 0; i < steps.length; i++) { st.querySelector(`[data-i="${i}"]`).classList.add('run'); await sleep(fastIntent ? 90 : 260 + Math.random() * 220); st.querySelector(`[data-i="${i}"]`).classList.replace('run', 'done'); }
     res = answer(ctx, text, { activeStudentId });
-    if (fastIntent && AI.enabled()) res = { ...res, fast: true };
+    if (fastIntent && fastIntent !== 'safety' && AI.enabled()) res = { ...res, fast: true, q: text };
   }
   st.remove();
   const el = aiMsg({ ...res, text: '', cards: [] }, false); chat.appendChild(el);
@@ -814,16 +817,17 @@ function renderLesson() {
   if (!s) { go('path'); return; }
   if (s.i >= s.qs.length) {
     const before = Game.score(ctx, ctx.userId);
-    if (!s.result) { s.result = s.custom ? L.finishPathLesson(ctx.userId, L.getPath(s.custom), s.u, s.correct, s.qs.length) : L.finishLesson(ctx.userId, s.sub, s.u, s.l, s.correct, s.qs.length); s.unlockedNow = Game.unlockedCards(Game.score(ctx, ctx.userId)).filter(c => !Game.unlocked(before, c)); }
+    if (!s.result) { s.result = s.custom ? L.finishPathLesson(ctx.userId, L.getPath(s.custom), s.u, s.correct, s.qs.length) : L.finishLesson(ctx.userId, s.sub, s.u, s.l, s.correct, s.qs.length); const b0 = Game.boxInfo(ctx.userId, before).earned; s.newBoxes = Game.boxInfo(ctx.userId, Game.score(ctx, ctx.userId)).earned - b0; }
     const p = L.progress(ctx.userId);
     v.innerHTML = `<section class="panel lesson-end"><div class="big">${s.result.passed ? '🎉' : '💪'}</div>
       <h2>${s.result.passed ? 'כל הכבוד!' : 'כמעט! נסו שוב'}</h2><p>${s.correct} מתוך ${s.qs.length} תשובות נכונות</p>
       <div class="lstats"><div class="lstat"><b>${s.result.noXp ? '—' : '+' + s.result.xp}</b><span>XP</span></div><div class="lstat"><b>🔥 ${p.streak}</b><span>ימים ברצף</span></div></div>
       ${s.result.noXp ? '<p class="hint">זה מסלול שיצרת לעצמך – תרגול חופשי בלי XP.</p>' : s.result.capped ? `<p class="hint">הגעת לתקרת ה-XP היומית מתרגול (${L.DAILY_LEARNING_XP}). אפשר להמשיך לתרגל – ה-XP יחזור מחר.</p>` : ''}
-      ${s.unlockedNow && s.unlockedNow.length ? `<div class="unlocked-now"><b>${icon('star', 16)} נפתח לך:</b><div class="stk-row">${s.unlockedNow.map(c => V.cardTile(c, { size: 's' })).join('')}</div></div>` : ''}
+      ${s.newBoxes > 0 ? `<div class="unlocked-now"><div class="box-mini">${V.boxArt()}</div><b>קיבלת ${s.newBoxes === 1 ? 'תיבת קלפים' : `${s.newBoxes} תיבות קלפים`}!</b> <button class="btn" id="toboxes">לפתיחה</button></div>` : ''}
       <div class="btns" style="justify-content:center"><button class="btn primary" id="back">חזרה למסלול</button>${s.result.passed ? '' : '<button class="btn" id="again">ניסיון נוסף</button>'}</div></section>`;
+    const tb = v.querySelector('#toboxes'); if (tb) tb.onclick = () => { lessonState = null; V.showBoxes(); go('game'); };
     v.querySelector('#back').onclick = () => { toolSubject = s.custom ? toolSubject : s.sub; lessonState = null; go('path'); };
-    const ag = v.querySelector('#again'); if (ag) ag.onclick = () => { if (s.custom) return startPathLesson(s.custom, s.u); lessonState = { ...s, qs: L.lessonQuestions(s.sub, s.u), i: 0, correct: 0, picked: null, checked: false, result: null, unlockedNow: null }; render(); };
+    const ag = v.querySelector('#again'); if (ag) ag.onclick = () => { if (s.custom) return startPathLesson(s.custom, s.u); lessonState = { ...s, qs: L.lessonQuestions(s.sub, s.u), i: 0, correct: 0, picked: null, checked: false, result: null, newBoxes: 0 }; render(); };
     live.textContent = `סיום שיעור: ${s.correct} מתוך ${s.qs.length}`;
     return;
   }

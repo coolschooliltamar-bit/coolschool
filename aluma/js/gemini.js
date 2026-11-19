@@ -202,9 +202,9 @@ async function runToolInner(ctx, name, args, sid) {
     case 'open_learning_tool':
       return { result: { opened: true }, cards: [{ type: 'tool', tool: args.tool, subject: resolveSubject(args.subject) || null, icon: { path: '🧩', cards: '🃏', planner: '🗓️', game: '🏆', project: '💡' }[args.tool],
         title: { path: 'מסלול תרגול', cards: 'כרטיסיות זיכרון', planner: 'תוכנית למידה', game: 'פרסים והישגים', project: 'פרויקט אישי' }[args.tool], desc: 'כלי של אלומה', cta: 'פתיחה' }] };
-    case 'get_my_progress': { const sc = Game.score(ctx, sid); const nx = Game.nextRewards(sc, 2);
-      return { result: { xp: sc.xp, level: sc.level, level_name: Game.LEVELS[sc.level], parts: sc.parts, caps: Game.CAPS, facts: sc.facts, cards_unlocked: Game.unlockedCards(sc).length, cards_total: 40,
-        achievements: Object.keys(sc.ach).filter(k => sc.ach[k]).map(Game.achName), next_rewards: nx.map(c => ({ card: c.name, at_xp: c.unlock.xp })), note: 'XP is a measure of effort, not the goal – never pressure the student' },
+    case 'get_my_progress': { const sc = Game.score(ctx, sid); const bx = Game.boxInfo(sid, sc);
+      return { result: { xp: sc.xp, level: sc.level, level_name: Game.LEVELS[sc.level], parts: sc.parts, caps: Game.CAPS, facts: sc.facts, cards_owned: Game.ownedCards(sid).length, cards_total: 40, boxes_ready_to_open: bx.ready, xp_to_next_box: bx.toNext, box_rule: 'a card box every 100 XP; fixed odds: common 50%, uncommon 25%, rare 15%, epic 7.5%, legendary 2.5%; no duplicates; never bought',
+        achievements: Object.keys(sc.ach).filter(k => sc.ach[k]).map(Game.achName), note: 'XP is a measure of effort, not the goal – never pressure the student' },
         cards: [{ type: 'tool', tool: 'game', icon: '🏆', title: 'פרסים והישגים', desc: 'פירוט ה-XP, האלבום והכיתה', cta: 'פתיחה' }] }; }
     case 'search_drive': { const files = await G.driveSearch(String(args.query || ''));
       return { result: { files: files.map(f => ({ file_id: f.id, name: f.name, kind: f.kind, modified: f.modified })) }, cards: files.length ? [{ type: 'files', files }] : [] }; }

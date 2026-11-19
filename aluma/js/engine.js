@@ -166,9 +166,9 @@ function route(ctx, t, raw, activeStudentId, convo) {
 function progressAnswer(ctx, sid) {
   const s = Game.score(ctx, sid);
   const who = ctx.role === 'parent' ? `ל${nameOf(sid)} יש` : 'יש לך';
-  const next = Game.nextRewards(s, 1)[0];
-  const cards = Game.unlockedCards(s).length, badges = Object.values(s.ach).filter(Boolean).length;
-  return reply(`${who} **${s.xp} XP** – רמה ${s.level} (${Game.LEVELS[s.level]}): הגשות ${s.parts.submissions}/${Game.CAPS.submissions}, מבחנים ${s.parts.exams}/${Game.CAPS.exams}, תרגול ${s.parts.learning}/${Game.CAPS.learning}. ${cards} קלפים מתוך 40 ו-${badges} הישגים.${next ? ` הקלף הבא, ${next.name}, נפתח ב-${next.unlock.xp} XP.` : ''}`,
+  const box = Game.boxInfo(sid, s);
+  const cards = Game.ownedCards(sid).length, badges = Object.values(s.ach).filter(Boolean).length;
+  return reply(`${who} **${s.xp} XP** – רמה ${s.level} (${Game.LEVELS[s.level]}): הגשות ${s.parts.submissions}/${Game.CAPS.submissions}, מבחנים ${s.parts.exams}/${Game.CAPS.exams}, תרגול ${s.parts.learning}/${Game.CAPS.learning}. ${cards} קלפים מתוך 40 ו-${badges} הישגים.${box.ready ? ` ${ctx.role === 'parent' ? 'מחכות' : 'מחכות לך'} ${box.ready === 1 ? 'תיבת קלפים אחת' : `${box.ready} תיבות קלפים`} לפתיחה.` : ''}${box.complete ? '' : ` התיבה הבאה בעוד ${box.toNext} XP.`}`,
     { cards: [{ type: 'tool', tool: 'game', icon: '🏆', title: 'פרסים והישגים', desc: 'פירוט ה-XP, האלבום והכיתה', cta: 'פתיחה' }], chips: ctx.role === 'student' ? ['תיצרי לי מסלול מותאם', 'מה להגיש השבוע?'] : [] });
 }
 
@@ -351,13 +351,56 @@ function teacherRoute(ctx, t) {
 answer.safety = (ctx, raw) => /(להתאבד|לפגוע בעצמי|רוצה למות|אין לי טעם לחיות|מרביצים לי|מאיימים עליי|פוגעים בי|מציקים לי ברשת|מפיצים עליי)/.test(norm(raw));
 
 // ---------- hybrid routing (ה): which questions the fast local engine answers by itself ----------
-// Pure check – no side effects (it never creates drafts or saves memories).
-// Returns the data intent for a short, template-like question, or null when the language model should answer.
-const COMPLEX = /(למה|מדוע|איך|כיצד|תסביר|הסבר|תסבירי|תכנן|תתכנני|רעיון|רעיונות|תיצור|תיצרי|צור |צרי |תנסח|תכתוב|תכתבי|תשלח|תשלחי|נסחי|כתבי|השוו|ההבדל|תעזרי|עזרה ב|תמליצ|המלצ|מה דעתך|תסכמי את|קובץ|מסמך|drive|מסלול|כרטיסי|פרויקט|פרוייקט)/i;
-export function intent(ctx, raw) {
-  const t = norm(raw || '');
-  if (!t || t.length > 70 || t.split(' ').length > 12 || COMPLEX.test(t)) return null;
-  if (ctx.role === 'school_admin') return null;
+// A keyword alone is not enough (it caused wrong fast answers, e.g. "איזה ציון צריך כדי לעבור?" got a grades
+// list). A question goes to the fast engine only when ALL of these hold – each check is pure and takes <1ms:
+//   1. keyword  – a known data intent matches;
+//   2. coverage – EVERY word of the question is explained by that intent's vocabulary (plus question words,
+//      time words, subject / course / child / class names). One unexplained word → the language model answers;
+//   3. question word – "מתי" needs a date intent, "מי" a people intent, "כמה" a counting intent;
+//   4. memory   – phrasings the user marked "not what I asked" never go to the fast engine again.
+// No side effects (never creates drafts or saves memories).
+const COMPLEX = /(למה|מדוע|איך|כיצד|איפה|לאן|תסביר|הסבר|תסבירי|תכנן|תתכנני|רעיון|רעיונות|תיצור|תיצרי|צור |צרי |תנסח|תכתוב|תכתבי|תשלח|תשלחי|נסחי|כתבי|השוו|ההבדל|תעזרי|עזרה ב|תמליצ|המלצ|מה דעתך|תסכמי את|קובץ|מסמך|drive|מסלול|כרטיסי|פרויקט|פרוייקט|אם |כדאי|צריך ל|אפשר ל)/i;
+const W = s => new Set(s.split(' '));
+const VOCAB = {
+  common: W('מה מתי כמה איזה איזו אילו יש אין לי שלי שלו שלה שלהם אני את אתה של על עם גם עוד כל בבקשה תודה תגידי תגיד תראי תראה הראי הראה לראות רוצה לדעת תבדקי בדיקה היום מחר מחרתיים אתמול השבוע שבוע הבא הבאה הקרוב הקרובים החודש עכשיו אחרון אחרונה האחרון האחרונה אחרונים אחרונות האחרונים האחרונות חדש חדשה חדשות חדשים כרגע עד כבר עדיין ימים יום ראשון שני שלישי רביעי חמישי שישי שבת הוא היא הם הילד הבן הבת ילד בן בת שלנו כמה'),
+  grades: W('ציון ציונים קיבלתי קיבל קיבלה קיבלו קיבלנו מבחן מבחנים בוחן בחנים בגרות עבודה עבודות תוצאות'),
+  average: W('ממוצע ממוצעים ציונים מבחנים כללי'),
+  assignments: W('להגיש הגשה הגשות מטלה מטלות שיעורי בית שב באיחור איחור פתוחות פתוחה פתוחים הוגשו הגשתי הגיש הגישה אני צריך צריכה עבודה עבודות'),
+  attendance: W('היעדרות היעדרויות נוכחות חיסור חיסורים איחורים נעדרתי נעדר נעדרה החסרתי'),
+  announcements: W('הודעות הודעה עדכונים עדכון חדש מהמורים מורים המורה מורה בכיתות בכיתה כיתה מה'),
+  schedule: W('מערכת שעות שיעורים שיעור ביומן יומן לוח אירועים אירוע'),
+  progress: W('xp רמה הרמה באיזו נקודות קלפים הקלפים הישגים ההישגים תיבות תיבה התקדמות ההתקדמות פרסים צברתי'),
+  hello: W('שלום היי הי בוקר טוב ערב צהריים מי יודעת אלומה'),
+  weekly: W('מצב המצב סיכום שבועי שלומו שלומה'),
+  not_connected: W('היעדרות היעדרויות נוכחות איחור איחורים'),
+  inbox: W('הודעות תיבה פניות חדשות הודעה'),
+  class_attendance: W('היעדרויות היעדרות נוכחות חיסורים מעל יותר מ תלמידים מי עם'),
+  class_exam: W('ממוצע מבחן אחרון במבחן הכיתה'),
+  class_missing: W('לא הגיש הגישו הגשות מי המטלה מטלה תלמידים'),
+};
+// which intents can answer which question word
+const QWORD = { 'מתי': ['schedule', 'assignments'], 'מי': ['class_missing', 'class_attendance', 'hello'], 'כמה': ['grades', 'average', 'attendance', 'assignments', 'progress', 'inbox', 'announcements', 'class_attendance', 'class_exam', 'class_missing'] };
+const PREFIX = /^(ו|ה|ב|ל|מ|ש|כ|וה|וב|ול|ומ|שה|שב|של|מה|בה|לה|כש)(?=[֐-׿]{2,})/;
+function explained(w, vocab, names) {
+  if (w.length < 2 || /^\d+$/.test(w)) return true;
+  const forms = [w, w.replace(PREFIX, ''), w.replace(/^(ו|ה|ב|ל|מ|ש|כ)/, '')];
+  return forms.some(f => vocab.has(f) || VOCAB.common.has(f) || names.has(f));
+}
+function knownNames(ctx) {
+  const n = new Set();
+  for (const s of SUBJECTS) for (const a of s.aliases) norm(a).split(' ').forEach(x => n.add(x));
+  for (const c of LIVE.courses || []) norm(c.name).split(' ').forEach(x => n.add(x));
+  for (const c of CLASSES) n.add(norm(c.name).replace(/\s/g, ''));
+  for (const id of ctx.allowedStudentIds || []) { const s = STUDENTS.find(x => x.id === id); if (s) s.name.split(' ').forEach(x => n.add(x)); }
+  ['ט2', 'ז1', 'יא3', 'ט', 'ז', 'יא', 'כיתה'].forEach(x => n.add(x));
+  return n;
+}
+export const phraseKey = raw => [...new Set(norm(raw || '').replace(/[?!.,:;()]/g, ' ').split(' ').filter(w => w.length > 1))].sort().join(' ');
+export function rememberMiss(raw) {
+  const list = (db().routerMisses = db().routerMisses || []);
+  const k = phraseKey(raw); if (k && !list.includes(k)) { list.push(k); if (list.length > 200) list.shift(); save(); }
+}
+function keywordIntent(ctx, t) {
   if (ctx.role === 'teacher') {
     if (/(הודעות|תיבה|פניות)/.test(t) && !/(מי|ממוצע)/.test(t)) return 'inbox';
     if (/(היעדר|נוכחות|חיסור)/.test(t) && findClass(t)) return 'class_attendance';
@@ -369,11 +412,11 @@ export function intent(ctx, raw) {
   if (!ctx.allowedStudentIds.length) return null;
   liveMode = !!ctx.live;
   if (ctx.live && /(היעדר|נוכחות|איחור)/.test(t)) return 'not_connected';
-  if (/(xp|באיזו רמה|הרמה שלי|כמה נקודות|הקלפים שלי|כמה קלפים|הישגים)/i.test(t)) return 'progress';
+  if (/(xp|באיזו רמה|הרמה שלי|כמה נקודות|הקלפים שלי|כמה קלפים|הישגים|תיבות)/i.test(t)) return 'progress';
   if (ctx.role === 'parent' && /^(מה המצב( השבוע)?|סיכום שבועי|מה שלומו|מה שלומה)[\s?]*$/.test(t)) return 'weekly';
   if (/(היעדר|נוכחות|חיסור|חיסורים)/.test(t)) return 'attendance';
   if (/ממוצע/.test(t)) return 'average';
-  if (/(ציון|ציונים|קיבלתי|קיבל|קיבלה)/.test(t) && !/(מתי המבחן|מתי יש מבחן)/.test(t)) return 'grades';
+  if (/(ציון|ציונים|קיבלתי|קיבל|קיבלה)/.test(t)) return 'grades';
   if (/(להגיש|הגשה|הגשות|מטלה|מטלות|שיעורי בית|באיחור)/.test(t)) return 'assignments';
   if (/(הודעות|עדכונים|מה חדש)/.test(t)) return 'announcements';
   if (!ctx.live && (findDay(t) != null || /(מערכת|שיעורים)/.test(t))) return 'schedule';
@@ -381,3 +424,20 @@ export function intent(ctx, raw) {
   if (/^(שלום|היי|הי|בוקר טוב|ערב טוב|מי את|מה את יודעת)[\s!?.]*$/.test(t)) return 'hello';
   return null;
 }
+// returns { intent } for the fast engine, or { intent: null, why } – "why" is kept for tests and debugging
+export function routeQuestion(ctx, raw) {
+  const t = norm(raw || '').toLowerCase().replace(/[?!.,:;()״"׳']/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!t || ctx.role === 'school_admin') return { intent: null, why: 'empty' };
+  if (t.length > 70 || t.split(' ').length > 12) return { intent: null, why: 'long' };
+  if (COMPLEX.test(t + ' ')) return { intent: null, why: 'complex' };
+  if ((db().routerMisses || []).includes(phraseKey(raw))) return { intent: null, why: 'remembered' };
+  const it = keywordIntent(ctx, t);
+  if (!it) return { intent: null, why: 'no keyword' };
+  const qw = Object.keys(QWORD).find(q => t.split(' ').includes(q));
+  if (qw && !QWORD[qw].includes(it)) return { intent: null, why: `question word "${qw}" ≠ ${it}` };
+  const names = knownNames(ctx), vocab = VOCAB[it] || new Set();
+  const unknown = t.split(' ').filter(w => !explained(w, vocab, names));
+  if (unknown.length) return { intent: null, why: `unexplained: ${unknown.join(', ')}` };
+  return { intent: it };
+}
+export const intent = (ctx, raw) => routeQuestion(ctx, raw).intent;

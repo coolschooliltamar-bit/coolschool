@@ -7,9 +7,6 @@
     "rarity": "common",
     "type": "מאכל",
     "personality": "קופץ מהתרגשות מכל שאלה חדשה.",
-    "unlock": {
-      "xp": 20
-    },
     "png": "1-common/01-popi-popcorn.png",
     "svg": "1-common/01-popi-popcorn.svg"
   },
@@ -21,9 +18,6 @@
     "rarity": "common",
     "type": "מאכל",
     "personality": "פרוסת לחם חמימה שתמיד קמה מוקדם.",
-    "unlock": {
-      "xp": 40
-    },
     "png": "1-common/02-toasty.png",
     "svg": "1-common/02-toasty.svg"
   },
@@ -35,9 +29,6 @@
     "rarity": "common",
     "type": "מפלצת חמודה",
     "personality": "מפלצת ג׳לי כחולה שמתנדנדת כשהיא צוחקת.",
-    "unlock": {
-      "xp": 60
-    },
     "png": "1-common/03-bloobi.png",
     "svg": "1-common/03-bloobi.svg"
   },
@@ -49,9 +40,6 @@
     "rarity": "common",
     "type": "חיה",
     "personality": "צבה עם נעלי ספורט – לאט אבל בטוח.",
-    "unlock": {
-      "xp": 80
-    },
     "png": "1-common/04-shelly.png",
     "svg": "1-common/04-shelly.svg"
   },
@@ -63,9 +51,6 @@
     "rarity": "common",
     "type": "יצור קסום",
     "personality": "דובון ענן רך שממטיר טיפות של רעיונות.",
-    "unlock": {
-      "xp": 100
-    },
     "png": "1-common/05-anani.png",
     "svg": "1-common/05-anani.svg"
   },
@@ -77,9 +62,6 @@
     "rarity": "common",
     "type": "חיה",
     "personality": "פינגווין קטן עם צעיף, אוהב החלקה על קרח.",
-    "unlock": {
-      "xp": 120
-    },
     "png": "1-common/06-karchi.png",
     "svg": "1-common/06-karchi.svg"
   },
@@ -91,9 +73,6 @@
     "rarity": "common",
     "type": "רובוט",
     "personality": "רובוט קטן עם אנטנה שמהבהבת כשהוא חושב.",
-    "unlock": {
-      "xp": 140
-    },
     "png": "1-common/07-beep.png",
     "svg": "1-common/07-beep.svg"
   },
@@ -105,9 +84,6 @@
     "rarity": "common",
     "type": "חייזר",
     "personality": "חייזרית ירוקה עם שלוש עיניים סקרניות.",
-    "unlock": {
-      "xp": 160
-    },
     "png": "1-common/08-zizi.png",
     "svg": "1-common/08-zizi.svg"
   },
@@ -119,9 +95,6 @@
     "rarity": "common",
     "type": "יצור יער",
     "personality": "פטרייה נקודתית ומנומסת מהיער הקסום.",
-    "unlock": {
-      "xp": 180
-    },
     "png": "1-common/09-momo.png",
     "svg": "1-common/09-momo.svg"
   },
@@ -133,9 +106,6 @@
     "rarity": "common",
     "type": "מאכל",
     "personality": "גביע גלידה תותית עם סוכריות צבעוניות.",
-    "unlock": {
-      "xp": 200
-    },
     "png": "1-common/10-gelidoni.png",
     "svg": "1-common/10-gelidoni.svg"
   },
@@ -147,9 +117,6 @@
     "rarity": "common",
     "type": "חיה",
     "personality": "השבלול הכי מהיר בגינה – עם קסדה!",
-    "unlock": {
-      "xp": 220
-    },
     "png": "1-common/11-turbo-snail.png",
     "svg": "1-common/11-turbo-snail.svg"
   },
@@ -161,9 +128,6 @@
     "rarity": "common",
     "type": "צמח",
     "personality": "קקטוס חייכן עם פרח ורוד על הראש.",
-    "unlock": {
-      "xp": 240
-    },
     "png": "1-common/12-cactusi.png",
     "svg": "1-common/12-cactusi.svg"
   },
@@ -175,9 +139,6 @@
     "rarity": "common",
     "type": "מאכל",
     "personality": "משולש פיצה שמחלק חיוכים לכולם.",
-    "unlock": {
-      "xp": 260
-    },
     "png": "1-common/13-pizzi.png",
     "svg": "1-common/13-pizzi.svg"
   },
@@ -189,9 +150,6 @@
     "rarity": "common",
     "type": "חיה",
     "personality": "לאמה פרוותית עם כובע צמר וחיוך רגוע.",
-    "unlock": {
-      "xp": 280
-    },
     "png": "1-common/14-lully-llama.png",
     "svg": "1-common/14-lully-llama.svg"
   },
@@ -203,9 +161,6 @@
     "rarity": "common",
     "type": "חיה",
     "personality": "תמנונית ספרנית – קוראת שמונה ספרים בבת אחת.",
-    "unlock": {
-      "xp": 300
-    },
     "png": "1-common/15-okta.png",
     "svg": "1-common/15-okta.svg"
   },
@@ -217,9 +172,6 @@
     "rarity": "common",
     "type": "חיה",
     "personality": "נמלה חזקה שמרימה עלה פי עשרה ממנה.",
-    "unlock": {
-      "xp": 320
-    },
     "png": "1-common/16-nansi.png",
     "svg": "1-common/16-nansi.svg"
   },
@@ -231,9 +183,6 @@
     "rarity": "common",
     "type": "חיה",
     "personality": "אפרוח צהוב שיצא עכשיו מהביצה, עם קליפה על הראש.",
-    "unlock": {
-      "xp": 340
-    },
     "png": "1-common/17-tziftzufi.png",
     "svg": "1-common/17-tziftzufi.svg"
   },
@@ -245,9 +194,6 @@
     "rarity": "common",
     "type": "דמות גיימינג",
     "personality": "דמות משחק מרובעת שאוספת מטבעות כוכב.",
-    "unlock": {
-      "xp": 360
-    },
     "png": "1-common/18-cubiko.png",
     "svg": "1-common/18-cubiko.svg"
   },
@@ -259,9 +205,6 @@
     "rarity": "common",
     "type": "מאכל",
     "personality": "רול סושי קטן ומסודר שאוהב סדר בשולחן.",
-    "unlock": {
-      "xp": 380
-    },
     "png": "1-common/19-sushi-sami.png",
     "svg": "1-common/19-sushi-sami.svg"
   },
@@ -273,9 +216,6 @@
     "rarity": "common",
     "type": "דמות חלל",
     "personality": "ירח קטן ומנומנם עם כרית כוכבים.",
-    "unlock": {
-      "xp": 400
-    },
     "png": "1-common/20-yarchi.png",
     "svg": "1-common/20-yarchi.svg"
   },
@@ -287,9 +227,6 @@
     "rarity": "uncommon",
     "type": "חיה",
     "personality": "שועל עם מפה ומשקפת – מגלה שבילים חדשים.",
-    "unlock": {
-      "xp": 430
-    },
     "png": "2-uncommon/21-scout-fox.png",
     "svg": "2-uncommon/21-scout-fox.svg"
   },
@@ -301,9 +238,6 @@
     "rarity": "uncommon",
     "type": "חיה",
     "personality": "דבורה טייסת עם משקפי תעופה.",
-    "unlock": {
-      "xp": 460
-    },
     "png": "2-uncommon/22-zumzuma.png",
     "svg": "2-uncommon/22-zumzuma.svg"
   },
@@ -315,9 +249,6 @@
     "rarity": "uncommon",
     "type": "רובוט",
     "personality": "רובוטית על גלגל אחד ששומרת על איזון מושלם.",
-    "unlock": {
-      "xp": 490
-    },
     "png": "2-uncommon/23-galgalit.png",
     "svg": "2-uncommon/23-galgalit.svg"
   },
@@ -329,9 +260,6 @@
     "rarity": "uncommon",
     "type": "חיה",
     "personality": "כוכב ים ורוד שמנצח על להקת דגים.",
-    "unlock": {
-      "xp": 520
-    },
     "png": "2-uncommon/24-kochavon.png",
     "svg": "2-uncommon/24-kochavon.svg"
   },
@@ -343,9 +271,6 @@
     "rarity": "uncommon",
     "type": "דמות גיימינג",
     "personality": "דמות שלבים מתקופת המשחקים הרטרו.",
-    "unlock": {
-      "xp": 550
-    },
     "png": "2-uncommon/25-pixel.png",
     "svg": "2-uncommon/25-pixel.svg"
   },
@@ -357,9 +282,6 @@
     "rarity": "uncommon",
     "type": "דמות חלל",
     "personality": "סופגנייה אסטרונאוטית בחליפת חלל.",
-    "unlock": {
-      "xp": 580
-    },
     "png": "2-uncommon/26-donato.png",
     "svg": "2-uncommon/26-donato.svg"
   },
@@ -371,9 +293,6 @@
     "rarity": "uncommon",
     "type": "חיה",
     "personality": "ינשופה מדענית עם משקפיים ומבחנה.",
-    "unlock": {
-      "xp": 610
-    },
     "png": "2-uncommon/27-yanshufit.png",
     "svg": "2-uncommon/27-yanshufit.svg"
   },
@@ -385,9 +304,6 @@
     "rarity": "uncommon",
     "type": "חיה",
     "personality": "גור נמר על סקייטבורד, עם קסדה וברכיות.",
-    "unlock": {
-      "xp": 640
-    },
     "png": "2-uncommon/28-namri.png",
     "svg": "2-uncommon/28-namri.svg"
   },
@@ -399,9 +315,6 @@
     "rarity": "uncommon",
     "type": "חיה",
     "personality": "מדוזה שזוהרת בחושך כמו מנורת לילה.",
-    "unlock": {
-      "xp": 670
-    },
     "png": "2-uncommon/29-meduzit.png",
     "svg": "2-uncommon/29-meduzit.svg"
   },
@@ -413,9 +326,6 @@
     "rarity": "uncommon",
     "type": "יצור קסום",
     "personality": "פיה קטנה שגרה בתוך פרח חמנייה.",
-    "unlock": {
-      "xp": 700
-    },
     "png": "2-uncommon/30-pirchonit.png",
     "svg": "2-uncommon/30-pirchonit.svg"
   },
@@ -427,9 +337,6 @@
     "rarity": "rare",
     "type": "דמות חלל",
     "personality": "חתולת שביט שמשאירה אחריה שובל של נצנצים.",
-    "unlock": {
-      "ach": "ontime3"
-    },
     "png": "3-rare/31-cometa.png",
     "svg": "3-rare/31-cometa.svg"
   },
@@ -441,9 +348,6 @@
     "rarity": "rare",
     "type": "רובוט",
     "personality": "רובוט עם תרמיל סילון שעוזר לכל מי שנתקע.",
-    "unlock": {
-      "ach": "exam85"
-    },
     "png": "3-rare/32-turbo-bot.png",
     "svg": "3-rare/32-turbo-bot.svg"
   },
@@ -455,9 +359,6 @@
     "rarity": "rare",
     "type": "יצור קסום",
     "personality": "רוח עץ עתיקה וחכמה, עם עלים שמשנים צבע.",
-    "unlock": {
-      "ach": "unit_done"
-    },
     "png": "3-rare/33-alonit.png",
     "svg": "3-rare/33-alonit.svg"
   },
@@ -469,9 +370,6 @@
     "rarity": "rare",
     "type": "יצור קסום",
     "personality": "גחלילית קסומה שמאירה את הדרך הביתה.",
-    "unlock": {
-      "ach": "streak3"
-    },
     "png": "3-rare/34-zohara.png",
     "svg": "3-rare/34-zohara.svg"
   },
@@ -483,9 +381,6 @@
     "rarity": "rare",
     "type": "דמות חלל",
     "personality": "לווייתן חלל ששוחה בין הכוכבים.",
-    "unlock": {
-      "ach": "cards30"
-    },
     "png": "3-rare/35-galaxy.png",
     "svg": "3-rare/35-galaxy.svg"
   },
@@ -497,9 +392,6 @@
     "rarity": "rare",
     "type": "יצור קסום",
     "personality": "דרקון תינוק שנושף בועות סבון במקום אש.",
-    "unlock": {
-      "ach": "project_sent"
-    },
     "png": "3-rare/36-drakoni.png",
     "svg": "3-rare/36-drakoni.svg"
   },
@@ -511,9 +403,6 @@
     "rarity": "epic",
     "type": "יצור קסום",
     "personality": "ארנבת ברק שמטעינה את כולם באנרגיה טובה.",
-    "unlock": {
-      "xp": 760
-    },
     "png": "4-epic/37-volty.png",
     "svg": "4-epic/37-volty.svg"
   },
@@ -525,9 +414,6 @@
     "rarity": "epic",
     "type": "דמות חלל",
     "personality": "שומרת הכוכבים, עם פנס שמדליק כוכבים חדשים.",
-    "unlock": {
-      "xp": 830
-    },
     "png": "4-epic/38-nova.png",
     "svg": "4-epic/38-nova.svg"
   },
@@ -539,9 +425,6 @@
     "rarity": "epic",
     "type": "רובוט",
     "personality": "רובוט-קוסם שמרחף ומרים קוביות בכוח הכבידה.",
-    "unlock": {
-      "xp": 900
-    },
     "png": "4-epic/39-gravito.png",
     "svg": "4-epic/39-gravito.svg"
   },
@@ -553,9 +436,6 @@
     "rarity": "legendary",
     "type": "יצור אגדי",
     "personality": "ציפור האור של אלומה. נולדת מכל הניצוצות שאספת – הכי נדירה במשחק.",
-    "unlock": {
-      "xp": 960
-    },
     "png": "5-legendary/40-lumi-the-light-bird.png",
     "svg": "5-legendary/40-lumi-the-light-bird.svg"
   }

@@ -32,6 +32,58 @@ export function cardTile(c, { locked = false, isNew = false, size = 'm', pick = 
   </button>`;
 }
 
+// ---------- card boxes: every 100 XP, fixed published odds, no duplicates ----------
+export function boxArt(open = false) {
+  return `<svg viewBox="0 0 160 140" aria-hidden="true"><defs><linearGradient id="bxa" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a5cff"/><stop offset=".6" stop-color="#4f6bff"/><stop offset="1" stop-color="#f2706a"/></linearGradient>
+    <linearGradient id="bxg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset="1" stop-color="#e8a92a"/></linearGradient><radialGradient id="bxl" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff6c2"/><stop offset="1" stop-color="#fff6c2" stop-opacity="0"/></radialGradient></defs>
+    <ellipse cx="80" cy="128" rx="58" ry="8" fill="#1b1430" opacity=".18"/>${open ? '<circle cx="80" cy="56" r="56" fill="url(#bxl)"/>' : ''}
+    <rect x="26" y="62" width="108" height="62" rx="10" fill="url(#bxa)"/><rect x="72" y="62" width="16" height="62" fill="url(#bxg)"/>
+    <g ${open ? 'transform="rotate(-24 26 50)"' : ''}><rect x="20" y="40" width="120" height="28" rx="9" fill="url(#bxa)"/><rect x="72" y="40" width="16" height="28" fill="url(#bxg)"/>
+    <path d="M80 40 C64 18 44 24 52 38 C56 44 70 42 80 40 C90 42 104 44 108 38 C116 24 96 18 80 40Z" fill="url(#bxg)" stroke="#b8761a" stroke-width="2"/></g>
+    <path d="M40 84 l4 -8 l4 8 l-4 8z M118 100 l3 -6 l3 6 l-3 6z" fill="#fff" opacity=".85"/><ellipse cx="48" cy="72" rx="14" ry="4" fill="#fff" opacity=".35" transform="rotate(-10 48 72)"/></svg>`;
+}
+let boxFocus = false;
+export const showBoxes = () => { gameTab = 'progress'; boxFocus = true; };
+function boxPanel(sid, s, own) {
+  const b = Game.boxInfo(sid, s);
+  const counts = Object.fromEntries(RARITY_ORDER.map(r => [r, CARDS.filter(c => c.rarity === r && Game.owns(sid, c)).length]));
+  return `<section class="boxes" id="boxes" aria-label="תיבות קלפים">
+    <div class="box-art ${b.ready ? 'has' : ''}">${boxArt()}${b.ready ? `<span class="box-n">${b.ready}</span>` : ''}</div>
+    <div class="box-main"><h3>${b.complete ? 'השלמת את כל האוסף! 🏆' : b.ready ? `${b.ready === 1 ? 'תיבת קלפים אחת מחכה' : `${b.ready} תיבות קלפים מחכות`}${own ? ' לך' : ''}` : 'תיבת הקלפים הבאה'}</h3>
+      <div class="hint">כל ${Game.BOX_EVERY} XP = תיבה עם קלף אחד. ${b.complete ? '' : `עוד <b>${b.toNext} XP</b> לתיבה הבאה.`} נפתחו עד עכשיו: ${b.opened}.</div>
+      ${own && b.ready ? '<button class="btn primary" id="openbox">🎁 פתיחת תיבה</button>' : ''}
+      ${!own && b.ready ? '<div class="hint">רק התלמיד/ה פותח/ת את התיבות.</div>' : ''}</div>
+    <table class="odds" aria-label="הסיכויים בכל תיבה"><caption>הסיכויים בכל תיבה (קבועים)</caption><tbody>
+      ${RARITY_ORDER.map(r => `<tr><td><span style="color:${RARITY[r].color}">${RARITY[r].symbol}</span> ${RARITY[r].he}</td><td class="pct">${RARITY[r].share}</td><td class="hint">${counts[r]}/${RARITY[r].count}</td></tr>`).join('')}
+    </tbody></table>
+    <p class="hint box-rule">אין כפולים: אם כבר יש לך את כל הקלפים ברמה שיצאה, מקבלים קלף מהרמה הקרובה שעוד חסרים בה קלפים. התיבות לא נקנות בכסף ולא פגות.</p></section>`;
+}
+function openBoxFlow(sid) {
+  const s = Game.score(E.ctx(), sid);
+  let res;
+  try { res = Game.openBox(sid, s); } catch (e) { E.live(e.message); return; }
+  const { card, drawn, given } = res, R = RARITY[card.rarity];
+  const left = Game.boxInfo(sid, s).ready;
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const ov = document.createElement('div'); ov.className = `box-open ${card.rarity}`; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'פתיחת תיבת קלפים');
+  ov.innerHTML = `<div class="bo-stage"><div class="bo-box">${boxArt()}</div><div class="bo-card" hidden>${cardSVG(card, { w: 300 })}</div>
+    <div class="bo-text" hidden><div class="bo-r" style="color:${R.color}">${R.symbol} ${R.he} · ${R.en}</div><h2>${esc(card.name)}</h2><p>${esc(card.bio)}</p>
+      ${drawn !== given ? `<p class="hint">יצא ${RARITY[drawn].he}, אבל כבר היו לך כל הקלפים ברמה הזאת – אז קיבלת קלף ${R.he} שעוד חסר לך.</p>` : ''}
+      <div class="btns">${left ? `<button class="btn primary" data-bo="again">🎁 עוד תיבה (${left})</button>` : ''}<button class="btn" data-bo="avatar">בחירה כדמות שלי</button><button class="btn link" data-bo="close">סגירה</button></div></div></div>`;
+  document.body.appendChild(ov);
+  const reveal = () => { ov.classList.add('revealed'); ov.querySelector('.bo-box').hidden = true; ov.querySelector('.bo-card').hidden = false; ov.querySelector('.bo-text').hidden = false; (ov.querySelector('[data-bo=again]') || ov.querySelector('[data-bo=close]')).focus(); E.live(`קיבלת את ${card.name} – ${R.he}`); };
+  if (reduce) reveal(); else { ov.classList.add('shaking'); setTimeout(() => { ov.classList.remove('shaking'); ov.classList.add('burst'); }, 900); setTimeout(reveal, 1300); }
+  const close = () => { ov.remove(); document.removeEventListener('keydown', onKey); renderGame(); E.refreshSide(); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  ov.onclick = e => {
+    const k = e.target.closest('[data-bo]'); if (!k) return;
+    if (k.dataset.bo === 'avatar') { Game.setState(sid, { avatar: card.id }); close(); }
+    else if (k.dataset.bo === 'again') { ov.remove(); document.removeEventListener('keydown', onKey); openBoxFlow(sid); }
+    else close();
+  };
+}
+
 // ---------- rewards: progress · album · class ----------
 let gameTab = 'progress', peek = null;
 export function renderGame() {
@@ -40,11 +92,11 @@ export function renderGame() {
   if (!sid) { v.innerHTML = '<section class="panel"><p class="hint">אין ילד/ה מקושר/ת.</p></section>'; return; }
   const s = Game.score(ctx, sid);
   const own = ctx.role === 'student';
-  const av = Game.avatarOf(sid, s);
+  const av = Game.avatarOf(sid);
   const lv = s.level, inLevel = s.xp - lv * 100, last = lv === Game.LEVELS.length - 1;
-  const fresh = own ? Game.newCards(sid, s) : [];
+  const fresh = own ? Game.newCards(sid) : [];
   if (!own) gameTab = gameTab === 'class' ? 'progress' : gameTab;
-  const tabs = [['progress', 'התקדמות'], ['album', `אלבום (${Game.unlockedCards(s).length}/40)`], ...(own ? [['class', 'הכיתה']] : [])];
+  const tabs = [['progress', 'התקדמות'], ['album', `אלבום (${Game.ownedCards(sid).length}/40)`], ...(own ? [['class', 'הכיתה']] : [])];
   v.innerHTML = `<section class="panel lpanel"><h2 class="ph">${icon('trophy', 20)} ${own ? 'פרסים והישגים' : `ההתקדמות של ${esc(first(nameOf(sid)))}`}</h2>
     <div class="lvl">
       <div class="lvl-av">${av ? cardArt(av, { mini: true }) : '<span class="lvl-empty">?</span>'}</div>
@@ -52,25 +104,26 @@ export function renderGame() {
         <div class="bar big" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${last ? 100 : inLevel}" aria-label="התקדמות לרמה הבאה"><i style="width:${last ? 100 : inLevel}%"></i></div>
         <div class="hint">${s.xp} XP מתוך ${Game.SEMESTER_MAX} בסמסטר${last ? ' · הרמה הגבוהה ביותר!' : ` · עוד ${100 - inLevel} XP לרמה ${lv + 1} (${esc(Game.LEVELS[lv + 1])})`}</div></div>
     </div>
-    <div class="note-xp">${icon('sparkle', 15)} <span><b>XP הוא מדד – לא המטרה.</b> הוא משקף כמה ${own ? 'את/ה משקיע/ה' : 'יש השקעה'} בלמידה: הגשות בזמן ובאיכות, מבחנים ותרגול. אין מה לקנות, אין הגרלות ואין לחץ זמן – כל פרס נפתח לפי כלל קבוע שרואים מראש.</span></div>
+    <div class="note-xp">${icon('sparkle', 15)} <span><b>XP הוא מדד – לא המטרה.</b> הוא משקף כמה ${own ? 'את/ה משקיע/ה' : 'יש השקעה'} בלמידה: הגשות בזמן ובאיכות, מבחנים ותרגול. כל ${Game.BOX_EVERY} XP = תיבת קלפים, עם סיכויים קבועים שמוצגים כאן. אין מה לקנות, אין כפולים, ותיבות לא פגות – אין לחץ זמן.</span></div>
     <div class="subj-tabs" role="tablist">${tabs.map(([k, l]) => `<button class="tab" role="tab" aria-selected="${gameTab === k}" data-gtab="${k}">${l}</button>`).join('')}</div>
     <div id="gbody"></div></section>`;
   v.querySelectorAll('[data-gtab]').forEach(b => b.onclick = () => { gameTab = b.dataset.gtab; peek = null; renderGame(); });
   const body = v.querySelector('#gbody');
-  if (gameTab === 'progress') body.innerHTML = progressTab(s, own, fresh);
-  if (gameTab === 'album') body.innerHTML = albumTab(sid, s, own, fresh);
+  if (gameTab === 'progress') body.innerHTML = boxPanel(sid, s, own) + progressTab(s, own, fresh);
+  if (gameTab === 'album') body.innerHTML = boxPanel(sid, s, own) + albumTab(sid, s, own, fresh);
+  const ob = body.querySelector('#openbox'); if (ob) ob.onclick = () => openBoxFlow(sid);
   if (gameTab === 'class') { classTab(body, ctx, s); return; }
   body.querySelectorAll('[data-avatar]').forEach(b => b.onclick = () => { Game.setState(sid, { avatar: +b.dataset.avatar }); E.live(`הדמות שלך עכשיו: ${cardById(b.dataset.avatar).name}`); renderGame(); E.refreshSide(); });
   const go = body.querySelector('[data-goto]'); if (go) go.onclick = () => { gameTab = go.dataset.goto; renderGame(); };
   body.querySelectorAll('[data-go]').forEach(b => b.onclick = () => E.go(b.dataset.go));
-  if (own && gameTab === 'album') { Game.markSeen(sid, s); E.refreshSide(); }
+  if (own && gameTab === 'album') { Game.markSeen(sid); E.refreshSide(); }
+  if (boxFocus) { boxFocus = false; const bx = v.querySelector('#boxes'); if (bx) bx.scrollIntoView({ block: 'center' }); const o = v.querySelector('#openbox'); if (o) o.focus(); }
 }
 function progressTab(s, own, fresh) {
   const bar = (k, label, w, facts) => `<div class="xpart"><div class="xpart-h"><b>${label}</b><span class="tag">${w}</span><span class="xpart-n">${s.parts[k]} / ${Game.CAPS[k]}</span></div>
     <div class="bar"><i style="width:${s.parts[k] / Game.CAPS[k] * 100}%"></i></div><div class="hint">${facts}</div></div>`;
   const f = s.facts, R = Game.RULES;
-  const next = Game.nextRewards(s);
-  return `${fresh.length ? `<div class="reco">${icon('star', 16)} <b>${fresh.length === 1 ? 'קלף חדש נפתח' : `${fresh.length} קלפים חדשים נפתחו`}:</b> ${fresh.slice(0, 4).map(c => esc(c.name)).join(', ')} <button class="btn link" data-goto="album">לאלבום</button></div>` : ''}
+  return `${fresh.length ? `<div class="reco">${icon('star', 16)} <b>${fresh.length === 1 ? 'קלף חדש באוסף' : `${fresh.length} קלפים חדשים באוסף`}:</b> ${fresh.slice(0, 4).map(c => esc(c.name)).join(', ')} <button class="btn link" data-goto="album">לאלבום</button></div>` : ''}
     <h3>מאיפה מגיע ה-XP</h3>
     ${bar('submissions', 'הגשות בזמן ובאיכות', '40%', `${f.onTime} הגשות בזמן (+${R.onTime} כל אחת) · ${f.late} באיחור (+${R.late}) · ${f.missing} שלא הוגשו · איכות העבודות: +${f.quality}`)}
     ${bar('exams', 'מבחנים ובחנים', '20%', `${f.examsN} ציונים · כל מבחן נותן עד ${R.examMax} XP לפי הציון, בוחן עד ${R.quizMax}, ושיפור של 5+ נקודות באותו מקצוע: +${R.improve}`)}
@@ -78,16 +131,15 @@ function progressTab(s, own, fresh) {
     <p class="hint">האחוזים הם החלק המקסימלי של כל מקור מתוך ${Game.SEMESTER_MAX} XP בסמסטר. מסלולים וכרטיסיות שיצרת לעצמך הם תרגול חופשי – בלי XP. מסלולים שהמורה פרסם/ה והמסלול המותאם של אלומה – עם XP.</p>
     <h3>הישגים ומדבקות</h3>
     <div class="badges">${Object.entries(Game.ACHIEVEMENTS).map(([k, a]) => `<div class="badge-i ${s.ach[k] ? 'got' : ''}" title="${esc(a.desc)}"><span class="bs">${a.sticker}</span><b>${esc(a.name)}</b><small>${esc(a.desc)}</small></div>`).join('')}</div>
-    ${next.length ? `<h3>הפרסים הבאים</h3><div class="stk-row">${next.map(c => `<div class="next-r">${cardTile(c, { locked: true, size: 's' })}<span class="hint">עוד ${c.unlock.xp - s.xp} XP</span></div>`).join('')}</div>` : ''}
     ${own ? `<div class="btns"><button class="btn primary" data-go="path">${icon('sparkle', 16)} לתרגל עכשיו</button><button class="btn" data-go="project">${icon('bulb', 16)} פרויקט אישי</button></div>` : ''}`;
 }
 function albumTab(sid, s, own, fresh) {
-  const st = Game.state(sid); const av = Game.avatarOf(sid, s);
+  const av = Game.avatarOf(sid);
   const isNew = new Set(fresh.map(c => c.id));
-  return `<p class="hint">${own ? 'לחצו על קלף שפתחתם כדי לבחור אותו כדמות שלכם. ' : ''}כל הקלפים מוצגים מראש עם הכלל שפותח אותם – בלי הפתעות ובלי קנייה. ההתפלגות באוסף: ${RARITY_ORDER.map(r => `${RARITY[r].he} ${RARITY[r].count} (${RARITY[r].share})`).join(' · ')}.</p>
-    ${RARITY_ORDER.map(r => { const list = CARDS.filter(c => c.rarity === r); const got = list.filter(c => Game.unlocked(s, c)).length;
-      return `<div class="alb-h ${r}"><span style="color:${RARITY[r].color}">${RARITY[r].symbol}</span> <b>${RARITY[r].he}</b> · ${RARITY[r].en} <span class="hint">${got}/${list.length} · ${RARITY[r].share} מהאוסף</span></div>
-        <div class="stk-grid">${list.map(c => cardTile(c, { locked: !Game.unlocked(s, c), isNew: isNew.has(c.id), pick: own, on: av && av.id === c.id })).join('')}</div>`; }).join('')}`;
+  return `<p class="hint">${own ? 'לחצו על קלף שקיבלתם כדי לבחור אותו כדמות שלכם. ' : ''}כל 40 הקלפים מוצגים מראש, גם אלה שעוד לא יצאו לכם.</p>
+    ${RARITY_ORDER.map(r => { const list = CARDS.filter(c => c.rarity === r); const got = list.filter(c => Game.owns(sid, c)).length;
+      return `<div class="alb-h ${r}"><span style="color:${RARITY[r].color}">${RARITY[r].symbol}</span> <b>${RARITY[r].he}</b> · ${RARITY[r].en} <span class="hint">${got}/${list.length} · סיכוי ${RARITY[r].share} בכל תיבה</span></div>
+        <div class="stk-grid">${list.map(c => cardTile(c, { locked: !Game.owns(sid, c), isNew: isNew.has(c.id), pick: own, on: av && av.id === c.id })).join('')}</div>`; }).join('')}`;
 }
 function classTab(body, ctx, s) {
   const st = Game.state(ctx.userId);
@@ -127,8 +179,8 @@ function classTab(body, ctx, s) {
 function shareLive(ctx, s) {
   const course = LIVE.courses.find(c => c.role === 'student'); if (!course) return;
   const st = Game.state(ctx.userId);
-  Cloud.shareGame(course.id, st.share ? { first: first(ctx.user.name), level: s.level, cards: Game.unlockedCards(s).map(c => c.id), badges: Object.keys(s.ach).filter(k => s.ach[k]),
-    avatar: (Game.avatarOf(ctx.userId, s) || {}).id || null, race: !!st.race, week: L.weekLessons(ctx.userId) } : null);
+  Cloud.shareGame(course.id, st.share ? { first: first(ctx.user.name), level: s.level, cards: Game.ownedCards(ctx.userId).map(c => c.id), badges: Object.keys(s.ach).filter(k => s.ach[k]),
+    avatar: (Game.avatarOf(ctx.userId) || {}).id || null, race: !!st.race, week: L.weekLessons(ctx.userId) } : null);
 }
 async function liveClass(body, ctx, s, settings, bind) {
   const course = LIVE.courses.find(c => c.role === 'student');

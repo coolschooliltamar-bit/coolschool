@@ -52,7 +52,7 @@ const preview = `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><sty
   h1{margin:0 0 4px;font-size:44px;font-weight:900;letter-spacing:.5px} p{margin:0 0 22px;opacity:.8;font-size:20px}
   .row{display:flex;align-items:center;gap:10px;margin:18px 0 10px;font-size:22px;font-weight:800}.row span{opacity:.7;font-weight:600;font-size:18px}
   .g{display:grid;grid-template-columns:repeat(${cols},${cw}px);gap:16px}.g svg{width:${cw}px;height:auto;display:block;filter:drop-shadow(0 8px 16px rgba(0,0,0,.45))}</style></head><body>
-  <h1>אלומה · חבילת קלפי המדבקות</h1><p>40 דמויות מקוריות · 5 רמות נדירות · כל קלף נפתח לפי כלל קבוע – בלי קנייה ובלי הגרלה</p>
+  <h1>אלומה · חבילת קלפי המדבקות</h1><p>40 דמויות מקוריות · 5 רמות נדירות · כל 100 XP = תיבת קלפים עם סיכויים גלויים – בלי קנייה ובלי כפולים</p>
   ${RARITY_ORDER.map(r => `<div class="row"><b style="color:${RARITY[r].color}">${RARITY[r].symbol}</b> ${RARITY[r].he} · ${RARITY[r].en} <span>${RARITY[r].count} קלפים · ${RARITY[r].share}</span></div>
   <div class="g">${files.filter(f => f.c.rarity === r).map(f => f.svg).join('')}</div>`).join('')}</body></html>`;
 await page.setViewportSize({ width: 40 * 2 + cols * cw + (cols - 1) * 16, height: 800 });
@@ -69,9 +69,11 @@ if (only) { console.log('preview written'); process.exit(0); }
 const rule = c => unlockText(c, achName);
 const md = `# קטלוג – חבילת קלפי המדבקות של אלומה
 
+כל 100 XP = תיבת קלפים. הסיכויים בכל תיבה קבועים: ${RARITY_ORDER.map(r => `${RARITY[r].he} ${RARITY[r].share}`).join(' · ')}. בלי כפולים, בלי קנייה.
+
 40 קלפים · ${RARITY_ORDER.map(r => `${RARITY[r].he} (${RARITY[r].en}) ${RARITY[r].count}`).join(' · ')}
 
-| # | שם | English | נדירות | סוג | אישיות | איך נפתח | קובץ |
+| # | שם | English | נדירות | סוג | אישיות | איך מקבלים | קובץ |
 |---|---|---|---|---|---|---|---|
 ${CARDS.map(c => `| ${c.no}/40 | ${c.name} | ${c.en} | ${RARITY[c.rarity].symbol} ${RARITY[c.rarity].he} · ${RARITY[c.rarity].en} | ${c.kind} | ${c.bio} | ${rule(c)} | [PNG](${files[c.id - 1].rel}.png) · [SVG](${files[c.id - 1].rel}.svg) |`).join('\n')}
 `;
@@ -109,8 +111,14 @@ const BAD_HE = new Set('נשק אקדח רובה חרב דם פצוע פצועה
 const BAD_EN = /\b(weapon|gun|sword|blood|kill|beer|wine|cigar\w*|drugs?|stupid|scary|horror)\b/i;
 const badWord = t => BAD_EN.test(t) || t.split(/[\s.,–\-!?"״׳()]+/).some(w => BAD_HE.has(w) || (w.length > 2 && /^[ובהלמשכ]/.test(w) && BAD_HE.has(w.slice(1))));
 check(CARDS.every(c => !badWord(c.name) && !badWord(c.en) && !badWord(c.bio)), 'אין מילים של אלימות, עישון, אלכוהול, סמים, קללות או אימה בשמות ובתיאורים');
-check(CARDS.every(c => c.unlock.xp != null || ACHIEVEMENTS[c.unlock.ach]), 'לכל קלף כלל פתיחה קבוע וגלוי (XP או הישג) – בלי הגרלה ובלי תשלום');
-const spell = { 'פופי פופקורן': 1, 'טוסטי': 1, 'ציפור האור': 1 };
+const oddsSum = RARITY_ORDER.reduce((x, r) => x + RARITY[r].odds, 0);
+check(Math.abs(oddsSum - 100) < 1e-9, `סיכויי התיבה מסתכמים ל-100% (${RARITY_ORDER.map(r => RARITY[r].odds + '%').join(' + ')})`);
+check(RARITY_ORDER.every(r => Math.abs(RARITY[r].odds - RARITY[r].count / 40 * 100) < 1e-9), 'הסיכוי לכל רמה בתיבה שווה לחלק שלה באוסף (20/40=50%, 10/40=25%, 6/40=15%, 3/40=7.5%, 1/40=2.5%)');
+const G = await import('../js/game.js');
+const sim = { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 }; for (let i = 0; i < 200000; i++) sim[G.drawRarity(Math.random())]++;
+check(RARITY_ORDER.every(r => Math.abs(sim[r] / 2000 - RARITY[r].odds) < 0.5), `סימולציה של 200,000 תיבות תואמת לסיכויים (${RARITY_ORDER.map(r => `${RARITY[r].en} ${(sim[r] / 2000).toFixed(1)}%`).join(' · ')})`);
+let owned = []; for (let i = 0; i < 40; i++) owned.push(G.pickCard(owned).card.id);
+check(new Set(owned).size === 40 && G.pickCard(owned) === null, '40 תיבות נותנות בדיוק את 40 הקלפים – בלי כפולים');
 check(CARDS.every(c => !/\s{2,}|^\s|\s$/.test(c.name) && !/[a-z]/i.test(c.name)), 'שמות בעברית בלי רווחים כפולים ובלי אותיות לטיניות');
 const report = `# בדיקת איכות – חבילת קלפי המדבקות
 
