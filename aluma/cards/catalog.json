@@ -1,0 +1,562 @@
+[
+  {
+    "number": "01",
+    "id": 1,
+    "name": "פופי פופקורן",
+    "en": "Popi Popcorn",
+    "rarity": "common",
+    "type": "מאכל",
+    "personality": "קופץ מהתרגשות מכל שאלה חדשה.",
+    "unlock": {
+      "xp": 20
+    },
+    "png": "1-common/01-popi-popcorn.png",
+    "svg": "1-common/01-popi-popcorn.svg"
+  },
+  {
+    "number": "02",
+    "id": 2,
+    "name": "טוסטי",
+    "en": "Toasty",
+    "rarity": "common",
+    "type": "מאכל",
+    "personality": "פרוסת לחם חמימה שתמיד קמה מוקדם.",
+    "unlock": {
+      "xp": 40
+    },
+    "png": "1-common/02-toasty.png",
+    "svg": "1-common/02-toasty.svg"
+  },
+  {
+    "number": "03",
+    "id": 3,
+    "name": "בלובי",
+    "en": "Bloobi",
+    "rarity": "common",
+    "type": "מפלצת חמודה",
+    "personality": "מפלצת ג׳לי כחולה שמתנדנדת כשהיא צוחקת.",
+    "unlock": {
+      "xp": 60
+    },
+    "png": "1-common/03-bloobi.png",
+    "svg": "1-common/03-bloobi.svg"
+  },
+  {
+    "number": "04",
+    "id": 4,
+    "name": "שלי הצבה",
+    "en": "Shelly",
+    "rarity": "common",
+    "type": "חיה",
+    "personality": "צבה עם נעלי ספורט – לאט אבל בטוח.",
+    "unlock": {
+      "xp": 80
+    },
+    "png": "1-common/04-shelly.png",
+    "svg": "1-common/04-shelly.svg"
+  },
+  {
+    "number": "05",
+    "id": 5,
+    "name": "ענני",
+    "en": "Anani",
+    "rarity": "common",
+    "type": "יצור קסום",
+    "personality": "דובון ענן רך שממטיר טיפות של רעיונות.",
+    "unlock": {
+      "xp": 100
+    },
+    "png": "1-common/05-anani.png",
+    "svg": "1-common/05-anani.svg"
+  },
+  {
+    "number": "06",
+    "id": 6,
+    "name": "קרחי",
+    "en": "Karchi",
+    "rarity": "common",
+    "type": "חיה",
+    "personality": "פינגווין קטן עם צעיף, אוהב החלקה על קרח.",
+    "unlock": {
+      "xp": 120
+    },
+    "png": "1-common/06-karchi.png",
+    "svg": "1-common/06-karchi.svg"
+  },
+  {
+    "number": "07",
+    "id": 7,
+    "name": "ביפ",
+    "en": "Beep",
+    "rarity": "common",
+    "type": "רובוט",
+    "personality": "רובוט קטן עם אנטנה שמהבהבת כשהוא חושב.",
+    "unlock": {
+      "xp": 140
+    },
+    "png": "1-common/07-beep.png",
+    "svg": "1-common/07-beep.svg"
+  },
+  {
+    "number": "08",
+    "id": 8,
+    "name": "זיזי",
+    "en": "Zizi",
+    "rarity": "common",
+    "type": "חייזר",
+    "personality": "חייזרית ירוקה עם שלוש עיניים סקרניות.",
+    "unlock": {
+      "xp": 160
+    },
+    "png": "1-common/08-zizi.png",
+    "svg": "1-common/08-zizi.svg"
+  },
+  {
+    "number": "09",
+    "id": 9,
+    "name": "מומו",
+    "en": "Momo",
+    "rarity": "common",
+    "type": "יצור יער",
+    "personality": "פטרייה נקודתית ומנומסת מהיער הקסום.",
+    "unlock": {
+      "xp": 180
+    },
+    "png": "1-common/09-momo.png",
+    "svg": "1-common/09-momo.svg"
+  },
+  {
+    "number": "10",
+    "id": 10,
+    "name": "גלידוני",
+    "en": "Gelidoni",
+    "rarity": "common",
+    "type": "מאכל",
+    "personality": "גביע גלידה תותית עם סוכריות צבעוניות.",
+    "unlock": {
+      "xp": 200
+    },
+    "png": "1-common/10-gelidoni.png",
+    "svg": "1-common/10-gelidoni.svg"
+  },
+  {
+    "number": "11",
+    "id": 11,
+    "name": "שבלול טורבו",
+    "en": "Turbo Snail",
+    "rarity": "common",
+    "type": "חיה",
+    "personality": "השבלול הכי מהיר בגינה – עם קסדה!",
+    "unlock": {
+      "xp": 220
+    },
+    "png": "1-common/11-turbo-snail.png",
+    "svg": "1-common/11-turbo-snail.svg"
+  },
+  {
+    "number": "12",
+    "id": 12,
+    "name": "קקטוסי",
+    "en": "Cactusi",
+    "rarity": "common",
+    "type": "צמח",
+    "personality": "קקטוס חייכן עם פרח ורוד על הראש.",
+    "unlock": {
+      "xp": 240
+    },
+    "png": "1-common/12-cactusi.png",
+    "svg": "1-common/12-cactusi.svg"
+  },
+  {
+    "number": "13",
+    "id": 13,
+    "name": "פיצי",
+    "en": "Pizzi",
+    "rarity": "common",
+    "type": "מאכל",
+    "personality": "משולש פיצה שמחלק חיוכים לכולם.",
+    "unlock": {
+      "xp": 260
+    },
+    "png": "1-common/13-pizzi.png",
+    "svg": "1-common/13-pizzi.svg"
+  },
+  {
+    "number": "14",
+    "id": 14,
+    "name": "לולי הלאמה",
+    "en": "Lully Llama",
+    "rarity": "common",
+    "type": "חיה",
+    "personality": "לאמה פרוותית עם כובע צמר וחיוך רגוע.",
+    "unlock": {
+      "xp": 280
+    },
+    "png": "1-common/14-lully-llama.png",
+    "svg": "1-common/14-lully-llama.svg"
+  },
+  {
+    "number": "15",
+    "id": 15,
+    "name": "אוקטה",
+    "en": "Okta",
+    "rarity": "common",
+    "type": "חיה",
+    "personality": "תמנונית ספרנית – קוראת שמונה ספרים בבת אחת.",
+    "unlock": {
+      "xp": 300
+    },
+    "png": "1-common/15-okta.png",
+    "svg": "1-common/15-okta.svg"
+  },
+  {
+    "number": "16",
+    "id": 16,
+    "name": "ננסי",
+    "en": "Nansi",
+    "rarity": "common",
+    "type": "חיה",
+    "personality": "נמלה חזקה שמרימה עלה פי עשרה ממנה.",
+    "unlock": {
+      "xp": 320
+    },
+    "png": "1-common/16-nansi.png",
+    "svg": "1-common/16-nansi.svg"
+  },
+  {
+    "number": "17",
+    "id": 17,
+    "name": "צפצופי",
+    "en": "Tziftzufi",
+    "rarity": "common",
+    "type": "חיה",
+    "personality": "אפרוח צהוב שיצא עכשיו מהביצה, עם קליפה על הראש.",
+    "unlock": {
+      "xp": 340
+    },
+    "png": "1-common/17-tziftzufi.png",
+    "svg": "1-common/17-tziftzufi.svg"
+  },
+  {
+    "number": "18",
+    "id": 18,
+    "name": "קוביקו",
+    "en": "Cubiko",
+    "rarity": "common",
+    "type": "דמות גיימינג",
+    "personality": "דמות משחק מרובעת שאוספת מטבעות כוכב.",
+    "unlock": {
+      "xp": 360
+    },
+    "png": "1-common/18-cubiko.png",
+    "svg": "1-common/18-cubiko.svg"
+  },
+  {
+    "number": "19",
+    "id": 19,
+    "name": "סושי סאמי",
+    "en": "Sushi Sami",
+    "rarity": "common",
+    "type": "מאכל",
+    "personality": "רול סושי קטן ומסודר שאוהב סדר בשולחן.",
+    "unlock": {
+      "xp": 380
+    },
+    "png": "1-common/19-sushi-sami.png",
+    "svg": "1-common/19-sushi-sami.svg"
+  },
+  {
+    "number": "20",
+    "id": 20,
+    "name": "ירחי",
+    "en": "Yarchi",
+    "rarity": "common",
+    "type": "דמות חלל",
+    "personality": "ירח קטן ומנומנם עם כרית כוכבים.",
+    "unlock": {
+      "xp": 400
+    },
+    "png": "1-common/20-yarchi.png",
+    "svg": "1-common/20-yarchi.svg"
+  },
+  {
+    "number": "21",
+    "id": 21,
+    "name": "שועלי הסייר",
+    "en": "Scout Fox",
+    "rarity": "uncommon",
+    "type": "חיה",
+    "personality": "שועל עם מפה ומשקפת – מגלה שבילים חדשים.",
+    "unlock": {
+      "xp": 430
+    },
+    "png": "2-uncommon/21-scout-fox.png",
+    "svg": "2-uncommon/21-scout-fox.svg"
+  },
+  {
+    "number": "22",
+    "id": 22,
+    "name": "זמזומה",
+    "en": "Zumzuma",
+    "rarity": "uncommon",
+    "type": "חיה",
+    "personality": "דבורה טייסת עם משקפי תעופה.",
+    "unlock": {
+      "xp": 460
+    },
+    "png": "2-uncommon/22-zumzuma.png",
+    "svg": "2-uncommon/22-zumzuma.svg"
+  },
+  {
+    "number": "23",
+    "id": 23,
+    "name": "גלגלית",
+    "en": "Galgalit",
+    "rarity": "uncommon",
+    "type": "רובוט",
+    "personality": "רובוטית על גלגל אחד ששומרת על איזון מושלם.",
+    "unlock": {
+      "xp": 490
+    },
+    "png": "2-uncommon/23-galgalit.png",
+    "svg": "2-uncommon/23-galgalit.svg"
+  },
+  {
+    "number": "24",
+    "id": 24,
+    "name": "כוכבון",
+    "en": "Kochavon",
+    "rarity": "uncommon",
+    "type": "חיה",
+    "personality": "כוכב ים ורוד שמנצח על להקת דגים.",
+    "unlock": {
+      "xp": 520
+    },
+    "png": "2-uncommon/24-kochavon.png",
+    "svg": "2-uncommon/24-kochavon.svg"
+  },
+  {
+    "number": "25",
+    "id": 25,
+    "name": "פיקסל",
+    "en": "Pixel",
+    "rarity": "uncommon",
+    "type": "דמות גיימינג",
+    "personality": "דמות שלבים מתקופת המשחקים הרטרו.",
+    "unlock": {
+      "xp": 550
+    },
+    "png": "2-uncommon/25-pixel.png",
+    "svg": "2-uncommon/25-pixel.svg"
+  },
+  {
+    "number": "26",
+    "id": 26,
+    "name": "דונאטו",
+    "en": "Donato",
+    "rarity": "uncommon",
+    "type": "דמות חלל",
+    "personality": "סופגנייה אסטרונאוטית בחליפת חלל.",
+    "unlock": {
+      "xp": 580
+    },
+    "png": "2-uncommon/26-donato.png",
+    "svg": "2-uncommon/26-donato.svg"
+  },
+  {
+    "number": "27",
+    "id": 27,
+    "name": "ינשופית",
+    "en": "Yanshufit",
+    "rarity": "uncommon",
+    "type": "חיה",
+    "personality": "ינשופה מדענית עם משקפיים ומבחנה.",
+    "unlock": {
+      "xp": 610
+    },
+    "png": "2-uncommon/27-yanshufit.png",
+    "svg": "2-uncommon/27-yanshufit.svg"
+  },
+  {
+    "number": "28",
+    "id": 28,
+    "name": "נמרי",
+    "en": "Namri",
+    "rarity": "uncommon",
+    "type": "חיה",
+    "personality": "גור נמר על סקייטבורד, עם קסדה וברכיות.",
+    "unlock": {
+      "xp": 640
+    },
+    "png": "2-uncommon/28-namri.png",
+    "svg": "2-uncommon/28-namri.svg"
+  },
+  {
+    "number": "29",
+    "id": 29,
+    "name": "מדוזית",
+    "en": "Meduzit",
+    "rarity": "uncommon",
+    "type": "חיה",
+    "personality": "מדוזה שזוהרת בחושך כמו מנורת לילה.",
+    "unlock": {
+      "xp": 670
+    },
+    "png": "2-uncommon/29-meduzit.png",
+    "svg": "2-uncommon/29-meduzit.svg"
+  },
+  {
+    "number": "30",
+    "id": 30,
+    "name": "פרחונית",
+    "en": "Pirchonit",
+    "rarity": "uncommon",
+    "type": "יצור קסום",
+    "personality": "פיה קטנה שגרה בתוך פרח חמנייה.",
+    "unlock": {
+      "xp": 700
+    },
+    "png": "2-uncommon/30-pirchonit.png",
+    "svg": "2-uncommon/30-pirchonit.svg"
+  },
+  {
+    "number": "31",
+    "id": 31,
+    "name": "קומטה",
+    "en": "Cometa",
+    "rarity": "rare",
+    "type": "דמות חלל",
+    "personality": "חתולת שביט שמשאירה אחריה שובל של נצנצים.",
+    "unlock": {
+      "ach": "ontime3"
+    },
+    "png": "3-rare/31-cometa.png",
+    "svg": "3-rare/31-cometa.svg"
+  },
+  {
+    "number": "32",
+    "id": 32,
+    "name": "טורבו-בוט",
+    "en": "Turbo-Bot",
+    "rarity": "rare",
+    "type": "רובוט",
+    "personality": "רובוט עם תרמיל סילון שעוזר לכל מי שנתקע.",
+    "unlock": {
+      "ach": "exam85"
+    },
+    "png": "3-rare/32-turbo-bot.png",
+    "svg": "3-rare/32-turbo-bot.svg"
+  },
+  {
+    "number": "33",
+    "id": 33,
+    "name": "אלונית",
+    "en": "Alonit",
+    "rarity": "rare",
+    "type": "יצור קסום",
+    "personality": "רוח עץ עתיקה וחכמה, עם עלים שמשנים צבע.",
+    "unlock": {
+      "ach": "unit_done"
+    },
+    "png": "3-rare/33-alonit.png",
+    "svg": "3-rare/33-alonit.svg"
+  },
+  {
+    "number": "34",
+    "id": 34,
+    "name": "זוהרה",
+    "en": "Zohara",
+    "rarity": "rare",
+    "type": "יצור קסום",
+    "personality": "גחלילית קסומה שמאירה את הדרך הביתה.",
+    "unlock": {
+      "ach": "streak3"
+    },
+    "png": "3-rare/34-zohara.png",
+    "svg": "3-rare/34-zohara.svg"
+  },
+  {
+    "number": "35",
+    "id": 35,
+    "name": "גלקסי",
+    "en": "Galaxy",
+    "rarity": "rare",
+    "type": "דמות חלל",
+    "personality": "לווייתן חלל ששוחה בין הכוכבים.",
+    "unlock": {
+      "ach": "cards30"
+    },
+    "png": "3-rare/35-galaxy.png",
+    "svg": "3-rare/35-galaxy.svg"
+  },
+  {
+    "number": "36",
+    "id": 36,
+    "name": "דרקוני",
+    "en": "Drakoni",
+    "rarity": "rare",
+    "type": "יצור קסום",
+    "personality": "דרקון תינוק שנושף בועות סבון במקום אש.",
+    "unlock": {
+      "ach": "project_sent"
+    },
+    "png": "3-rare/36-drakoni.png",
+    "svg": "3-rare/36-drakoni.svg"
+  },
+  {
+    "number": "37",
+    "id": 37,
+    "name": "וולטי",
+    "en": "Volty",
+    "rarity": "epic",
+    "type": "יצור קסום",
+    "personality": "ארנבת ברק שמטעינה את כולם באנרגיה טובה.",
+    "unlock": {
+      "xp": 760
+    },
+    "png": "4-epic/37-volty.png",
+    "svg": "4-epic/37-volty.svg"
+  },
+  {
+    "number": "38",
+    "id": 38,
+    "name": "נובה",
+    "en": "Nova",
+    "rarity": "epic",
+    "type": "דמות חלל",
+    "personality": "שומרת הכוכבים, עם פנס שמדליק כוכבים חדשים.",
+    "unlock": {
+      "xp": 830
+    },
+    "png": "4-epic/38-nova.png",
+    "svg": "4-epic/38-nova.svg"
+  },
+  {
+    "number": "39",
+    "id": 39,
+    "name": "גרביטו",
+    "en": "Gravito",
+    "rarity": "epic",
+    "type": "רובוט",
+    "personality": "רובוט-קוסם שמרחף ומרים קוביות בכוח הכבידה.",
+    "unlock": {
+      "xp": 900
+    },
+    "png": "4-epic/39-gravito.png",
+    "svg": "4-epic/39-gravito.svg"
+  },
+  {
+    "number": "40",
+    "id": 40,
+    "name": "לומי – ציפור האור",
+    "en": "Lumi, the Light Bird",
+    "rarity": "legendary",
+    "type": "יצור אגדי",
+    "personality": "ציפור האור של אלומה. נולדת מכל הניצוצות שאספת – הכי נדירה במשחק.",
+    "unlock": {
+      "xp": 960
+    },
+    "png": "5-legendary/40-lumi-the-light-bird.png",
+    "svg": "5-legendary/40-lumi-the-light-bird.svg"
+  }
+]

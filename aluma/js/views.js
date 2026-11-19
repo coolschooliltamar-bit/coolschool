@@ -6,7 +6,7 @@ import * as S from './studio.js';
 import * as L from './learn.js';
 import * as Cloud from './cloud.js';
 import { CARDS, RARITY, RARITY_ORDER, cardById, unlockText } from './cards.js';
-import { cardArt } from './cardart.js';
+import { cardArt, cardSVG } from './cardart.js';
 import { STUDENTS, CLASSES, TEACHERS, subjectName } from './data.js';
 import { icon } from './icons.js';
 import { db, save, audit } from './store.js';
@@ -23,6 +23,7 @@ const view = () => document.getElementById('view');
 // ---------- sticker card (small, in-app) ----------
 export function cardTile(c, { locked = false, isNew = false, size = 'm', pick = false, on = false } = {}) {
   const r = RARITY[c.rarity];
+  if (!locked) return `<button class="stk-card ${c.rarity} ${size} ${on ? 'on' : ''}" ${pick ? `data-avatar="${c.id}"` : 'tabindex="-1"'} aria-label="${esc(c.name)} – ${r.he} – ${c.no}/40${on ? ' – הדמות שלך' : ''}" title="${esc(c.bio)}">${cardSVG(c, { w: 240 })}${isNew ? '<span class="stk-new">חדש!</span>' : ''}${on ? '<span class="stk-on">הדמות שלי</span>' : ''}</button>`;
   return `<button class="stk ${c.rarity} ${locked ? 'locked' : ''} ${size} ${on ? 'on' : ''}" ${pick && !locked ? `data-avatar="${c.id}"` : 'tabindex="-1"'} aria-label="${esc(c.name)} – ${r.he}${locked ? ' – נעול: ' + esc(unlockText(c, Game.achName)) : ''}">
     <span class="stk-art">${locked ? `<span class="stk-lock">${icon('lock', 22)}</span>` : cardArt(c, { mini: true })}</span>
     <span class="stk-name">${locked ? '???' : esc(c.name)}</span>
