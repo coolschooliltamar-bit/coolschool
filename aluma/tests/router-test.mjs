@@ -19,7 +19,7 @@ for (const [uid, rows] of Object.entries(CORPUS)) {
       fastWanted++;
       good = r.intent === want;
       if (good) {
-        const a = answer(ctx, q, { activeStudentId: ctx.allowedStudentIds[0], intent: r.intent });
+        const a = answer(ctx, q, { activeStudentId: ctx.allowedStudentIds[0], intent: r.intent, routed: r.t });
         ans = (a.text + ' ' + a.cards.map(c => [c.title, c.subject, c.teacherName, c.name].filter(Boolean).join(' ')).join(' ') + ' ' + (a.chips || []).join(' ')).replace(/\s+/g, ' ');
         if (/לא בטוחה שהבנתי|משהו השתבש/.test(ans) || (has && !ans.includes(has))) good = false;
         else fastGot++;

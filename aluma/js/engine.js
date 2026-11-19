@@ -8,6 +8,7 @@ import { g, Forbidden } from './auth.js';
 import { db, save, audit } from './store.js';
 import { LIVE } from './google.js';
 import * as Game from './game.js';
+import { SEED as SEED_LIST } from './router-seed.js';
 let liveMode = false;
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -16,10 +17,65 @@ const dayName = d => DAYS[new Date(d).getDay()];
 const firstName = n => n.split(' ')[0];
 const norm = s => s.replace(/[֑-ׇ]/g, '').replace(/[״"׳']/g, '').replace(/\s+/g, ' ').trim();
 
+// school subjects that are not in this student's data – recognised so the fast engine can answer
+// "you don't have chemistry" instead of sending the question to the language model
+export const OTHER_SUBJECTS = [['כימיה'], ['ערבית'], ['צרפתית'], ['ספרדית'], ['רוסית'], ['אמהרית'], ['גיאוגרפיה', 'גאוגרפיה', 'ידיעת הארץ'], ['אזרחות'], ['מדעי המחשב', 'מחשבים', 'תכנות'],
+  ['אמנות', 'אומנות'], ['מוזיקה', 'מוסיקה'], ['תיאטרון'], ['קולנוע'], ['תקשורת'], ['פסיכולוגיה'], ['סוציולוגיה'], ['כלכלה'], ['מחשבת ישראל'], ['תורה שבעל פה', 'תושבע״פ', 'תושבעפ'], ['משפטים'],
+  ['רובוטיקה'], ['הנדסה'], ['חקלאות'], ['דרמה'], ['מחול'], ['של״ח', 'שלח'], ['גמרא', 'תלמוד'], ['ביוטכנולוגיה'], ['מדעי החברה'], ['חשבונאות'], ['ניהול'], ['תרבות ישראל'], ['אסטרונומיה']]
+  .map(a => ({ id: 'x:' + a[0], name: a[0], aliases: a.map(norm) }));
+export const subjName = id => (String(id).startsWith('x:') ? id.slice(2) : subjectName(id));
+// Classroom courses are often named in English ("History 9B"): the Hebrew subject → its English names
+const EN = { history: ['history'], math: ['math', 'maths', 'mathematics', 'algebra', 'geometry'], english: ['english', 'esl', 'efl'], science: ['science', 'biology', 'physics'],
+  literature: ['literature'], hebrew: ['hebrew', 'lashon'], bible: ['bible', 'tanakh', 'tanach', 'tanah'], pe: ['physical education', 'sport', 'sports', 'gym'],
+  'x:כימיה': ['chemistry'], 'x:ערבית': ['arabic'], 'x:צרפתית': ['french'], 'x:ספרדית': ['spanish'], 'x:רוסית': ['russian'], 'x:גיאוגרפיה': ['geography'], 'x:אזרחות': ['civics'],
+  'x:מדעי המחשב': ['computer', 'computers', 'programming', 'coding', 'cs'], 'x:אמנות': ['art', 'arts'], 'x:מוזיקה': ['music'], 'x:כלכלה': ['economics'], 'x:פסיכולוגיה': ['psychology'],
+  'x:סוציולוגיה': ['sociology'], 'x:תיאטרון': ['theatre', 'theater', 'drama'], 'x:רובוטיקה': ['robotics'], 'x:אסטרונומיה': ['astronomy'] };
+let titleWords = new Set();                 // exact words of this user's exam / assignment titles ("הצרפתית")
 function findSubject(t) {
-  if (liveMode) { const c = LIVE.courses.find(c => t.includes(norm(c.name)) || norm(c.name).split(' ').some(w => w.length > 2 && t.includes(w))); if (c) return c.name; }
-  for (const s of SUBJECTS) for (const a of s.aliases) if (t.includes(norm(a))) return s.id;
+  if (liveMode) {
+    const lc = t.toLowerCase();
+    const c = LIVE.courses.find(c => { const n = norm(c.name).toLowerCase(); return lc.includes(n) || n.split(/\s+/).some(w => w.length > 2 && !/^\d/.test(w) && lc.split(/\s+/).some(x => x === w || x.replace(/^[ובהלמשכ]{1,2}/, '') === w)); });
+    if (c) return c.name;
+    const s = findSubjectId(t);
+    if (s) { const names = [...(EN[s] || []), ...[...SUBJECTS, ...OTHER_SUBJECTS].filter(x => x.id === s).flatMap(x => x.aliases)]; const c2 = LIVE.courses.find(c => names.some(n => norm(c.name).toLowerCase().split(/[\s\-–]+/).includes(n) || norm(c.name).toLowerCase().includes(n + ' ') || norm(c.name).toLowerCase() === n)); if (c2) return c2.name; }
+    return s;
+  }
+  return findSubjectId(t);
+}
+function findSubjectId(t) {
+  // the longest alias wins ("מדעי המחשב" is not "מדעים"); a word that is part of a title is a title, not a subject
+  let best = null, len = 0;
+  const words = t.replace(/[?!.,:;()]/g, ' ').split(/\s+/);
+  for (const s of [...SUBJECTS, ...OTHER_SUBJECTS]) for (const a0 of s.aliases) {
+    const a = norm(a0); if (a.length <= len || !t.includes(a)) continue;
+    const w = words.find(x => x.includes(a.split(' ')[0]));
+    if (s.id.startsWith('x:') && w && titleWords.has(w)) continue;
+    best = s.id; len = a.length;
+  }
+  if (best) return best;
+  for (const w of words) {                    // a misspelled subject name: ONE letter missing, same skeleton ("אנגלת" = "אנגלית"; but "כמה" ≠ "כימיה")
+    if (titleWords.has(w)) continue;
+    for (const core of [w, w.slice(1), w.slice(2)]) {
+      if (core.length < 4) continue;
+      for (const s of [...SUBJECTS, ...OTHER_SUBJECTS]) for (const a0 of s.aliases) { const a = norm(a0); if (!a.includes(' ') && a.length >= 5 && a.length - core.length === 1 && skel(core) === skel(a)) return s.id; }
+    }
+  }
   return null;
+}
+function setTitles(ctx) {
+  titleWords = new Set();
+  for (const sid of ctx.allowedStudentIds || []) {
+    try { T.getGrades(ctx, { studentId: sid, quiet: true }).data.forEach(g => norm(g.title || '').split(/[\s–-]+/).forEach(w => titleWords.add(w))); } catch { /* no access */ }
+    try { T.getAssignments(ctx, { studentId: sid, quiet: true }).data.forEach(a => norm(a.title || '').split(/[\s–-]+/).forEach(w => titleWords.add(w))); } catch { /* no access */ }
+  }
+}
+// the subjects a student actually has (grades, assignments, timetable / Classroom courses)
+function mySubjects(ctx, sid) {
+  const out = new Set();
+  if (ctx.live) { (LIVE.courses || []).forEach(c => out.add(c.name)); return out; }
+  try { T.getGrades(ctx, { studentId: sid, quiet: true }).data.forEach(g => out.add(g.subject)); } catch { /* no access */ }
+  try { T.getAssignments(ctx, { studentId: sid, quiet: true }).data.forEach(a => out.add(a.subject)); } catch { /* no access */ }
+  return out;
 }
 function findClass(t) {
   const m = t.match(/(ז|ח|ט|י|יא|יב)\s?(\d)/);
@@ -51,7 +107,8 @@ const wantsShort = ctx => /קצר/.test(prefs(ctx));
 const noEmoji = ctx => /בלי אימוג/.test(prefs(ctx));
 const emoji = (ctx, e) => (noEmoji(ctx) ? '' : ' ' + e);
 
-const reply = (text, extra = {}) => ({ text, cards: [], chips: [], ...extra });
+// a Hebrew prefix glued to an English name gets a hyphen: "בHistory" → "ב-History"
+const reply = (text, extra = {}) => ({ text: String(text).replace(/([\u05D0-\u05EA])([A-Za-z])/g, '$1-$2'), cards: [], chips: [], ...extra });
 const DEFAULT_CHIPS = {
   student: ['מה יש לי מחר?', 'ציונים אחרונים', 'מה להגיש השבוע?', 'בואי נתרגל', 'תנסחי למורה שאני חולה היום'],
   parent: ['מה המצב השבוע?', 'ציונים אחרונים', 'יש הגשות פתוחות?', 'היעדרויות החודש'],
@@ -91,7 +148,7 @@ function route(ctx, t, raw, activeStudentId, convo) {
   if (ctx.live) {
     if (/(היעדר|נוכחות|איחור)/.test(t) || (!LIVE.events && /(מערכת|מחר|היום|שיעור)/.test(t) && !/(להגיש|מטל|ציון|ממוצע|הודע)/.test(t)))
       return reply('הנוכחות ומערכת השעות מגיעות ממשוב, שעוד לא מחובר. אפשר לחבר את Google Calendar בהגדרות כדי לראות את היומן.', { chips: ['מה להגיש השבוע?', 'ציונים אחרונים', 'מה ההודעות?'] });
-    if (/(תנסח|תכתוב|תכתבי|תשלח|תשלחי|למורה|למחנכ)/.test(t) && !LIVE.teachers.length)
+    if (/(תנסח|תכתוב|תכתבי|תשלח|תשלחי|למורה|למחנ[כך])/.test(t) && !LIVE.teachers.length)
       return reply('כדי לשלוח הודעות למורים מהחשבון האמיתי, חברו את Gmail בהגדרות. ההודעה תמיד תחכה לאישור שלך.');
   }
 
@@ -147,7 +204,7 @@ function route(ctx, t, raw, activeStudentId, convo) {
     if (/(להתכונן|תוכנית|תכנית|ללמוד למבחן)/.test(t)) return reply('בואו נבנה תוכנית למידה לפי תאריך המבחן:', { cards: [{ type: 'tool', tool: 'planner', icon: '🗓️', title: 'תוכנית למידה', desc: 'יום אחרי יום, עד המבחן', cta: 'בניית תוכנית' }] });
     return reply(`מעולה, בואו נתרגל${subject ? ` ${subjectName(subject)}` : ''}! שיעורים קצרים של 5 שאלות, עם XP ורצף ימים.`, { cards: [{ type: 'tool', tool: 'path', subject, icon: '🧩', title: 'מסלול תרגול' + (subject ? ` · ${subjectName(subject)}` : ''), desc: 'אני ממליצה להתחיל מהמקצוע שהציונים בו נמוכים יותר', cta: 'להתחיל' }] });
   }
-  if (/(תנסח|תכתוב|תכתבי|תשלח|תשלחי|נסחי|כתבי|שלחי|תודיע|תודיעי).*(מורה|מחנכ|ל(רינה|משה|שירן|אלון|מיכל|יוסי))/.test(t) || /^(הודעה|תגידי) למורה/.test(t)) {
+  if (/(תנסח|תכתוב|תכתבי|תשלח|תשלחי|נסחי|כתבי|שלחי|תודיע|תודיעי).*(מורה|מחנ[כך]|ל(רינה|משה|שירן|אלון|מיכל|יוסי))/.test(t) || /^(הודעה|תגידי) למורה/.test(t)) {
     return draftRoute(ctx, t, raw, studentIds[0], convo);
   }
   const subject = findSubject(t);
@@ -183,7 +240,7 @@ function teachersAnswer(ctx, sid, t, sub) {
   const list = T.listMyTeachers(ctx, { studentId: sid });
   if (!list.length) return reply(ctx.live ? 'כדי לראות את המורים צריך לחבר את Gmail בהגדרות.' : 'לא מצאתי מורים.');
   const whose = ctx.role === 'parent' ? `של ${nameOf(sid)}` : 'שלך';
-  if (/מחנכ/.test(t)) { const h = list.find(x => x.homeroom); return h ? reply(`${g(h, 'המחנך', 'המחנכת')} ${whose} ${g(h, 'הוא', 'היא')} **${h.name}**.`, { chips: [ctx.role === 'parent' ? 'תכתוב למחנכת ש' : 'תנסחי למחנכת ש'] }) : reply('לא מצאתי מחנך/ת לכיתה.'); }
+  if (/מחנ[כך]/.test(t)) { const h = list.find(x => x.homeroom); return h ? reply(`${g(h, 'המחנך', 'המחנכת')} ${whose} ${g(h, 'הוא', 'היא')} **${h.name}**.`, { chips: [ctx.role === 'parent' ? 'תכתוב למחנכת ש' : 'תנסחי למחנכת ש'] }) : reply('לא מצאתי מחנך/ת לכיתה.'); }
   if (sub) { const tt = list.filter(x => (x.subjectIds || []).includes(sub) || (x.subjects || []).includes(sub)); if (tt.length) return reply(`${tt.length > 1 ? 'מלמדים' : g(tt[0], 'המורה', 'המורה')} ל${subjectName(sub)} ${whose}: **${tt.map(x => x.name).join(', ')}**.`); return reply(`לא מצאתי מורה ל${subjectName(sub)} ${whose}.`); }
   return reply(`המורים ${whose}:`, { cards: [{ type: 'list', title: 'מורים', rows: list.map(x => [x.name, (x.homeroom ? g(x, 'מחנך · ', 'מחנכת · ') : '') + (x.subjects || []).join(', ')]) }] });
 }
@@ -267,8 +324,18 @@ function dispatch(ctx, it, t, activeStudentId) {
     if (named.length) ids = named;
     if (/(כל הילדים|הילדים|שניהם|שתיהן)/.test(t)) ids = ctx.allowedStudentIds;
   }
+  setTitles(ctx);
   const sub = findSubject(t);
-  const res = perStudent(ctx, ids, sid => DISPATCH[it](ctx, sid, t, sub));
+  const WHAT = { grades: 'ציונים', average: 'ציונים', assignments: 'מטלות', schedule: 'שיעורים', teachers: 'מורה', attendance: 'נוכחות', announcements: 'הודעות' };
+  const res = perStudent(ctx, ids, sid => {
+    if (sub && WHAT[it] && !mySubjects(ctx, sid).has(sub)) {    // a subject this student doesn't have: say so, fast
+      const mine = [...mySubjects(ctx, sid)].map(subjName);
+      const who = ctx.role === 'parent' ? `ל${nameOf(sid)} אין` : 'אין לך';
+      if (ctx.live) return reply(`לא מצאתי ב-Classroom כיתה של ${subjName(sub)}.${mine.length ? ` הכיתות שלך: ${mine.join(', ')}.` : ''}`, { chips: mine.slice(0, 3).map(m => it === 'assignments' ? `יש מטלות ב${m}?` : `מה הציון ב${m}?`) });
+      return reply(`${who} ${subjName(sub)} במערכת, אז אין ${WHAT[it]} ${it === 'teachers' ? 'ל' : 'ב'}${subjName(sub)}.${mine.length ? ` המקצועות ${ctx.role === 'parent' ? `של ${nameOf(sid)}` : 'שלך'}: ${mine.join(', ')}.` : ''}`, { chips: mine.slice(0, 3).map(m => it === 'assignments' ? `יש מטלות ב${m}?` : `מה הציון ב${m}?`) });
+    }
+    return DISPATCH[it](ctx, sid, t, sub);
+  });
   // parents always see which child an answer is about
   if (ctx.role === 'parent' && ids.length === 1) { const fn = nameOf(ids[0]); if (!res.text.includes(fn)) res.text = `**${fn}:** ${res.text}`; }
   return res;
@@ -336,6 +403,7 @@ function assignmentsAnswer(ctx, sid, subject, t) {
     const st = a.status === 'submitted' ? 'כבר הוגשה ✓' : a.due && new Date(a.due) < NOW ? 'לא הוגשה ועבר מועד ההגשה' : a.due ? `צריך להגיש עד ${dayName(a.due)} ${fmtDate(a.due)}` : 'אין לה תאריך הגשה';
     return reply(`"${a.title}" (${subjectName(a.subject)}): ${st}.`, { cards: named.slice(0, 3).map(x => ({ type: 'assignment', ...x })) });
   }
+  if (subject && !all.data.length) return reply(`אין ${childPrefix(ctx, sid)}מטלות ב${subjName(subject)}.${emoji(ctx, '✅')}`);
   if (subject && !all.data.some(a => a.status !== 'submitted') && all.data.length) {
     const a = all.data[0];
     return reply(`ב${subjectName(subject)} אין ${childPrefix(ctx, sid)}מטלות פתוחות – "${a.title}" ${a.status === 'submitted' ? 'כבר הוגשה ✓' : 'פתוחה'}.`, { cards: all.data.slice(0, 3).map(x => ({ type: 'assignment', ...x })) });
@@ -346,7 +414,8 @@ function assignmentsAnswer(ctx, sid, subject, t) {
   }
   if (/(מחר|למחר)/.test(t)) {
     const tm = all.data.filter(a => a.status !== 'submitted' && a.due && new Date(a.due).toDateString() === dayOffset(1).toDateString());
-    return reply(tm.length ? `למחר ${ctx.role === 'parent' ? `יש ל${nameOf(sid)}` : 'יש לך'} ${tm.length === 1 ? 'מטלה אחת' : `${tm.length} מטלות`} להגשה:` : `אין ${childPrefix(ctx, sid)}מטלות להגשה מחר.${emoji(ctx, ' ✅')}`, { cards: tm.map(x => ({ type: 'assignment', ...x })) });
+    const inSub = subject ? ` ב${subjName(subject)}` : '';
+    return reply(tm.length ? `למחר ${ctx.role === 'parent' ? `יש ל${nameOf(sid)}` : 'יש לך'} ${tm.length === 1 ? 'מטלה אחת' : `${tm.length} מטלות`}${inSub} להגשה:` : `אין ${childPrefix(ctx, sid)}מטלות${inSub} להגשה מחר.${emoji(ctx, '✅')}`, { cards: tm.map(x => ({ type: 'assignment', ...x })) });
   }
   const r = { ...all, data: all.data.filter(a => a.status !== 'submitted') };
   const late = r.data.filter(a => a.due && new Date(a.due) < NOW);
@@ -356,7 +425,8 @@ function assignmentsAnswer(ctx, sid, subject, t) {
     return reply(txt, { cards: [...late, ...upcoming].slice(0, 6).map(a => ({ type: 'assignment', ...a })) });
   }
   if (!late.length && !upcoming.length) return reply(`אין ${childPrefix(ctx, sid)}מטלות פתוחות${week ? ' השבוע' : ''}.${emoji(ctx, '✅')}`);
-  let text = upcoming.length ? `יש ${childPrefix(ctx, sid)}${upcoming.length} מטלות להגשה${week ? ' השבוע' : ''}.` : '';
+  const inSub = subject ? ` ב${subjName(subject)}` : '';
+  let text = upcoming.length ? `יש ${childPrefix(ctx, sid)}${upcoming.length === 1 ? 'מטלה אחת' : `${upcoming.length} מטלות`}${inSub} להגשה${week ? ' השבוע' : ''}.` : '';
   if (late.length) text += `${text ? ' ' : ''}שימו לב: ${late.length === 1 ? 'מטלה אחת עברה' : late.length + ' מטלות עברו'} את מועד ההגשה ולא ${late.length === 1 ? 'הוגשה' : 'הוגשו'}.`;
   return reply(text, { cards: [...late, ...upcoming].map(a => ({ type: 'assignment', ...a })) });
 }
@@ -411,7 +481,7 @@ function draftRoute(ctx, t, raw, sid, convo) {
   const teachers = T.listMyTeachers(ctx, { studentId: sid });
   const subject = findSubject(t);
   let teacher = null;
-  if (/מחנכ/.test(t)) teacher = teachers.find(x => x.homeroom);
+  if (/מחנ[כך]/.test(t)) teacher = teachers.find(x => x.homeroom);
   if (!teacher && subject) teacher = teachers.find(x => x.subjectIds.includes(subject));
   if (!teacher) teacher = teachers.find(x => t.includes(firstName(x.name)));
   if (!teacher && teachers.length === 1) teacher = teachers[0];
@@ -496,32 +566,38 @@ answer.safety = (ctx, raw) => /(להתאבד|לפגוע בעצמי|רוצה למ
 //   3. question word – "מתי" needs a date intent, "מי" a people intent, "כמה" a counting intent;
 //   4. memory   – phrasings the user marked "not what I asked" never go to the fast engine again.
 // No side effects (never creates drafts or saves memories).
-const COMPLEX = /(למה|מדוע|איך|כיצד|איפה|לאן|תסביר|הסבר|תסבירי|תכנן|תתכנני|רעיון|רעיונות|תיצור|תיצרי|צור |צרי |תנסח|תכתוב|תכתבי|תשלח|תשלחי|נסחי|כתבי|השוו|ההבדל|תעזרי|תעזור|עזרה ב|תמליצ|המלצ|מה דעתך|תסכמ|סכמי|קובץ|מסמך|drive|מסלול|כרטיסי|פרויקט|פרוייקט|אם |כדאי|תפתר|תפתור|תכיני|תכין|טיפים|טיפ |לשפר|להתכונן|דורש|לדחות|לעשות|אומר|זה אומר)/i;
+// questions that need the language model – matched as WHOLE words (with an optional prefix), never inside
+// another word ("אלמה" is not "למה", "השלמה" is not "למה")
+const COMPLEX_WORDS = 'למה מדוע איך כיצד איפה לאן תסביר הסבר תסבירי תכנן תתכנני רעיון רעיונות תיצור תיצרי צור צרי תנסח תכתוב תכתבי תשלח תשלחי נסחי כתבי השווי השוואה ההבדל תעזרי תעזור עזרה תמליצי תמליץ המלצה המלצות דעתך תסכמי תסכם סכמי קובץ מסמך drive מסלול כרטיסיות כרטיסייה כרטיסים פרויקט פרוייקט כדאי תפתרי תפתור תכיני תכין טיפים טיפ לשפר להתכונן דורש דורשת לדחות לעשות אומר אם';
+const COMPLEX_SET = new Set(COMPLEX_WORDS.split(' '));
+const COMPLEX = { test: t => t.split(/\s+/).some(w => COMPLEX_SET.has(w) || (w.length > 3 && /^[ושהבלכמ]/.test(w) && COMPLEX_SET.has(w.slice(1)))) };
 // everyday phrasings of simple questions → the template the fast engine knows ("איך הלך לי במבחן" = "מה קיבלתי במבחן")
 const PHRASES = [
-  [/(^| )איך (הלך|היה|יצא) (לי|לו|לה) /g, '$1מה קיבלתי '], [/(^| )מה (יצא|הוצאתי|השגתי)( לי)? /g, '$1מה קיבלתי '], [/(^| )(הוצאתי|השגתי|יצא לי) /g, '$1קיבלתי '],
+  [/(^| )איך (הלך|היה|יצא) (לי|לו|לה) /g, '$1מה קיבלתי '], [/(^| )איך (יצאתי|יצא|יצאה) /g, '$1מה קיבלתי '], [/(^| )מה (יצא|הוצאתי|השגתי)( לי)? /g, '$1מה קיבלתי '], [/(^| )(הוצאתי|השגתי|יצא לי) /g, '$1קיבלתי '],
   [/(^| )מה (עם|לגבי) /g, '$1מה '], [/(^| )(תגידי לי|תגיד לי|תראי לי|תראה לי|אפשר לראות|אני רוצה לדעת|רציתי לדעת|רק רציתי לשאול|שאלה|רגע|בבקשה|אלומה) /g, '$1'],
   [/(^| )(מה אני צריך|מה אני צריכה|מה צריך|יש משהו|יש לי משהו) להגיש /g, '$1מה להגיש '], [/(^| )(מה המצב עם|מה קורה עם) /g, '$1מה המצב של '],
   [/(^| )איך קוראים ל/g, '$1מי ה'], [/(^| )איך ([^ ]+) (בלימודים|בבית הספר|בבית ספר) /g, '$1מה המצב של $2 '], [/(^| )מה שלום ([^ ]+) (בלימודים|בבית הספר|בבית ספר) /g, '$1מה המצב של $2 '],
-  [/(^| )שיעורי (ה)?בית /g, '$1מטלות '], [/(^| )(דדליין|הדדליין|דד ליין) /g, '$1מועד ההגשה '],
+  [/(^| )שיעורי (ה)?בית /g, '$1מטלות '], [/(^| )(דדליין|הדדליין|דד ליין|דדלין|הדדלין) /g, '$1מועד ההגשה '],
+  [/(^| )([בל]?)(ז|ח|ט|י|יא|יב) (\d)(?= )/g, '$1$2$3$4'], [/(^| )(היי|הי|אהלן|שלום) (?=[^ ]+ [^ ]+)/g, '$1'],
 ];
 function applyPhrases(s) { let t = ' ' + s.replace(/([?!.,:;])/g, ' $1 ') + ' '; for (let i = 0; i < 2; i++) for (const [re, to] of PHRASES) t = t.replace(re, to); return t.replace(/\s+([?!.,:;])/g, '$1').replace(/\s+/g, ' ').trim(); }
-export function canonical(raw) { return applyPhrases(norm(raw || '').toLowerCase().replace(/[?!.,:;()״"׳'\-–]/g, ' ').replace(/\s+/g, ' ').trim()); }
+const basic = raw => norm(String(raw || '').replace(/ש[.״"'׳]\s?ב(?=[\s?!.,]|$)/g, 'שב')).toLowerCase().replace(/[?!.,:;()״"׳'\-–]/g, ' ').replace(/\s+/g, ' ').trim();
+export function canonical(raw) { return applyPhrases(basic(raw)); }
 const W = s => new Set(s.split(' '));
 const VOCAB = {
-  common: W('אפשר תביאי תביא הביאי תני תן מצב המצב מה מתי כמה איזה איזו אילו יש אין לי שלי שלו שלה שלהם אני את אתה של על עם גם עוד כל תודה תגידי תגיד תראי תראה הראי הראה לראות רוצה לדעת תבדקי בדיקה היום מחר מחרתיים אתמול השבוע שבוע הבא הבאה הקרוב הקרובים החודש עכשיו אחרון אחרונה האחרון האחרונה אחרונים אחרונות האחרונים האחרונות לאחרונה חדש חדשה חדשות חדשים כרגע עד כבר עדיין ימים יום ראשון שני שלישי רביעי חמישי שישי שבת הוא היא הם הילד הבן הבת ילד בן בת ילדים הילדים שלנו שלהם אותי אותו אותה אצלי'),
-  grades: W('ציון ציונים קיבלתי קיבל קיבלה קיבלו קיבלנו מבחן מבחנים בוחן בחנים בגרות עבודה עבודות תוצאות על במקצוע מקצוע הקודם הקודמת שעבר שעברה הראשון הראשונה השני חזר חזרו בדק בדקו כבר הכי גבוה נמוך הגבוה הנמוך ביותר טוב גרוע'),
-  average: W('ממוצע ממוצעים ציונים מבחנים כללי הכללי הכי גבוה נמוך חלש חלשה חזק חזקה טוב טובה גרוע מקצוע מקצועות באיזה ביותר אני'),
-  assignments: W('מגיש מגישה מגישים להגיש הגשה הגשות מטלה מטלות שיעורי בית שב באיחור איחור פתוחות פתוחה פתוחים הוגשו הגשתי הגיש הגישה אני צריך צריכה עבודה עבודות על עד מועד תאריך דף תרגיל בכלל לא שלא הוגש מחר למחר ההגשה'),
-  attendance: W('היעדרות היעדרויות נוכחות חיסור חיסורים איחורים איחרתי איחר איחרה נעדרתי נעדר נעדרה החסרתי חיסרתי חיסר פעמים פעם ימים'),
+  common: W('אלומה הכול הכל היי הי אהלן אפשר תביאי תביא הביאי תני תן מצב המצב מה מתי כמה איזה איזו אילו יש אין לי שלי שלו שלה שלהם אני את אתה של על עם גם עוד כל תודה תגידי תגיד תראי תראה הראי הראה לראות רוצה לדעת תבדקי בדיקה היום מחר מחרתיים אתמול השבוע שבוע הבא הבאה הקרוב הקרובים החודש עכשיו אחרון אחרונה האחרון האחרונה אחרונים אחרונות האחרונים האחרונות לאחרונה חדש חדשה חדשות חדשים כרגע עד כבר עדיין ימים יום ראשון שני שלישי רביעי חמישי שישי שבת הוא היא הם הילד הבן הבת ילד בן בת ילדים הילדים שלנו שלהם אותי אותו אותה אצלי'),
+  grades: W('הוצאתי השגתי ציון ציונים קיבלתי קיבל קיבלה קיבלו קיבלנו מבחן מבחנים בוחן בחנים בגרות עבודה עבודות תוצאות על במקצוע מקצוע הקודם הקודמת שעבר שעברה הראשון הראשונה השני חזר חזרו בדק בדקו כבר הכי גבוה נמוך הגבוה הנמוך ביותר טוב גרוע'),
+  average: W('תחשבי חשבי תחשב ממוצע ממוצעים ציונים מבחנים כללי הכללי הכי גבוה נמוך חלש חלשה חזק חזקה טוב טובה גרוע מקצוע מקצועות באיזה ביותר אני'),
+  assignments: W('מגיש מגישה מגישים להגיש הגשה הגשות מטלה מטלות שב באיחור איחור פתוחות פתוחה פתוחים הוגשו הגשתי הגיש הגישה אני צריך צריכה עבודה עבודות על עד מועד תאריך דף תרגיל בכלל לא שלא הוגש מחר למחר ההגשה'),
+  attendance: W('לא הגעתי הגיע הגיעה הייתי היה שיעורים היעדרות היעדרויות נוכחות חיסור חיסורים איחורים איחרתי איחר איחרה נעדרתי נעדר נעדרה החסרתי חיסרתי חיסר פעמים פעם ימים'),
   announcements: W('הודעות הודעה עדכונים עדכון חדש מהמורים מורים המורה מורה מחנכת המחנכת מחנך המחנך שלחו בכיתות בכיתה כיתה מה כתבה כתב כתבו שלחה שלח מבית הספר ספר בית'),
   schedule: W('מערכת שעות שעה שיעורים שיעור ביומן יומן לוח אירועים אירוע חדר מתחיל מתחילה מתחילים נגמר נגמרים נגמרת מסיים מסיימת מסיימים סוף ראשון הבא לימודים שינויים שינוי ביטול מבוטל בוטל באיזה באיזו עכשיו כרגע'),
-  teachers: W('מי מורה המורה מורים המורים מחנכת המחנכת מחנך המחנך מלמד מלמדת מלמדים אותי שלי'),
+  teachers: W('נותן נותנת שיעור השיעור מי מורה המורה מורים המורים מחנכת המחנכת מחנך המחנך מלמד מלמדת מלמדים אותי שלי'),
   progress: W('אספתי אספתי קיבלתי יש xp רמה הרמה באיזו נקודות קלפים הקלפים הישגים ההישגים תיבות תיבה התקדמות ההתקדמות פרסים צברתי לפתוח לפתיחה פתוחות'),
   hello: W('שלום היי הי בוקר טוב ערב צהריים טובים מי יודעת יכולה לעשות אלומה נשמע שלומך קורה'),
   thanks: W('תודה רבה אוקיי אוקי סבבה מעולה יופי אחלה הבנתי לך'),
   weekly: W('מצב המצב סיכום שבועי שלומו שלומה שלום בלימודים לימודים בבית הספר ספר'),
-  not_connected: W('היעדרות היעדרויות נוכחות איחור איחורים'),
+  not_connected: W('היעדרות היעדרויות נוכחות איחור איחורים חיסורים חיסרתי נעדרתי מערכת שעות שיעורים שיעור יש מחר היום לוז'),
   inbox: W('הודעות תיבה פניות חדשות הודעה בתיבת'),
   class_attendance: W('היעדרויות היעדרות נוכחות חיסורים מעל יותר מ תלמידים מי עם'),
   class_exam: W('ממוצע מבחן אחרון במבחן הכיתה כיתה'),
@@ -530,7 +606,7 @@ const VOCAB = {
 // words that are never learned as "simple" – they change what a question means
 const NEVER_LEARN = W('לא אל למה איך כדי אם צריך צריכה עצוב עצובה לחוץ לחוצה מפחד מפחדת הוגן הוגנת לשפר טיפים זה אומר דורש דורשת לעשות לדחות עזרה תעזרי מרגיש מרגישה כועס כועסת קשה');
 // which intents can answer which question word
-const QWORD = { 'מתי': ['schedule', 'assignments'], 'מי': ['class_missing', 'class_attendance', 'hello', 'teachers'], 'כמה': ['grades', 'average', 'attendance', 'assignments', 'progress', 'inbox', 'announcements', 'class_attendance', 'class_exam', 'class_missing'] };
+const QWORD = { 'מתי': ['schedule', 'assignments', 'not_connected'], 'מי': ['class_missing', 'class_attendance', 'hello', 'teachers'], 'כמה': ['schedule', 'not_connected', 'grades', 'average', 'attendance', 'assignments', 'progress', 'inbox', 'announcements', 'class_attendance', 'class_exam', 'class_missing'] };
 
 // ---- light Hebrew stemming: prefixes ו ה ב ל מ ש כ, and common endings ----
 const SUF = /(יות|ים|ות|תי|נו|תם|תן|ה|ת|ו|י)$/;
@@ -574,17 +650,34 @@ function lexicon(names) {
   for (const n of names) if (n.length >= 4) words.add(n);
   lexCache = { names, words: [...words] }; return lexCache.words;
 }
+// is `full` the same word as `short` with one ו / י added? (ממצע → ממוצע, עכשו → עכשיו, הום → היום)
+const addsVowel = (short, full) => full.length === short.length + 1 && [...full].some((c, i) => (c === 'ו' || c === 'י') && full.slice(0, i) + full.slice(i + 1) === short);
+// a word we know exactly (in a vocabulary or a name, possibly with 1–2 prefix letters) is never "corrected"
+function knownExactly(w, names) {
+  const forms = [w]; if (/^[ובהלמשכ]/.test(w)) { forms.push(w.slice(1)); if (/^[ובהלמשכ]/.test(w.slice(1))) forms.push(w.slice(2)); }   // only real prefix letters
+  for (const f of forms) if (f.length >= 2 && (names.has(f) || Object.values(VOCAB).some(v => v.has(f)))) return true;
+  return false;
+}
 function correct(t, names, extra) {
-  const all = [stemSet(VOCAB.common), stemSet(names), extra, ...Object.values(VOCAB).map(stemSet)];
-  const lex = lexicon(names);
+  const lex = lexicon(names), lexAll = lexAll3(names);
   return t.split(' ').map(w => {
-    if (w.length < 5 || explainedBy(w, ...all)) return w;       // short words are too ambiguous to "fix" (איתי ≠ אותי)
-    for (const pre of ['', w[0], w.slice(0, 2)]) {
-      const core = w.slice(pre.length); if (core.length < 5) continue;
-      const hit = lex.find(L => lev1(core, L)); if (hit) return pre + hit;
+    if (w.length < 3 || /\d/.test(w) || knownExactly(w, names) || [...stems(w)].some(x => extra.has(x))) return w;
+    const pres = ['']; if (/^[ובהלמשכ]/.test(w)) { pres.push(w[0]); if (/^[ובהלמשכ]/.test(w[1])) pres.push(w.slice(0, 2)); }   // only real prefix letters ("יצאתי" ≠ יצ + "אותי")
+    for (const pre of pres) {
+      const core = w.slice(pre.length); if (core.length < 3) continue;
+      const add = lexAll.find(L => addsVowel(core, L)); if (add) return pre + add;            // full spelling: safe from 3 letters
+      if (core.length >= 5) { const hit = lex.find(L => lev1(core, L)); if (hit) return pre + hit; }   // other slips: 5+ letters only (איתי ≠ אותי)
     }
     return w;
   }).join(' ');
+}
+let lex3 = null;
+function lexAll3(names) {
+  if (lex3 && lex3.names === names) return lex3.words;
+  const words = new Set(); for (const v of Object.values(VOCAB)) for (const w of v) if (w.length >= 3) words.add(w);
+  for (const n of names) if (n.length >= 3) words.add(n);
+  for (const d of ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'היום', 'השבוע', 'עכשיו', 'שיעור', 'השיעור', 'שיעורים', 'שיעורי', 'לימודים', 'ביטולים', 'קוראים', 'יצאתי', 'הגעתי']) words.add(d);
+  lex3 = { names, words: [...words] }; return lex3.words;
 }
 
 // words that appear in the user's OWN data (exam and assignment titles, teachers) – the fast engine can answer about them
@@ -610,6 +703,7 @@ function knownNames(ctx) {
   for (const c of CLASSES) n.add(norm(c.name).replace(/\s/g, ''));
   for (const id of ctx.allowedStudentIds || []) { const s = STUDENTS.find(x => x.id === id); if (s) s.name.split(' ').forEach(x => n.add(x)); }
   for (const t of TEACHERS) t.name.split(' ').forEach(x => n.add(x));
+  for (const s of OTHER_SUBJECTS) for (const a of s.aliases) if (!a.includes(' ')) n.add(a);     // multi-word names only as a whole phrase (see below)
   ['ט2', 'ז1', 'יא3', 'ט', 'ז', 'יא', 'כיתה'].forEach(x => n.add(x));
   return (namesCache = { key, set: n }).set;
 }
@@ -630,6 +724,8 @@ const learnStore = () => { const L = (db().routerLearn = db().routerLearn || { v
 const SENSITIVE = W('חולה חולים מחלה מחלות בריאות דיכאון חרדה תרופה תרופות טיפול פסיכולוג אבא אמא הורים גירושים גרושים כסף משכורת חוב כתובת טלפון מספר רחוב גר גרה דת דתי חילוני מוות מת נפטר אלימות מכות סמים אלכוהול סקס הריון משטרה עבירה עונש');
 const SHAREABLE = new Set(['grades', 'average', 'assignments', 'attendance', 'announcements', 'schedule', 'progress', 'teachers']);
 let SHARED = {}; let sink = null;
+// seed knowledge shipped with the app (tools/train-router.mjs, from tests/teach-list.mjs) – trusted like the base vocabulary
+const SEED = Object.fromEntries(Object.entries(SEED_LIST || {}).map(([it, keys]) => [it, Object.fromEntries(keys.map(k => [k, 1]))]));
 export function setSharedVocab(v) {
   SHARED = {};
   for (const [it, words] of Object.entries(v || {})) if (SHAREABLE.has(it) && words && typeof words === 'object')
@@ -645,12 +741,15 @@ function learnedVocab(it) { const v = learnStore().vocab[it] || {}; return new S
 // a learned word is kept as its stem and as its skeleton; the skeleton only counts when it has 4+ letters
 // (short roots collide: חיבור "essay" and חברים "friends" share חבר)
 const hitIn = (v, w, blocked) => [...stems(w)].some(x => v[x] > 0 && !blocked[x]) || [...skels(w)].some(k => k.length >= 4 && v['~' + k] > 0 && !blocked['~' + k]);
-const learnedHit = (w, it) => { const L = learnStore(); return hitIn(L.vocab[it] || {}, w, {}) || hitIn(SHARED[it] || {}, w, L.blocked); };
-const learnedTopics = () => [...new Set([...Object.keys(learnStore().vocab), ...Object.keys(SHARED)])];
+const learnedHit = (w, it) => { const L = learnStore(); return hitIn(L.vocab[it] || {}, w, {}) || hitIn(SEED[it] || {}, w, L.blocked) || hitIn(SHARED[it] || {}, w, L.blocked); };
+const learnedTopics = () => [...new Set([...Object.keys(learnStore().vocab), ...Object.keys(SEED), ...Object.keys(SHARED)])];
 // what a lesson stores: a careful stem (only the prefixes ו ה ב ל ש כ – a leading מ is usually part of the
 // word: מחברת ≠ חבר – and only plural endings) plus its skeleton for the other forms of the word
 function learnStem(w) {
-  let x = w; for (let i = 0; i < 2 && x.length > 4 && /^(ו|ה|ב|ל|ש|כ)/.test(x); i++) x = x.slice(1);
+  // one prefix at most (two only after ו: "ובמבחן"), and only ו ה ב ל – ש כ מ are too often part of the word
+  // (שכחתי, שיעור, כוכבים, מחברת); "בבחינה" keeps its second ב
+  let x = w;
+  if (/^ו[הבל]/.test(x) && x.length - 2 >= 3) x = x.slice(2); else if (/^[והבל]/.test(x) && x.length - 1 >= 3) x = x.slice(1);
   if (/(ים|ות)$/.test(x) && x.length - 2 >= 3) x = x.slice(0, -2);
   return finals(x);
 }
@@ -661,10 +760,11 @@ function teach(ctx, raw, it) {
   const words = t.split(' ');
   if (words.length > 12 || COMPLEX.test(t + ' ')) return false;
   const base = [stemSet(VOCAB[it] || new Set()), stemSet(VOCAB.common), stemSet(names)];
-  const fresh = words.filter(w => w.length > 1 && !/^\d+$/.test(w) && !explainedBy(w, ...base));
+  const others = Object.entries(VOCAB).filter(([k]) => k !== it && SHAREABLE.has(k)).map(([, v]) => stemSet(v));   // real topics only
+  const fresh = words.filter(w => w.length > 1 && !/^\d+$/.test(w) && !explainedBy(w, ...base) && !explainedBy(w, ...others));   // "שיעורים" is a timetable word – never learned as attendance
   if (fresh.some(w => [...stems(w)].some(x => NEVER_LEARN.has(x)))) return false;     // "לא", "למה", "הוגן"… change the meaning
   const L = learnStore(); const v = (L.vocab[it] = L.vocab[it] || {});
-  for (const w of fresh) for (const k of learnKeys(w)) { v[k] = (v[k] || 0) + 1; delete L.blocked[k]; }
+  for (const w of fresh) if (w.length >= 3) for (const k of learnKeys(w)) if (k.replace(/^~/, '').length >= 3) { v[k] = (v[k] || 0) + 1; delete L.blocked[k]; }
   const share = fresh.filter(w => shareable(w, names)).flatMap(learnKeys);
   if (sink && share.length && SHAREABLE.has(it)) try { sink({ intent: it, keys: share.slice(0, 12), vote: 1 }); } catch { /* offline */ }
   L.examples = L.examples.filter(e => jaccard(e.s, qStems(t)) < 0.95);
@@ -681,6 +781,8 @@ export const rememberHit = (ctx, raw, it) => teach(ctx, raw, it);
 export function rememberMiss(ctx, raw) {
   const L = learnStore(); const t = correct(canonical(raw), knownNames(ctx), new Set()); const st = qStems(t);
   for (const v of Object.values(L.vocab)) for (const w of t.split(' ')) { for (const k of stems(w)) if (v[k]) v[k] = 0; for (const k of skels(w)) if (v['~' + k]) v['~' + k] = 0; }   // unlearn these words
+  // seed words in this question: blocked for this user (the seed ships with the app – no vote needed)
+  for (const v of Object.values(SEED)) for (const w of t.split(' ')) { for (const k of stems(w)) if (v[k]) L.blocked[k] = 1; for (const k of skels(w)) if (v['~' + k]) L.blocked['~' + k] = 1; }
   // shared words in this question: blocked for this user now, and a vote against them
   for (const [it, v] of Object.entries(SHARED)) {
     const keys = [];
@@ -704,22 +806,23 @@ export function keywordIntent(ctx, t) {
   }
   if (!ctx.allowedStudentIds.length) return null;
   liveMode = !!ctx.live;
-  if (ctx.live && /(היעדר|נוכחות|איחור)/.test(t)) return 'not_connected';
+  if (ctx.live && /(היעדר|נוכחות|איחור|חיסור|חיסרתי|נעדר)/.test(t)) return 'not_connected';
+  if (ctx.live && !LIVE.events && (findDay(t) != null || /(מערכת|שיעור|לוז)/.test(t)) && !/(להגיש|מטל|ציון|ממוצע|הודע|קיבלתי)/.test(t)) return 'not_connected';
   if (/(xp|באיזו רמה|הרמה שלי|כמה נקודות|הקלפים שלי|כמה קלפים|הישגים|תיבות|תיבה)/i.test(t)) return 'progress';
   if (ctx.role === 'parent' && /(מה המצב|סיכום|מה שלום|שלומו|שלומה|בלימודים)/.test(t)) return 'weekly';
-  if (/(היעדר|נוכחות|חיסור|חיסרתי|החסרתי|נעדרתי|נעדר|איחרתי|איחר)/.test(t) || (/איחור/.test(t) && !/(מטל|הגש|עבוד)/.test(t))) return 'attendance';
+  if (/(היעדר|נוכחות|חיסור|חיסרתי|החסרתי|נעדרתי|נעדר|איחרתי|איחר|לא הגעתי|לא הגיע|לא הייתי בשיעור)/.test(t) || (/איחור/.test(t) && !/(מטל|הגש|עבוד)/.test(t))) return 'attendance';
   if (/ממוצע/.test(t) || (/מקצוע/.test(t) && /(הכי|ביותר|חלש|חזק|גרוע)/.test(t))) return 'average';
   if (/(ציון|ציונים|קיבלתי|קיבל|קיבלה)/.test(t)) return 'grades';
-  if (/(להגיש|הגשה|הגשות|הגשתי|הוגש|מגיש|מגישה|מגישים|מטלה|מטלות|(^| )שב( |$)|באיחור|מועד ההגשה|(עבודות|עבודה) (פתוח|להגיש)|פתוחות|פתוחה)/.test(t)) return 'assignments';
-  if (/(הודע|עדכונ|מה חדש|(^| )(כתבה|כתב|כתבו|שלחה|שלח|שלחו)( |$))/.test(t)) return 'announcements';
-  if (/(^| )מי /.test(t) && /(מורה|מורים|מחנכ|מלמד)/.test(t) || /(המורים שלי|המורה שלי ל)/.test(t)) return 'teachers';
+  if (/(^| )מה (ה)?(עבודה|עבודות) (ב|של)/.test(t) || /(להגיש|הגשה|הגשות|הגשתי|הוגש|מגיש|מגישה|מגישים|מטלה|מטלות|(^| )שב( |$)|באיחור|מועד ההגשה|(עבודות|עבודה) (פתוח|להגיש)|פתוחות|פתוחה)/.test(t)) return 'assignments';
+  if (/(הודע|עדכו[נן]|מה חדש|(^| )(כתבה|כתב|כתבו|שלחה|שלח|שלחו)( |$))/.test(t)) return 'announcements';
+  if (/(^| )מי /.test(t) && /(מורה|מורים|מחנ[כך]|מלמד|נותן|נותנת)/.test(t) || /(המורים שלי|המורה שלי ל)/.test(t)) return 'teachers';
   if (!ctx.live && (findDay(t) != null || /(מערכת|שיעור|עכשיו|כרגע)/.test(t) || (/(^| )מתי /.test(t) && findSubject(t)))) return 'schedule';
   if (ctx.live && LIVE.events && /(יומן|מחר|היום)/.test(t)) return 'schedule';
   return null;
 }
 // returns { intent, t } for the fast engine, or { intent: null, why } – "why" is kept for tests and debugging
 export function routeQuestion(ctx, raw) {
-  const c0 = canonical(raw);
+  const c0 = applyPhrases(correct(applyPhrases(basic(raw)), knownNames(ctx), new Set()));   // phrasings, spelling fixes, then phrasings again ("שעורי בית")
   if (!c0 || ctx.role === 'school_admin') return { intent: null, why: 'empty' };
   if (c0.length > 80 || c0.split(' ').length > 12) return { intent: null, why: 'long' };
   const talk = keywordIntent(ctx, c0);                                 // whole-message small talk ("מה את יודעת לעשות?")
@@ -727,7 +830,7 @@ export function routeQuestion(ctx, raw) {
   if (COMPLEX.test(c0 + ' ')) return { intent: null, why: 'complex' };
   if (!ctx.live && ctx.role !== 'teacher') { const o = mentionedStudent(c0, ctx); if (o && !ctx.allowedStudentIds.includes(o.id)) return { intent: null, why: 'another student' }; }
   const names = knownNames(ctx);
-  const t = correct(c0, names, new Set());
+  const t = c0;
   const st = qStems(t), L = learnStore();
   // nearest remembered example (same stems) – a remembered miss always wins
   let best = null, bs = 0; for (const e of L.examples) { const j = jaccard(e.s, st); if (j > bs) { bs = j; best = e; } }
@@ -740,7 +843,9 @@ export function routeQuestion(ctx, raw) {
   if (best && best.ok && bs >= 0.5) cands.push([best.it, 'learned example']);
   if (!cands.length) return { intent: null, why: 'no keyword' };
   if (kw === 'thanks' || kw === 'hello') return { intent: kw, t, via: 'keyword' };
-  const dw = dataWords(ctx), words = t.split(' ');
+  // a multi-word subject name counts as one known word ("מדעי החברה" – but "החברים" alone is not explained)
+  let tc = t; for (const s of [...SUBJECTS, ...OTHER_SUBJECTS]) for (const a of s.aliases) if (a.includes(' ')) tc = tc.replace(new RegExp(`(^| )[והבלמשכ]{0,2}${a}( |$)`, 'g'), ' ');
+  const dw = dataWords(ctx), words = tc.trim().split(/\s+/).filter(Boolean);
   const qw = Object.keys(QWORD).find(q => words.includes(q));
   let why = '';
   for (const [it, via] of cands.filter((c, i, a) => a.findIndex(x => x[0] === c[0]) === i)) {

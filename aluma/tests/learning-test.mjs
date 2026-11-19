@@ -8,8 +8,8 @@ const noa = buildContext('u-noa');
 let bad = 0; const ok = (c, m) => { if (!c) bad++; console.log(c ? 'ok  ' : 'FAIL', m); };
 const fast = q => E.routeQuestion(noa, q);
 const lessons = [
-  ['עד מתי צריך להגיש את החיבור באנגלית', 'get_assignments', ['מתי מגישים את החיבור?', 'החיבור באנגלית עד מתי', 'הגשתי את החיבור?', 'מה עם החיבור', 'יש לי חיבור להגיש?', 'החיבורים שלי'], ['איך כותבים את החיבור?', 'החיבור קשה לי', 'תכתבי לי את החיבור']],
-  ['מה פרסמו בקלאסרום?', 'get_announcements', ['מה פרסמה המורה', 'פרסמו משהו חדש בקלאסרום?', 'מה פורסם היום'], ['למה לא פרסמו את הציונים?']],
+  ['עד מתי צריך להגיש את הרפרט באנגלית', 'get_assignments', ['מתי מגישים את הרפרט?', 'הרפרט באנגלית עד מתי', 'הגשתי את הרפרט?', 'מה עם הרפרט', 'יש לי רפרט להגיש?', 'הרפרטים שלי'], ['איך כותבים את הרפרט?', 'הרפרט קשה לי', 'תכתבי לי את הרפרט']],
+  ['מה העלו לאתר הכיתה?', 'get_announcements', ['מה העלו המורים לאתר', 'העלו משהו חדש לאתר הכיתה?', 'מה העלו היום לאתר'], ['למה לא העלו את הציונים?']],
   ['מה הסטטוס של המטלות שלי', 'get_assignments', ['סטטוס מטלות', 'מה הסטטוס של העבודה בהיסטוריה'], ['מה הסטטוס שלי עם החברים']],
   ['מה רשום לי בתעודה במתמטיקה', 'get_grades', ['מה רשום בתעודה באנגלית', 'התעודה שלי'], ['איך משפרים את התעודה']],
 ];
@@ -22,9 +22,9 @@ for (const [q, tool, paraphrases, unsafe] of lessons) {
 ok(!E.learnFromModel(noa, 'הציון שלי לא הוגן', ['get_grades']), 'never learns a question with "לא" / "הוגן"');
 ok(!E.learnFromModel(noa, 'מה הציונים שלי ואיך לשפר', ['get_grades']), 'never learns advice questions');
 // "not what I asked" unlearns – for that phrasing and its close variants
-E.rememberMiss(noa, 'מה פרסמו בקלאסרום?');
-ok(!fast('מה פרסמו בקלאסרום').intent, 'after "not what I asked": the phrasing goes to Gemini again');
-ok(!fast('מה פרסמה המורה בקלאסרום').intent, '… and so do variants that relied on the unlearned words');
+E.rememberMiss(noa, 'מה העלו לאתר הכיתה?');
+ok(!fast('מה העלו לאתר הכיתה').intent, 'after "not what I asked": the phrasing goes to Gemini again');
+ok(!fast('מה העלו המורים לאתר').intent, '… and so do variants that relied on the unlearned words');
 // ---------- shared learning (all users) ----------
 const sent = []; E.setLearnSink(p => sent.push(p));
 E.learnFromModel(noa, 'מה המצב של הפרויקטון בהיסטוריה', ['get_assignments']);       // "complex" word → nothing learned
@@ -46,6 +46,11 @@ ok(E.sharedSize() === 1, 'unknown topics and malformed words from the server are
 sent.length = 0; E.rememberMiss(noa2, 'מה כתוב בפנקס הציונים');
 ok(!E.routeQuestion(noa2, 'מה כתוב בפנקס הציונים').intent, '"not what I asked" blocks the shared word for this user at once');
 ok(sent.some(p => p.vote === -1 && p.keys.includes('פנקס')), '… and sends a vote against it');
+
+// seed knowledge (trained from tests/teach-list.mjs) – a user's "not what I asked" blocks it for them
+ok(fast('יש לי פרזנטציה להגיש?').intent === 'assignments', 'seed knowledge: "פרזנטציה" is an assignment');
+E.rememberMiss(noa, 'יש לי פרזנטציה להגיש?');
+ok(!fast('מתי הפרזנטציה').intent, '"not what I asked" blocks a seed word for this user');
 
 // timing
 const t0 = performance.now(); for (let i = 0; i < 200; i++) fast('כמה קיבלתי במבחן על המהפכה הצרפתית?'); const per = (performance.now() - t0) / 200;
