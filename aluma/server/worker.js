@@ -14,6 +14,19 @@ const DOC_COLLECTIONS = ['convs', 'memories', 'settings', 'game'];
 const MAX_DOC = 300_000;                                      // bytes per stored document
 
 const tokenCache = new Map();                                 // access token -> { sub, exp }
+// shared router learning
+const ROUTER_K = 3;                                           // different voters before a word is shared
+const ROUTER_DAILY = 80;                                      // votes per voter per day
+const ROUTER_TOPICS = new Set(['grades', 'average', 'assignments', 'attendance', 'announcements', 'schedule', 'progress', 'teachers']);
+const ROUTER_BLOCK = new Set(('לא אל למה איך כדי אם צריך עצוב לחוץ מפחד הוגן לשפר טיפים זה אומר דורש לעשות לדחות עזרה כועס קשה ' +
+  'חולה מחלה בריאות דיכאון חרדה תרופה טיפול פסיכולוג אבא אמא הורים גירושים כסף משכורת חוב כתובת טלפון רחוב דת מוות אלימות מכות סמים אלכוהול סקס הריון משטרה עונש').split(' '));
+const routerBlocked = k => { const w = k.replace(/^~/, ''); return ROUTER_BLOCK.has(w) || [...ROUTER_BLOCK].some(b => b.length >= 3 && w === b.replace(/[םןץףך]/g, c => ({ 'ם': 'מ', 'ן': 'נ', 'ץ': 'צ', 'ף': 'פ', 'ך': 'כ' }[c])).replace(/(?!^)[וי]/g, '')); };
+let vocabCache = null;
+async function hmac(env, text) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.GEMINI_API_KEY || 'aluma'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('router|' + text)));
+  return [...sig.slice(0, 16)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 export default {
   async fetch(req, env) {
@@ -47,6 +60,32 @@ export default {
         const up = await fetch(`https://generativelanguage.googleapis.com${url.pathname}${isList ? '?pageSize=200' : ''}`, {
           method: req.method, body, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY } });
         return new Response(up.body, { status: up.status, headers: { ...cors, 'Content-Type': 'application/json' } });
+      }
+
+      // ---------- shared learning of the fast-answer router ----------
+      // Votes are single word stems for a topic – never sentences. A voter is stored only as an HMAC
+      // (Google account or network), so no e-mail or IP address is kept. A word is published only when
+      // ROUTER_K different voters taught it and few voted against it.
+      if (url.pathname === '/router/learn' && req.method === 'POST') {
+        const b = JSON.parse((await req.text()).slice(0, 4000) || '{}');
+        if (!ROUTER_TOPICS.has(b.intent) || ![1, -1].includes(b.vote) || !Array.isArray(b.keys)) return json({ error: { message: 'bad request' } }, 400);
+        const keys = [...new Set(b.keys.map(String))].filter(k => /^~?[\u05D0-\u05EAa-z0-9]{2,20}$/.test(k) && !routerBlocked(k)).slice(0, 12);
+        if (!keys.length) return json({ ok: true, stored: 0 });
+        const voter = await hmac(env, who ? `u:${who.sub}` : `ip:${req.headers.get('CF-Connecting-IP') || 'unknown'}`);
+        if (!(await take(env, `rl:${voter}`, ROUTER_DAILY))) return json({ error: { message: 'limit' } }, 429);
+        const now = new Date().toISOString();
+        await env.DB.batch(keys.map(k => env.DB.prepare(`INSERT INTO router_votes (word, intent, voter, vote, at) VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(word, intent, voter) DO UPDATE SET vote = excluded.vote, at = excluded.at`).bind(k, b.intent, voter, b.vote, now)));
+        return json({ ok: true, stored: keys.length });
+      }
+      if (url.pathname === '/router/vocab' && req.method === 'GET') {
+        if (!vocabCache || vocabCache.exp < Date.now()) {
+          const rows = await env.DB.prepare(`SELECT word, intent, SUM(CASE WHEN vote > 0 THEN 1 ELSE 0 END) AS pos, SUM(CASE WHEN vote < 0 THEN 1 ELSE 0 END) AS neg
+            FROM router_votes GROUP BY word, intent HAVING pos >= ? AND pos >= 2 * neg LIMIT 5000`).bind(ROUTER_K).all();
+          const vocab = {}; for (const r of rows.results || []) (vocab[r.intent] = vocab[r.intent] || {})[r.word] = 1;
+          vocabCache = { vocab, exp: Date.now() + 300000 };
+        }
+        return new Response(JSON.stringify({ vocab: vocabCache.vocab, k: ROUTER_K }), { headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'max-age=300' } });
       }
 
       // ---------- class view of the rewards (opt-in) ----------

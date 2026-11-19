@@ -25,6 +25,28 @@ ok(!E.learnFromModel(noa, 'מה הציונים שלי ואיך לשפר', ['get_
 E.rememberMiss(noa, 'מה פרסמו בקלאסרום?');
 ok(!fast('מה פרסמו בקלאסרום').intent, 'after "not what I asked": the phrasing goes to Gemini again');
 ok(!fast('מה פרסמה המורה בקלאסרום').intent, '… and so do variants that relied on the unlearned words');
+// ---------- shared learning (all users) ----------
+const sent = []; E.setLearnSink(p => sent.push(p));
+E.learnFromModel(noa, 'מה המצב של הפרויקטון בהיסטוריה', ['get_assignments']);       // "complex" word → nothing learned
+E.learnFromModel(noa, 'מה רשום במחברת הציונים', ['get_grades']);
+const words = sent.flatMap(p => p.keys);
+ok(!E.routeQuestion(noa, 'מה עם החברים שלי').intent, 'learning "מחברת" does not make "החברים" (friends) a grades word');
+ok(sent.length >= 1 && sent.every(p => p.vote === 1 && p.keys.length <= 12), `a lesson sends only topic + word stems (${JSON.stringify(sent.at(-1))})`);
+ok(sent.every(p => !p.keys.some(k => / /.test(k))), 'no sentences are sent – single words only');
+sent.length = 0; E.learnFromModel(noa, 'מה כתוב בתיק הבריאות שלי במחברת', ['get_grades']);
+ok(!sent.flatMap(p => p.keys).some(k => k.includes('בריאות')), 'sensitive words (health…) are never shared');
+sent.length = 0; E.learnFromModel(noa, 'מה הציון של נועה במחברת', ['get_grades']);
+ok(!sent.flatMap(p => p.keys).some(k => k.includes('נועה')), 'names are never shared');
+// words other users taught arrive from the server
+const noa2 = buildContext('u-noa');
+ok(!E.routeQuestion(noa2, 'מה כתוב בפנקס הציונים').intent, 'before: an unknown word goes to Gemini');
+E.setSharedVocab({ grades: { 'פנקס': 1, '~פנקס': 1 }, evil: { 'x': 1 }, assignments: { '<script>': 1 } });
+ok(E.routeQuestion(noa2, 'מה כתוב בפנקס הציונים').intent === 'grades', 'after: a word taught by other users is understood');
+ok(E.sharedSize() === 1, 'unknown topics and malformed words from the server are ignored');
+sent.length = 0; E.rememberMiss(noa2, 'מה כתוב בפנקס הציונים');
+ok(!E.routeQuestion(noa2, 'מה כתוב בפנקס הציונים').intent, '"not what I asked" blocks the shared word for this user at once');
+ok(sent.some(p => p.vote === -1 && p.keys.includes('פנקס')), '… and sends a vote against it');
+
 // timing
 const t0 = performance.now(); for (let i = 0; i < 200; i++) fast('כמה קיבלתי במבחן על המהפכה הצרפתית?'); const per = (performance.now() - t0) / 200;
 ok(per < 2, `routing takes ${per.toFixed(2)} ms per question`);

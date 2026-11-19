@@ -17,7 +17,49 @@ const fmtDate = d => { d = new Date(d); return `${d.getDate()}.${d.getMonth() + 
 const nameOf = id => (STUDENTS.find(s => s.id === id) || TEACHERS.find(t => t.id === id) || { name: '?' }).name;
 const first = n => String(n || '').split(' ')[0];
 let E = null;
-export function init(env) { E = env; }
+export function init(env) {
+  E = env;
+  // any owned card, anywhere (album, a friend's album, the box result): click → big view
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-zoom]'); if (!b || b.closest('.card-zoom')) return;
+    e.preventDefault(); zoomCard(+b.dataset.zoom, !!b.dataset.own);
+  });
+}
+// ---------- big card view ----------
+function zoomCard(id, own) {
+  const c = cardById(id); if (!c) return;
+  const ctx = E.ctx(); const sid = ctx.role === 'parent' ? E.sid() : ctx.userId;
+  const R = RARITY[c.rarity];
+  const copies = own ? Game.count(sid, id) : 0, isAvatar = own && (Game.avatarOf(sid) || {}).id === id;
+  const back = document.activeElement;
+  const ov = document.createElement('div'); ov.className = `card-zoom ${c.rarity}`; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', `${c.name} – ${R.he}`);
+  ov.innerHTML = `<div class="cz-inner"><div class="cz-card"><div class="cz-tilt">${cardSVG(c, { w: 600 })}<span class="cz-shine"></span></div></div>
+    <div class="cz-info"><div class="bo-r" style="color:${R.color}">${R.symbol} ${R.he} · ${R.en} · ${c.no}/40</div><h2>${esc(c.name)}</h2><p>${esc(c.bio)}</p>
+      <p class="cz-meta">${esc(c.kind)}${own ? ` · ${copies === 1 ? 'עותק אחד' : `${copies} עותקים`}${copies > 1 && copies < Game.COMBINE_NEED ? ` (${copies}/${Game.COMBINE_NEED} לשילוב)` : ''}` : ''} · סיכוי ${R.share} בכל תיבה</p>
+      <div class="btns">${own ? (isAvatar ? '<span class="tag ok">הדמות שלי ✓</span>' : '<button class="btn primary" data-cz="avatar">בחירה כדמות שלי</button>') : ''}
+        ${own && copies >= Game.COMBINE_NEED ? `<button class="btn combine" data-cz="combine">✨ שילוב ${Game.COMBINE_NEED} → תיבה</button>` : ''}
+        <button class="btn" data-cz="close">סגירה</button></div></div></div>`;
+  document.body.appendChild(ov);
+  requestAnimationFrame(() => ov.classList.add('open'));
+  const close = () => { ov.classList.remove('open'); document.removeEventListener('keydown', key); setTimeout(() => ov.remove(), 180); if (back && back.focus) back.focus(); };
+  const key = e => { if (e.key === 'Escape') close(); if (e.key === 'Tab') { const f = [...ov.querySelectorAll('button')]; if (!f.length) return; const i = f.indexOf(document.activeElement); if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); } else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); } } };
+  document.addEventListener('keydown', key);
+  (ov.querySelector('[data-cz=avatar]') || ov.querySelector('[data-cz=close]')).focus();
+  ov.onclick = e => {
+    const k = e.target.closest('[data-cz]');
+    if (!k) { if (!e.target.closest('.cz-card, .cz-info')) close(); return; }
+    if (k.dataset.cz === 'avatar') { Game.setState(sid, { avatar: id }); E.live(`הדמות שלך עכשיו: ${c.name}`); close(); renderGame(); E.refreshSide(); }
+    else if (k.dataset.cz === 'combine') { try { const r = Game.combine(sid, id); flash = `✨ שילבת 4 עותקים של ${r.card.name}: 3 יצאו מהאוסף, אחד נשאר – וקיבלת תיבה חדשה 🎁`; E.live(flash); } catch (err) { E.live(err.message); } close(); renderGame(); E.refreshSide(); }
+    else close();
+  };
+  // a gentle 3D tilt + light that follows the pointer (not with reduced motion)
+  const tilt = ov.querySelector('.cz-tilt');
+  if (!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    ov.querySelector('.cz-card').onpointermove = e => { const r = tilt.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+      tilt.style.transform = `rotateY(${(x * 14).toFixed(1)}deg) rotateX(${(-y * 14).toFixed(1)}deg)`; tilt.style.setProperty('--mx', `${(x + 0.5) * 100}%`); tilt.style.setProperty('--my', `${(y + 0.5) * 100}%`); };
+    ov.querySelector('.cz-card').onpointerleave = () => { tilt.style.transform = ''; };
+  }
+}
 const view = () => document.getElementById('view');
 
 // ---------- sticker card (small, in-app) ----------
@@ -28,7 +70,7 @@ export function cardTile(c, { locked = false, isNew = false, size = 'm', pick = 
     return `<div class="stk-wrap ${size}">${cardTile(c, { isNew, size, pick, on })}${copies > 1 ? `<span class="stk-x" dir="ltr" aria-label="${copies} עותקים">×${copies}</span>` : ''}
       ${combine && copies >= need ? `<button class="btn combine" data-combine="${c.id}">✨ שילוב ${need} → תיבה</button>` : combine && copies > 1 ? `<span class="stk-prog">${copies}/${need} לשילוב</span>` : ''}</div>`;
   }
-  if (!locked) return `<button class="stk-card ${c.rarity} ${size} ${on ? 'on' : ''}" ${pick ? `data-avatar="${c.id}"` : 'tabindex="-1"'} aria-label="${esc(c.name)} – ${r.he} – ${c.no}/40${on ? ' – הדמות שלך' : ''}" title="${esc(c.bio)}">${cardSVG(c, { w: 240 })}${isNew ? '<span class="stk-new">חדש!</span>' : ''}${on ? '<span class="stk-on">הדמות שלי</span>' : ''}</button>`;
+  if (!locked) return `<button class="stk-card ${c.rarity} ${size} ${on ? 'on' : ''}" data-zoom="${c.id}" ${pick ? 'data-own="1"' : ''} aria-label="${esc(c.name)} – ${r.he} – ${c.no}/40${on ? ' – הדמות שלך' : ''} – הגדלה" title="${esc(c.bio)}">${cardSVG(c, { w: 240 })}${isNew ? '<span class="stk-new">חדש!</span>' : ''}${on ? '<span class="stk-on">הדמות שלי</span>' : ''}</button>`;
   return `<button class="stk ${c.rarity} ${locked ? 'locked' : ''} ${size} ${on ? 'on' : ''}" ${pick && !locked ? `data-avatar="${c.id}"` : 'tabindex="-1"'} aria-label="${esc(c.name)} – ${r.he}${locked ? ' – נעול: ' + esc(unlockText(c, Game.achName)) : ''}">
     <span class="stk-art">${locked ? `<span class="stk-lock">${icon('lock', 22)}</span>` : cardArt(c, { mini: true })}</span>
     <span class="stk-name">${locked ? '???' : esc(c.name)}</span>
@@ -125,7 +167,7 @@ export function renderGame() {
     try { const r = Game.combine(sid, b.dataset.combine); flash = `✨ שילבת 4 עותקים של ${r.card.name}: 3 יצאו מהאוסף, אחד נשאר – וקיבלת תיבה חדשה 🎁`; E.live(flash); renderGame(); E.refreshSide(); }
     catch (e) { E.live(e.message); }
   });
-  body.querySelectorAll('[data-avatar]').forEach(b => b.onclick = () => { Game.setState(sid, { avatar: +b.dataset.avatar }); E.live(`הדמות שלך עכשיו: ${cardById(b.dataset.avatar).name}`); renderGame(); E.refreshSide(); });
+
   const go = body.querySelector('[data-goto]'); if (go) go.onclick = () => { gameTab = go.dataset.goto; renderGame(); };
   body.querySelectorAll('[data-go]').forEach(b => b.onclick = () => E.go(b.dataset.go));
   if (own && gameTab === 'album') { Game.markSeen(sid); E.refreshSide(); }
@@ -148,7 +190,7 @@ function progressTab(s, own, fresh) {
 function albumTab(sid, s, own, fresh) {
   const av = Game.avatarOf(sid);
   const isNew = new Set(fresh.map(c => c.id)); const n = Game.counts(sid);
-  return `<p class="hint">${own ? 'לחצו על קלף שקיבלתם כדי לבחור אותו כדמות שלכם. ' : ''}כל 40 הקלפים מוצגים מראש, גם אלה שעוד לא יצאו לכם.</p>
+  return `<p class="hint">${own ? 'לחצו על קלף כדי להגדיל אותו ולבחור אותו כדמות. ' : ''}כל 40 הקלפים מוצגים מראש, גם אלה שעוד לא יצאו לכם.</p>
     ${RARITY_ORDER.map(r => { const list = CARDS.filter(c => c.rarity === r); const got = list.filter(c => Game.owns(sid, c)).length;
       return `<div class="alb-h ${r}"><span style="color:${RARITY[r].color}">${RARITY[r].symbol}</span> <b>${RARITY[r].he}</b> · ${RARITY[r].en} <span class="hint">${got}/${list.length} · סיכוי ${RARITY[r].share} בכל תיבה</span></div>
         <div class="stk-grid">${list.map(c => cardTile(c, { locked: !Game.owns(sid, c), isNew: isNew.has(c.id), pick: own, on: av && av.id === c.id, copies: n[c.id] || 0, combine: own })).join('')}</div>`; }).join('')}`;

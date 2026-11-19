@@ -61,3 +61,17 @@ export async function classGame(courseId) {
   try { const r = await fetch(`${GEMINI_PROXY_URL}/game/class/${encodeURIComponent(courseId)}`, { headers: { Authorization: `Bearer ${G.accessToken()}` } }); if (!r.ok) return null; return (await r.json()).members || []; }
   catch { return null; }
 }
+
+// ---------- shared learning of the fast-answer router ----------
+// Works for demo visitors too (counted per network); signed-in users are counted per account.
+// What is sent: a topic and a few word stems, e.g. { intent: 'assignments', keys: ['חיבור', '~חבר'] }.
+const authHeader = () => (G.accessToken() ? { Authorization: `Bearer ${G.accessToken()}` } : {});
+export async function routerVocab() {
+  if (!GEMINI_PROXY_URL) return null;
+  try { const r = await fetch(`${GEMINI_PROXY_URL}/router/vocab`, { headers: authHeader() }); if (!r.ok) return null; return (await r.json()).vocab || null; }
+  catch { return null; }
+}
+export function routerVote(payload) {
+  if (!GEMINI_PROXY_URL) return;
+  fetch(`${GEMINI_PROXY_URL}/router/learn`, { method: 'POST', headers: { ...authHeader(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(() => {});
+}

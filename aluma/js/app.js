@@ -3,7 +3,7 @@ import { STUDENTS, TEACHERS, PARENTS, ADMINS, CLASSES, SCHOOL, NOW, subjectName 
 import { db, save, audit, getSession, setSession, resetAll } from './store.js';
 import { buildContext, findUser, ROLE_NAMES, activeLinks, g } from './auth.js';
 import * as T from './tools.js';
-import { answer, welcome, routeQuestion, rememberMiss, rememberHit, learnFromModel, keywordIntent, canonical } from './engine.js';
+import { answer, welcome, routeQuestion, rememberMiss, rememberHit, learnFromModel, keywordIntent, canonical, setSharedVocab, setLearnSink, sharedSize } from './engine.js';
 import * as L from './learn.js';
 import { icon, mark } from './icons.js';
 import * as G from './google.js';
@@ -105,8 +105,16 @@ const PROMPT_TOOLS = {
 const STUDENT_TOOLS = [['path', 'sparkle', 'מסלול תרגול'], ['cards', 'layers', 'כרטיסיות זיכרון'], ['planner', 'calendar', 'תוכנית למידה'], ['game', 'trophy', 'פרסים והישגים'], ['project', 'bulb', 'פרויקט אישי']];
 const ADMIN_NAV = [['dash', 'chart', 'לוח בקרה'], ['links', 'users', 'משתמשים וקישורים'], ['policy', 'shield', 'מדיניות'], ['audit', 'log', 'יומן ביקורת']];
 
+// shared learning: load what all users taught the fast engine; send this user's lessons (unless they opted out)
+let sharedLoaded = false;
+function wireSharedLearning() {
+  setLearnSink(p => { if ((db().settings[ctx.userId] || {}).shareLearning !== false) Cloud.routerVote(p); });
+  if (sharedLoaded) return; sharedLoaded = true;
+  Cloud.routerVocab().then(v => { if (v) setSharedVocab(v); });
+}
 function render() {
   document.body.classList.add('in-app');
+  if (ctx) wireSharedLearning();
   if (db().emergencyStop && ctx.role !== 'school_admin') {
     $app.innerHTML = `${topBar()}<div class="stopped"><h1>אלומה מושבתת זמנית</h1><p>בית הספר הפסיק את השירות באופן זמני. המידע שלך זמין כרגיל במערכות בית הספר.</p></div>`;
     bindTop(); return;
@@ -555,6 +563,9 @@ function renderSettings() {
     <p class="hint">${AI.enabled() ? `התשובות נוצרות ב-<b>Gemini</b>${AI.currentModel() ? ` (${esc(AI.currentModel())})` : ''}. ההרשאות עדיין נבדקות בכלים – Gemini רואה רק את מה שמותר לך.` : 'כרגע עונה מנוע מקומי פשוט. אפשר לחבר Gemini עם מפתח API.'}</p>
     <form class="formrow" id="aiform"><label for="gkey">מפתח Gemini API</label><input type="password" id="gkey" autocomplete="off" placeholder="${AI.getKey() ? '•••••••• (שמור בדפדפן הזה)' : 'AIza…'}" style="flex:1;min-width:200px">
       <button class="btn primary">שמירה ובדיקה</button>${AI.getKey() ? '<button class="btn link" type="button" id="gkeydel">מחיקת המפתח</button>' : ''}</form><div id="aimsg"></div>
+    <h3>למידה משותפת של המנוע המהיר</h3>
+    <p class="hint">כשה-Gemini עונה על שאלה פשוטה, המנוע המהיר לומד ממנה מילים – ומשתף רק <b>מילים בודדות ואת הנושא</b> (למשל "חיבור" → מטלות) עם כל המשתמשים. לא נשלחים משפטים, שמות או מידע אישי, מילה משותפת רק אחרי ש-3 משתמשים שונים לימדו אותה, ומילים רגישות לא נשלחות אף פעם. ${sharedSize() ? `כרגע המנוע מכיר ${sharedSize()} מילים מהלמידה המשותפת.` : ''}</p>
+    <label class="pick inline"><input type="checkbox" id="sharelearn" ${(db().settings[ctx.userId] || {}).shareLearning === false ? '' : 'checked'}> <span><b>לתרום ללמידה המשותפת</b><small>אפשר לכבות בכל רגע. גם כשכבוי – המנוע ממשיך להשתמש במה שאחרים לימדו.</small></span></label>
     <p class="hint">המפתח נשמר <b>רק בדפדפן הזה</b> ולא נכנס לקוד האתר. שימו לב: בשכבה החינמית של Gemini, Google עשויה להשתמש בתוכן לשיפור המוצרים שלה – אל תשתמשו בה עם נתונים אמיתיים של תלמידים. לפיילוט צריך שכבה בתשלום ושרת מתווך.</p></section>`;
   html += `<section class="panel"><h2>מה אלומה זוכרת עליי</h2><p class="hint">אפשר לבקש בצ׳אט: "תזכרי שתמיד תעני לי בקצרה". מידע רגיש לא נשמר.</p>
     ${mem.length ? `<table class="t"><tbody>${mem.map(m => `<tr><td>${esc(m.text)}</td><td style="width:90px">${fmtDate(m.at)}</td><td style="width:70px"><button class="btn link" data-delmem="${m.id}">מחיקה</button></td></tr>`).join('')}</tbody></table>` : '<p class="hint">עוד לא שמרתי כלום.</p>'}
@@ -609,6 +620,7 @@ function renderSettings() {
     try { const m = await AI.test(t => { msg.innerHTML = `<p class="hint">${esc(t)}</p>`; }); msg.innerHTML = `<p class="sent">מחובר ✓ המודל: ${esc(m)}</p>`; setTimeout(render, 900); }
     catch (err) { AI.setKey(''); msg.innerHTML = `<p class="err">${esc(err.message)}</p>`; }
   };
+  const sl = v.querySelector('#sharelearn'); if (sl) sl.onchange = () => { db().settings[ctx.userId] = { ...(db().settings[ctx.userId] || {}), shareLearning: sl.checked }; save(); };
   const kd = v.querySelector('#gkeydel'); if (kd) kd.onclick = () => { AI.setKey(''); render(); };
   const gr = v.querySelector('#grefresh');
   if (gr) gr.onclick = async () => { gr.disabled = true; gr.textContent = 'מרעננת…'; try { await G.refresh(); renderSettings(); } catch (e) { gr.disabled = false; gr.insertAdjacentHTML('afterend', `<span class="err">${esc(e.message)}</span>`); } };

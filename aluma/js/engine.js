@@ -621,15 +621,40 @@ export const phraseKey = raw => [...new Set(canonical(raw).split(' ').filter(w =
 // that uses them is answered fast, not just the same sentence. It also keeps the question as an example
 // for questions with no keyword at all (nearest example by shared stems). "Not what I asked" / 👎 unlearns.
 const TOOL_INTENT = { get_grades: ['grades', 'average'], get_assignments: ['assignments'], get_schedule: ['schedule'], get_attendance: ['attendance'], get_announcements: ['announcements'], get_my_progress: ['progress'], list_my_teachers: ['teachers'] };
-const learnStore = () => { const L = (db().routerLearn = db().routerLearn || { vocab: {}, examples: [] }); return L; };
+const learnStore = () => { const L = (db().routerLearn = db().routerLearn || { vocab: {}, examples: [] }); L.blocked = L.blocked || {}; return L; };
+// ---- shared learning (all users) ----
+// Only single WORD stems + their topic are ever shared – never sentences, names or anything personal.
+// The server publishes a word only after 3 different users taught it (and few marked it wrong), so one user
+// can neither spread a private word nor "poison" the router. A user's own "not what I asked" blocks a shared
+// word for them at once and votes against it.
+const SENSITIVE = W('חולה חולים מחלה מחלות בריאות דיכאון חרדה תרופה תרופות טיפול פסיכולוג אבא אמא הורים גירושים גרושים כסף משכורת חוב כתובת טלפון מספר רחוב גר גרה דת דתי חילוני מוות מת נפטר אלימות מכות סמים אלכוהול סקס הריון משטרה עבירה עונש');
+const SHAREABLE = new Set(['grades', 'average', 'assignments', 'attendance', 'announcements', 'schedule', 'progress', 'teachers']);
+let SHARED = {}; let sink = null;
+export function setSharedVocab(v) {
+  SHARED = {};
+  for (const [it, words] of Object.entries(v || {})) if (SHAREABLE.has(it) && words && typeof words === 'object')
+    SHARED[it] = Object.fromEntries(Object.keys(words).filter(k => /^~?[\u05D0-\u05EAa-z0-9]{2,20}$/.test(k)).slice(0, 2000).map(k => [k, 1]));
+}
+export const sharedSize = () => Object.values(SHARED).reduce((a, v) => a + Object.keys(v).filter(k => !k.startsWith('~')).length, 0);
+export const setLearnSink = fn => { sink = fn; };
+const shareable = (w, names) => w.length >= 3 && !/\d/.test(w) && ![...stems(w)].some(x => SENSITIVE.has(x) || NEVER_LEARN.has(x) || names.has(x));
 const qStems = t => [...new Set(t.split(' ').filter(w => w.length > 1).map(w => skel(mainStem(w))))];
 const jaccard = (a, b) => { const A = new Set(a), B = new Set(b); let i = 0; for (const x of A) if (B.has(x)) i++; return i / (A.size + B.size - i || 1); };
 function learnedVocab(it) { const v = learnStore().vocab[it] || {}; return new Set(Object.keys(v).filter(k => v[k] > 0)); }
 // learned words are stored as skeletons, so every form of the word matches
 // a learned word is kept as its stem and as its skeleton; the skeleton only counts when it has 4+ letters
 // (short roots collide: חיבור "essay" and חברים "friends" share חבר)
-const learnedHit = (w, it) => { const v = learnStore().vocab[it] || {}; return [...stems(w)].some(x => v[x] > 0) || [...skels(w)].some(k => k.length >= 4 && v['~' + k] > 0); };
-const learnKeys = w => { const m = finals(mainStem(w)); return [m, '~' + skel(m)]; };
+const hitIn = (v, w, blocked) => [...stems(w)].some(x => v[x] > 0 && !blocked[x]) || [...skels(w)].some(k => k.length >= 4 && v['~' + k] > 0 && !blocked['~' + k]);
+const learnedHit = (w, it) => { const L = learnStore(); return hitIn(L.vocab[it] || {}, w, {}) || hitIn(SHARED[it] || {}, w, L.blocked); };
+const learnedTopics = () => [...new Set([...Object.keys(learnStore().vocab), ...Object.keys(SHARED)])];
+// what a lesson stores: a careful stem (only the prefixes ו ה ב ל ש כ – a leading מ is usually part of the
+// word: מחברת ≠ חבר – and only plural endings) plus its skeleton for the other forms of the word
+function learnStem(w) {
+  let x = w; for (let i = 0; i < 2 && x.length > 4 && /^(ו|ה|ב|ל|ש|כ)/.test(x); i++) x = x.slice(1);
+  if (/(ים|ות)$/.test(x) && x.length - 2 >= 3) x = x.slice(0, -2);
+  return finals(x);
+}
+const learnKeys = w => { const m = learnStem(w); const core = m.length - 1 >= 4 ? m.replace(/(ו|ה|ת|י)$/, '') : m; return [m, '~' + skel(core)]; };
 function teach(ctx, raw, it) {
   const names = knownNames(ctx);
   const t = correct(canonical(raw), names, new Set());
@@ -639,7 +664,9 @@ function teach(ctx, raw, it) {
   const fresh = words.filter(w => w.length > 1 && !/^\d+$/.test(w) && !explainedBy(w, ...base));
   if (fresh.some(w => [...stems(w)].some(x => NEVER_LEARN.has(x)))) return false;     // "לא", "למה", "הוגן"… change the meaning
   const L = learnStore(); const v = (L.vocab[it] = L.vocab[it] || {});
-  for (const w of fresh) for (const k of learnKeys(w)) v[k] = (v[k] || 0) + 1;
+  for (const w of fresh) for (const k of learnKeys(w)) { v[k] = (v[k] || 0) + 1; delete L.blocked[k]; }
+  const share = fresh.filter(w => shareable(w, names)).flatMap(learnKeys);
+  if (sink && share.length && SHAREABLE.has(it)) try { sink({ intent: it, keys: share.slice(0, 12), vote: 1 }); } catch { /* offline */ }
   L.examples = L.examples.filter(e => jaccard(e.s, qStems(t)) < 0.95);
   L.examples.push({ s: qStems(t), it, ok: true }); if (L.examples.length > 400) L.examples.shift();
   save(); return true;
@@ -654,6 +681,12 @@ export const rememberHit = (ctx, raw, it) => teach(ctx, raw, it);
 export function rememberMiss(ctx, raw) {
   const L = learnStore(); const t = correct(canonical(raw), knownNames(ctx), new Set()); const st = qStems(t);
   for (const v of Object.values(L.vocab)) for (const w of t.split(' ')) { for (const k of stems(w)) if (v[k]) v[k] = 0; for (const k of skels(w)) if (v['~' + k]) v['~' + k] = 0; }   // unlearn these words
+  // shared words in this question: blocked for this user now, and a vote against them
+  for (const [it, v] of Object.entries(SHARED)) {
+    const keys = [];
+    for (const w of t.split(' ')) { for (const k of stems(w)) if (v[k]) { L.blocked[k] = 1; keys.push(k); } for (const k of skels(w)) if (v['~' + k]) { L.blocked['~' + k] = 1; keys.push('~' + k); } }
+    if (sink && keys.length) try { sink({ intent: it, keys: [...new Set(keys)].slice(0, 12), vote: -1 }); } catch { /* offline */ }
+  }
   L.examples = L.examples.filter(e => jaccard(e.s, st) < 0.95);
   L.examples.push({ s: st, it: null, ok: false }); if (L.examples.length > 400) L.examples.shift();
   save();
@@ -702,7 +735,7 @@ export function routeQuestion(ctx, raw) {
   // candidate topics, in order: the keyword · topics of learned words ("החיבורים שלי" → assignments) · the nearest example
   const cands = [];
   const kw = keywordIntent(ctx, t); if (kw) cands.push([kw, 'keyword']);
-  const votes = {}; for (const w of t.split(' ')) for (const k of Object.keys(learnStore().vocab)) if (learnedHit(w, k)) votes[k] = (votes[k] || 0) + 1;
+  const votes = {}; for (const w of t.split(' ')) for (const k of learnedTopics()) if (learnedHit(w, k)) votes[k] = (votes[k] || 0) + 1;
   Object.entries(votes).sort((a, b) => b[1] - a[1]).forEach(([k]) => cands.push([k, 'learned word']));
   if (best && best.ok && bs >= 0.5) cands.push([best.it, 'learned example']);
   if (!cands.length) return { intent: null, why: 'no keyword' };

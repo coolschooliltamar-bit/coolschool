@@ -32,3 +32,11 @@ CREATE TABLE IF NOT EXISTS class_members (   -- opt-in rewards profile shared wi
   updated_at TEXT NOT NULL,
   PRIMARY KEY (course_id, user_sub)
 );
+CREATE TABLE IF NOT EXISTS router_votes (     -- shared learning of the fast-answer router (single word stems only)
+  word   TEXT NOT NULL,                -- a word stem, or ~skeleton
+  intent TEXT NOT NULL,                -- grades | assignments | …
+  voter  TEXT NOT NULL,                -- HMAC of the Google account / network – no e-mail, no IP
+  vote   INTEGER NOT NULL,             -- +1 taught, -1 "not what I asked"
+  at     TEXT NOT NULL,
+  PRIMARY KEY (word, intent, voter)
+);
