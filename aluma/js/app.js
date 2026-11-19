@@ -3,7 +3,7 @@ import { STUDENTS, TEACHERS, PARENTS, ADMINS, CLASSES, SCHOOL, NOW, subjectName 
 import { db, save, audit, getSession, setSession, resetAll } from './store.js';
 import { buildContext, findUser, ROLE_NAMES, activeLinks, g } from './auth.js';
 import * as T from './tools.js';
-import { answer, welcome, intent, rememberMiss, rememberHit, learnFromModel, keywordIntent, canonical } from './engine.js';
+import { answer, welcome, routeQuestion, rememberMiss, rememberHit, learnFromModel, keywordIntent, canonical } from './engine.js';
 import * as L from './learn.js';
 import { icon, mark } from './icons.js';
 import * as G from './google.js';
@@ -310,7 +310,7 @@ function aiMsg(res, withChips) {
     ${withChips && (res.chips.length || res.fast) ? `<div class="chips">${res.fast && res.q ? `<button class="chip full" data-full="1">${icon('sparkle', 14)} לא מה ששאלתי – תשובה מלאה</button>` : ''}${res.chips.map(c => `<button class="chip">${esc(c)}</button>`).join('')}</div>` : ''}</div>`;
   d.querySelectorAll('.chip:not([data-full])').forEach(b => b.onclick = () => ask(b.textContent));
   // the fast engine misunderstood → ask the language model, and remember this phrasing for next time
-  d.querySelectorAll('[data-full]').forEach(b => b.onclick = () => { rememberMiss(res.q); ask(res.q, { full: true }); });
+  d.querySelectorAll('[data-full]').forEach(b => b.onclick = () => { rememberMiss(ctx, res.q); ask(res.q, { full: true }); });
   d.querySelectorAll('[data-action]').forEach(el => bindAction(el));
   d.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => {
     if (b.dataset.subject) toolSubject = b.dataset.subject;
@@ -330,8 +330,8 @@ function addActions(el, res, question) {
   row.querySelectorAll('[data-k=up],[data-k=down]').forEach(b => b.onclick = () => {
     row.querySelectorAll('[aria-pressed]').forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true');
     db().feedback.push({ at: new Date().toISOString(), rating: b.dataset.k }); save();
-    if (b.dataset.k === 'down' && res.fast && res.q) rememberMiss(res.q);   // a wrong fast answer teaches the router
-    if (b.dataset.k === 'up' && res.fallback && res.q) { const it = keywordIntent(ctx, canonical(res.q)); if (it) rememberHit(res.q, it); }   // a good local answer: answer fast next time
+    if (b.dataset.k === 'down' && res.fast && res.q) rememberMiss(ctx, res.q);   // a wrong fast answer teaches the router
+    if (b.dataset.k === 'up' && res.fallback && res.q) { const it = res.fallbackIntent || keywordIntent(ctx, canonical(res.q)); if (it) rememberHit(ctx, res.q, it); }   // a good local answer: answer fast next time
   });
   const again = row.querySelector('[data-k=again]'); if (again) again.onclick = () => ask(question);
 }
@@ -379,7 +379,8 @@ async function ask(text, { full = false } = {}) {
   const quick = answer.safety && answer.safety(ctx, text);
   const file = attachment; attachment = null; showAttachment();
   const create = !quick && ['student', 'teacher'].includes(ctx.role) ? S.parseCreate(ctx, text) : null;
-  const fastIntent = quick ? 'safety' : file || full ? null : intent(ctx, text);
+  const routed = quick || file || full ? null : routeQuestion(ctx, text);
+  const fastIntent = quick ? 'safety' : routed ? routed.intent : null;
   if (create) {
     // "create a path / flashcards ..." -> built directly from the level, the request and the file
     st.querySelector('.steps').innerHTML = ['מבינה את הבקשה', ctx.role === 'teacher' ? 'בודקת את הרמה של הכיתה' : 'בודקת את הרמה שלך ושל הכיתה', file ? `קוראת את ${esc(file.name)}` : 'בוחרת נושאים לחיזוק', AI.enabled() ? 'בונה את התוכן עם Gemini' : 'בונה את התוכן מהמאגר']
@@ -413,7 +414,7 @@ async function ask(text, { full = false } = {}) {
     }
   } else {
     for (let i = 0; i < steps.length; i++) { st.querySelector(`[data-i="${i}"]`).classList.add('run'); await sleep(fastIntent ? 90 : 260 + Math.random() * 220); st.querySelector(`[data-i="${i}"]`).classList.replace('run', 'done'); }
-    res = answer(ctx, text, { activeStudentId, intent: fastIntent && fastIntent !== 'safety' ? fastIntent : undefined });
+    res = answer(ctx, text, { activeStudentId, intent: fastIntent && fastIntent !== 'safety' ? fastIntent : undefined, routed: routed && routed.t });
     if (fastIntent && fastIntent !== 'safety' && AI.enabled()) res = { ...res, fast: true, q: text };
   }
   st.remove();
