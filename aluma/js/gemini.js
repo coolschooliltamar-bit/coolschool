@@ -10,18 +10,21 @@ import { db, save, audit } from './store.js';
 import { Forbidden } from './auth.js';
 
 const KEY_STORE = 'aluma-gemini-key', MODEL_STORE = 'aluma-gemini-model';
-const BASE = GEMINI_PROXY_URL || 'https://generativelanguage.googleapis.com';
+// A tester's own key (settings) goes straight to Google; otherwise Aluma's server is used (key stays on the server).
+const useOwnKey = () => !!getKey() || !GEMINI_PROXY_URL;
 const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch { /* ignore */ } } };
 export const getKey = () => ls.get(KEY_STORE) || '';
 export const setKey = k => { ls.set(KEY_STORE, (k || '').trim()); ls.set(MODEL_STORE, ''); };
 export const enabled = () => !!(GEMINI_PROXY_URL || getKey());
+export const viaServer = () => !useOwnKey();
 export const currentModel = () => GEMINI_MODEL || ls.get(MODEL_STORE) || '';
 
 // every request has a time limit, so a busy Gemini can never leave the page waiting forever
 async function call(path, body, timeoutMs = 25000) {
-  const url = `${BASE}/v1beta/${path}`;
+  const url = `${useOwnKey() ? 'https://generativelanguage.googleapis.com' : GEMINI_PROXY_URL}/v1beta/${path}`;
   const headers = { 'Content-Type': 'application/json' };
-  if (!GEMINI_PROXY_URL) headers['x-goog-api-key'] = getKey();          // key in a header, not in the URL
+  if (useOwnKey()) headers['x-goog-api-key'] = getKey();                 // tester's own key (in a header, not the URL)
+  else if (G.accessToken()) headers.Authorization = `Bearer ${G.accessToken()}`;   // server checks it → personal limit
   const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), timeoutMs);
   let r;
   try { r = await fetch(url, { method: body ? 'POST' : 'GET', headers, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal }); }

@@ -7,6 +7,6 @@ workers_dev = true
 [[d1_databases]]
 binding = "DB"
 database_name = "aluma-db"
-database_id = "TO_BE_FILLED_AFTER_CREATE"
+database_id = "9957cd20-fe79-417d-a08a-d737d8bc342a"
 
 # The Gemini key is a SECRET, not set here:  Worker → Settings → Variables and Secrets → GEMINI_API_KEY

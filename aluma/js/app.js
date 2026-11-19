@@ -8,6 +8,7 @@ import * as L from './learn.js';
 import { icon, mark } from './icons.js';
 import * as G from './google.js';
 import * as AI from './gemini.js';
+import * as Cloud from './cloud.js';
 
 const $app = document.getElementById('app');
 const live = document.getElementById('live');
@@ -81,6 +82,7 @@ function renderLogin() {
     try {
       const prof = await G.signIn();
       ctx = liveContext(prof); activeStudentId = ctx.userId; activeConvId = null; view = 'chat';
+      await Cloud.pull(ctx.userId);
       audit(ctx.userId, 'login', {}); render();
     } catch (err) { b.disabled = false; msg.innerHTML = `<p class="err">${esc(err.message)}</p>`; }
   };
@@ -343,6 +345,7 @@ async function ask(text) {
   const final = aiMsg(res, true); el.replaceWith(final);
   addActions(final, res, text);
   conv.messages.push({ who: 'ai', res }); save();
+  if (ctx.live) Cloud.push(ctx.userId);
   live.textContent = res.text.replace(/\*\*/g, '');
   busy = false; scrollDown();
   document.getElementById('q')?.focus();
@@ -464,6 +467,7 @@ function renderSettings() {
     <div id="svcmsg"></div></section>`;
   }
   html += `<section class="panel"><h2>מנוע ה-AI</h2>
+    ${AI.viaServer() ? `<p class="hint"><b>Gemini דרך השרת של אלומה</b> – לא צריך מפתח. המפתח שמור בשרת ולא מגיע לדפדפן.${ctx.live ? ' השיחות והזיכרונות שלך נשמרים בשרת ומסונכרנים בין מכשירים.' : ''}</p><p class="hint">בודקים עם מפתח משלכם? אפשר להדביק אותו כאן, והוא יחליף את השרת בדפדפן הזה בלבד.</p>` : ''}
     <p class="hint">${AI.enabled() ? `התשובות נוצרות ב-<b>Gemini</b>${AI.currentModel() ? ` (${esc(AI.currentModel())})` : ''}. ההרשאות עדיין נבדקות בכלים – Gemini רואה רק את מה שמותר לך.` : 'כרגע עונה מנוע מקומי פשוט. אפשר לחבר Gemini עם מפתח API.'}</p>
     <form class="formrow" id="aiform"><label for="gkey">מפתח Gemini API</label><input type="password" id="gkey" autocomplete="off" placeholder="${AI.getKey() ? '•••••••• (שמור בדפדפן הזה)' : 'AIza…'}" style="flex:1;min-width:200px">
       <button class="btn primary">שמירה ובדיקה</button>${AI.getKey() ? '<button class="btn link" type="button" id="gkeydel">מחיקת המפתח</button>' : ''}</form><div id="aimsg"></div>
@@ -524,8 +528,8 @@ function renderSettings() {
   const kd = v.querySelector('#gkeydel'); if (kd) kd.onclick = () => { AI.setKey(''); render(); };
   const gr = v.querySelector('#grefresh');
   if (gr) gr.onclick = async () => { gr.disabled = true; gr.textContent = 'מרעננת…'; try { await G.refresh(); renderSettings(); } catch (e) { gr.disabled = false; gr.insertAdjacentHTML('afterend', `<span class="err">${esc(e.message)}</span>`); } };
-  v.querySelectorAll('[data-delmem]').forEach(b => b.onclick = () => { db().memories[ctx.userId] = mem.filter(m => m.id !== b.dataset.delmem); save(); audit(ctx.userId, 'memory_deleted', {}); renderSettings(); });
-  v.querySelector('#clearhist').onclick = () => { if (confirm('למחוק את כל השיחות? אי אפשר לשחזר.')) { Object.keys(db().convs || {}).filter(k => k.startsWith(ctx.userId + '|')).forEach(k => delete db().convs[k]); activeConvId = null; save(); audit(ctx.userId, 'history_deleted', {}); alert('ההיסטוריה נמחקה.'); } };
+  v.querySelectorAll('[data-delmem]').forEach(b => b.onclick = () => { db().memories[ctx.userId] = mem.filter(m => m.id !== b.dataset.delmem); save(); audit(ctx.userId, 'memory_deleted', {}); if (ctx.live) Cloud.push(ctx.userId); renderSettings(); });
+  v.querySelector('#clearhist').onclick = () => { if (confirm('למחוק את כל השיחות? אי אפשר לשחזר.')) { Object.keys(db().convs || {}).filter(k => k.startsWith(ctx.userId + '|')).forEach(k => delete db().convs[k]); activeConvId = null; if (ctx.live) Cloud.push(ctx.userId); save(); audit(ctx.userId, 'history_deleted', {}); alert('ההיסטוריה נמחקה.'); } };
   const lf = v.querySelector('#linkform');
   if (lf) lf.onsubmit = e => { e.preventDefault(); linkWithCode(v.querySelector('#code').value); };
   const qf = v.querySelector('#quiet');

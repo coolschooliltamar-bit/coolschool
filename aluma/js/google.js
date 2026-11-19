@@ -97,6 +97,7 @@ export function signOut() {
   Object.assign(LIVE, { profile: null, courses: [], assignments: [], grades: [], announcements: [], teachers: [], events: null, fetchedAt: null });
 }
 export const isLive = () => !!token;
+export const accessToken = () => token;   // sent to Aluma's own server only, which checks it with Google
 
 async function get(url) {
   const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
