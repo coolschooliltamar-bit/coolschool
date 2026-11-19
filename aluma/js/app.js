@@ -327,7 +327,11 @@ async function ask(text) {
       class_summary: 'מסכמת את הכיתה', class_attendance: 'בודקת היעדרויות', inbox_summary: 'בודקת הודעות', __retry: 'Gemini עמוס – מנסה שוב' };
     box.innerHTML = '<div class="step run"><span class="dot"></span>חושבת עם Gemini</div>';
     try {
-      res = await AI.geminiAnswer(ctx, text, { activeStudentId, history: conv.messages.slice(0, -1), onStep: n => {
+      res = await AI.geminiAnswer(ctx, text, { activeStudentId, history: conv.messages.slice(0, -1), onStep: (n, tries) => {
+        if (n === '__retry') {          // one line that updates, not a new line per attempt
+          const r = box.querySelector('.retry') || (box.insertAdjacentHTML('beforeend', '<div class="step run retry"><span class="dot"></span><span></span></div>'), box.querySelector('.retry'));
+          r.lastElementChild.textContent = `Gemini עמוס אצל Google – ניסיון ${tries + 1}…`; return;
+        }
         box.querySelectorAll('.run').forEach(x => x.classList.replace('run', 'done'));
         box.insertAdjacentHTML('beforeend', `<div class="step run"><span class="dot"></span>${STEP[n] || n}</div>`); scrollDown(); } });
     } catch (e) {
@@ -354,6 +358,11 @@ async function ask(text) {
 // ---------------- cards ----------------
 const srcLine = (src, at) => `<div class="src">מתוך ${esc(src)}${at ? ` · עודכן ${ago(at)}` : ''}</div>`;
 function cardHTML(c) {
+  const inner = cardInner(c);
+  // parents with several children always see whose data a card shows
+  return ctx && ctx.role === 'parent' && c.studentId && inner ? inner.replace(/^<div class="card([^"]*)">/, `<div class="card$1"><div class="kid-tag">${esc(nameOf(c.studentId))}</div>`) : inner;
+}
+function cardInner(c) {
   switch (c.type) {
     case 'grade': return `<div class="card grade"><div class="score ${c.score < 60 ? 'low' : ''}">${c.score}</div><div><div class="t">${esc(subjectName(c.subject))} · ${esc(c.title)}</div>
       <div class="m">${{ exam: 'מבחן', quiz: 'בוחן', assignment: 'עבודה' }[c.gtype] || ''} · ${fmtDate(c.date)} · מתוך ${c.max}</div>${srcLine(c.source, c.fetchedAt)}</div></div>`;

@@ -30,7 +30,7 @@ export function getAssignments(ctx, { studentId, status, subject, dueWithinDays,
   requireScope(ctx, 'assignments'); requireStudent(ctx, studentId); logView(ctx, studentId, 'assignments');
   const s = student(studentId);
   let r = ASSIGNMENTS.filter(a => a.classId === s.classId && (!subject || a.subject === subject))
-    .map(a => ({ ...a, status: SUBMISSIONS[`${a.id}|${studentId}`] }));
+    .map(a => ({ ...a, studentId, status: SUBMISSIONS[`${a.id}|${studentId}`] }));
   if (status === 'pending') r = r.filter(a => a.status !== 'submitted');
   if (dueWithinDays != null) r = r.filter(a => new Date(a.due) - NOW < dueWithinDays * 864e5 && new Date(a.due) > NOW);
   r.sort((a, b) => new Date(a.due) - new Date(b.due));

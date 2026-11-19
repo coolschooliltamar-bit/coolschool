@@ -23,6 +23,9 @@ export const SERVICES = {
   gmail: { label: 'Gmail', desc: 'שליחת הודעות למורים – רק אחרי אישור שלך', scopes: ['https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/classroom.rosters.readonly', 'https://www.googleapis.com/auth/classroom.profile.emails'] },
 };
 let paused = new Set();          // services the user turned off inside Aluma
+const SAVED = 'aluma-google-tools';   // names of tools the user connected, so signing in again restores them
+const savedTools = () => { try { return JSON.parse(localStorage.getItem(SAVED) || '[]').filter(k => SERVICES[k]); } catch { return []; } };
+const setSavedTools = list => { try { localStorage.setItem(SAVED, JSON.stringify([...new Set(list)])); } catch { /* ignore */ } };
 export const hasService = k => !paused.has(k) && SERVICES[k].scopes.every(x => granted.has(x));
 
 function requestToken(scope, prompt = '') {
@@ -50,6 +53,7 @@ export async function connectServices(keys) {
   const missing = keys.filter(k => !hasService(k));
   if (keys.includes('gmail') && hasService('gmail')) await loadTeachers();
   if (keys.includes('calendar') && hasService('calendar')) LIVE.events = await calendarEvents(new Date(), 14);
+  setSavedTools([...savedTools(), ...keys.filter(k => hasService(k))]);
   if (missing.length) throw new Error(`לא ניתנה הרשאה ל: ${missing.map(k => SERVICES[k].label).join(', ')}.`);
   return keys;
 }
@@ -58,12 +62,13 @@ export const connectService = k => connectServices([k]);
 // Turn a service off inside Aluma: it stops being used and its data is cleared from memory.
 // (Google cannot take back a single permission from a browser app; "disconnect all" revokes everything.)
 export function disconnectService(k) {
+  setSavedTools(savedTools().filter(x => x !== k));
   paused.add(k);
   if (k === 'calendar') LIVE.events = null;
   if (k === 'gmail') LIVE.teachers = [];
 }
 // Revoke Aluma's whole access at Google (all services, including Classroom) and clear everything.
-export function disconnectAll() { signOut(); paused = new Set(); }
+export function disconnectAll() { setSavedTools([]); signOut({ revoke: true }); paused = new Set(); }
 
 // The Google script is loaded as soon as the page opens, so that when the user clicks, the
 // sign-in window opens inside that same click (browsers block pop-ups opened later – which made
@@ -86,13 +91,16 @@ export function preload() { loadGis().catch(() => {}); }
 export async function signIn() {
   if (!GOOGLE_CLIENT_ID) throw new Error('לא הוגדר Client ID של Google.');
   if (!gisReady()) await loadGis();          // normally already loaded by preload(), so no wait before the pop-up
-  token = await requestToken(SCOPES);
+  const restore = savedTools().flatMap(k => SERVICES[k].scopes);    // tools connected last time come back automatically
+  token = await requestToken([...new Set([...SCOPES.split(' '), ...restore])].join(' '));
   await refresh();
   return LIVE.profile;
 }
 
-export function signOut() {
-  if (token && window.google && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(token, () => {});
+// Normal sign-out only forgets the token in this tab – the Google permissions stay, so the tools are
+// still connected next time. revoke: true (from "disconnect from all Google services") removes them at Google.
+export function signOut({ revoke = false } = {}) {
+  if (revoke && token && window.google && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(token, () => {});
   token = null; granted = new Set(); paused = new Set();
   Object.assign(LIVE, { profile: null, courses: [], assignments: [], grades: [], announcements: [], teachers: [], events: null, fetchedAt: null });
 }

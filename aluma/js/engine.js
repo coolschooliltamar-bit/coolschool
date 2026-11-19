@@ -197,7 +197,7 @@ function averageAnswer(ctx, sid, subject) {
   if (!r.data.length) return reply('אין מספיק ציונים לחישוב ממוצע.');
   const avg = Math.round(r.data.reduce((a, b) => a + b.score, 0) / r.data.length);
   const scope = subject ? `ב${subjectName(subject)}` : 'בכל המקצועות';
-  const text = `הממוצע הפשוט ${scope} הוא **${avg}** (${r.data.length} ציונים: ${r.data.slice(0, 6).map(x => x.score).join(', ')}${r.data.length > 6 ? '…' : ''}).` +
+  const text = `${ctx.role === 'parent' ? `${nameOf(sid)}: ` : ''}הממוצע הפשוט ${scope} הוא **${avg}** (${r.data.length} ציונים: ${r.data.slice(0, 6).map(x => x.score).join(', ')}${r.data.length > 6 ? '…' : ''}).` +
     (wantsShort(ctx) ? '' : ' הממוצע הרשמי בתעודה עשוי להיות משוקלל אחרת.');
   return reply(text, { cards: [{ type: 'stat', label: `ממוצע ${scope}`, value: avg, source: r.source, fetchedAt: r.fetchedAt }] });
 }
@@ -219,25 +219,26 @@ function scheduleAnswer(ctx, sid, d) {
   if (r.calendar) return r.events.length
     ? reply(`${label} (${fmtDate(r.date)}) יש ביומן שלך ${r.events.length} אירועים.`, { cards: [{ type: 'events', date: r.date, events: r.events }] })
     : reply(`${label} (${fmtDate(r.date)}) אין אירועים ביומן שלך.`);
-  if (r.weekend) return reply(`${label} (${dayName(r.date)}) אין לימודים.`, { chips: ['מה יש ביום ראשון?'] });
+  if (r.weekend) return reply(`${label} (${dayName(r.date)}) אין${ctx.role === 'parent' ? ` ל${nameOf(sid)}` : ''} לימודים.`, { chips: ['מה יש ביום ראשון?'] });
   const changes = r.data.filter(l => l.change);
   let text = `${label} (יום ${dayName(r.date)}, ${fmtDate(r.date)}) ${ctx.role === 'parent' ? `יש ל${nameOf(sid)}` : 'יש לך'} ${r.data.length} שיעורים, ${r.data[0].start}–${r.data[r.data.length - 1].end}.`;
   if (changes.length) text += ` ${changes.length === 1 ? 'יש שינוי אחד' : `יש ${changes.length} שינויים`} – מסומן בכתום.`;
-  return reply(text, { cards: [{ type: 'schedule', date: r.date, lessons: r.data, source: r.source, fetchedAt: r.fetchedAt }] });
+  return reply(text, { cards: [{ type: 'schedule', studentId: sid, date: r.date, lessons: r.data, source: r.source, fetchedAt: r.fetchedAt }] });
 }
 
 function attendanceAnswer(ctx, sid) {
   const r = T.getAttendance(ctx, { studentId: sid, days: 30 });
   const abs = r.data.filter(a => a.status === 'absent').length, late = r.data.filter(a => a.status === 'late').length;
-  if (!r.data.length) return reply(`ב-30 הימים האחרונים אין היעדרויות או איחורים.${emoji(ctx, '👍')}`);
-  return reply(`ב-30 הימים האחרונים: **${abs}** היעדרויות ו-**${late}** איחורים.`, { cards: r.data.map(a => ({ type: 'attendance', ...a })) });
+  const who = ctx.role === 'parent' ? ` ל${nameOf(sid)}` : '';
+  if (!r.data.length) return reply(`ב-30 הימים האחרונים אין${who} היעדרויות או איחורים.${emoji(ctx, '👍')}`);
+  return reply(`ב-30 הימים האחרונים${who ? ` היו${who}` : ''}: **${abs}** היעדרויות ו-**${late}** איחורים.`, { cards: r.data.map(a => ({ type: 'attendance', ...a })) });
 }
 
 function announcementsAnswer(ctx, sid) {
   const r = T.getAnnouncements(ctx, { studentId: sid });
   if (!r.data.length) return reply('אין הודעות חדשות מהמורים.');
   // external text is shown as data, never followed as an instruction (spec 02, T5)
-  return reply(`יש ${r.data.length} הודעות אחרונות מהמורים:`, { cards: r.data.slice(0, 4).map(m => ({ type: 'announcement', ...m, teacherName: m.teacherName || (TEACHERS.find(t => t.id === m.teacherId) || {}).name || '' })) });
+  return reply(`יש ${r.data.length} הודעות אחרונות מהמורים${ctx.role === 'parent' ? ` בכיתה של ${nameOf(sid)}` : ''}:`, { cards: r.data.slice(0, 4).map(m => ({ type: 'announcement', ...m, teacherName: m.teacherName || (TEACHERS.find(t => t.id === m.teacherId) || {}).name || '' })) });
 }
 
 function weeklySummary(ctx, sid) {
