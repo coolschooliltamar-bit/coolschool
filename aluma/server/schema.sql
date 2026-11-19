@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE TABLE IF NOT EXISTS user_docs (
   user_sub   TEXT NOT NULL,
-  collection TEXT NOT NULL,             -- convs | memories | settings
+  collection TEXT NOT NULL,             -- convs | memories | settings | game
   data       TEXT NOT NULL,             -- JSON
   updated_at TEXT NOT NULL,
   PRIMARY KEY (user_sub, collection)
@@ -25,3 +25,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
   at       TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS audit_by_user ON audit_log (user_sub, at);
+CREATE TABLE IF NOT EXISTS class_members (   -- opt-in rewards profile shared with one Classroom course
+  course_id  TEXT NOT NULL,
+  user_sub   TEXT NOT NULL,
+  profile    TEXT NOT NULL,            -- JSON: first name, level, card ids, badges (no XP, no grades)
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (course_id, user_sub)
+);

@@ -7,6 +7,7 @@ import * as T from './tools.js';
 import { g, Forbidden } from './auth.js';
 import { db, save, audit } from './store.js';
 import { LIVE } from './google.js';
+import * as Game from './game.js';
 let liveMode = false;
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -129,6 +130,7 @@ function route(ctx, t, raw, activeStudentId, convo) {
   }
   if (ctx.role === 'parent' && /(כל הילדים|הילדים|שניהם|שתיהן)/.test(t)) studentIds = ctx.allowedStudentIds;
 
+  if (/(xp|באיזו רמה|הרמה שלי|הרמה של|כמה נקודות|הקלפים שלי|כמה קלפים|ההישגים|הישגים|פרסים)/i.test(t)) return perStudent(ctx, studentIds, sid => progressAnswer(ctx, sid));
   if (/(תכתבי לי (את )?ה?עבודה|תכתוב לי (את )?ה?עבודה|תפתרי|פתרון ל|תעשי לי (את )?ה?ש(יעורי|"?ב)|תכיני לי חיבור)/.test(t)) {
     return reply('עבודות להגשה אני לא כותבת – זה צריך להיות שלך. אבל אני יכולה להגיד לך מתי צריך להגיש ומה כתוב בהנחיות.', { chips: ['מה להגיש השבוע?'] });
   }
@@ -159,6 +161,15 @@ function route(ctx, t, raw, activeStudentId, convo) {
     return reply(`אני אלומה, עוזרת AI של בית הספר. אני יכולה לענות על ציונים, מטלות, מערכת שעות, נוכחות והודעות, ולנסח הודעה למורה.`, { chips: DEFAULT_CHIPS[ctx.role] });
   }
   return reply('לא בטוחה שהבנתי. אני כאן בשביל הלימודים – ציונים, מטלות, מערכת שעות, נוכחות והודעות. אפשר לנסות אחת מאלה:', { chips: DEFAULT_CHIPS[ctx.role] });
+}
+
+function progressAnswer(ctx, sid) {
+  const s = Game.score(ctx, sid);
+  const who = ctx.role === 'parent' ? `ל${nameOf(sid)} יש` : 'יש לך';
+  const next = Game.nextRewards(s, 1)[0];
+  const cards = Game.unlockedCards(s).length, badges = Object.values(s.ach).filter(Boolean).length;
+  return reply(`${who} **${s.xp} XP** – רמה ${s.level} (${Game.LEVELS[s.level]}): הגשות ${s.parts.submissions}/${Game.CAPS.submissions}, מבחנים ${s.parts.exams}/${Game.CAPS.exams}, תרגול ${s.parts.learning}/${Game.CAPS.learning}. ${cards} קלפים מתוך 40 ו-${badges} הישגים.${next ? ` הקלף הבא, ${next.name}, נפתח ב-${next.unlock.xp} XP.` : ''}`,
+    { cards: [{ type: 'tool', tool: 'game', icon: '🏆', title: 'פרסים והישגים', desc: 'פירוט ה-XP, האלבום והכיתה', cta: 'פתיחה' }], chips: ctx.role === 'student' ? ['תיצרי לי מסלול מותאם', 'מה להגיש השבוע?'] : [] });
 }
 
 function perStudent(ctx, ids, fn) {
@@ -338,3 +349,35 @@ function teacherRoute(ctx, t) {
 
 // fixed safety answers run before any AI model (spec 18)
 answer.safety = (ctx, raw) => /(להתאבד|לפגוע בעצמי|רוצה למות|אין לי טעם לחיות|מרביצים לי|מאיימים עליי|פוגעים בי|מציקים לי ברשת|מפיצים עליי)/.test(norm(raw));
+
+// ---------- hybrid routing (ה): which questions the fast local engine answers by itself ----------
+// Pure check – no side effects (it never creates drafts or saves memories).
+// Returns the data intent for a short, template-like question, or null when the language model should answer.
+const COMPLEX = /(למה|מדוע|איך|כיצד|תסביר|הסבר|תסבירי|תכנן|תתכנני|רעיון|רעיונות|תיצור|תיצרי|צור |צרי |תנסח|תכתוב|תכתבי|תשלח|תשלחי|נסחי|כתבי|השוו|ההבדל|תעזרי|עזרה ב|תמליצ|המלצ|מה דעתך|תסכמי את|קובץ|מסמך|drive|מסלול|כרטיסי|פרויקט|פרוייקט)/i;
+export function intent(ctx, raw) {
+  const t = norm(raw || '');
+  if (!t || t.length > 70 || t.split(' ').length > 12 || COMPLEX.test(t)) return null;
+  if (ctx.role === 'school_admin') return null;
+  if (ctx.role === 'teacher') {
+    if (/(הודעות|תיבה|פניות)/.test(t) && !/(מי|ממוצע)/.test(t)) return 'inbox';
+    if (/(היעדר|נוכחות|חיסור)/.test(t) && findClass(t)) return 'class_attendance';
+    if (/(ממוצע|מבחן)/.test(t) && findClass(t)) return 'class_exam';
+    if (/(לא הגיש|הגישו|הגשות)/.test(t) && findClass(t)) return 'class_missing';
+    if (/^(שלום|היי|הי|בוקר טוב|ערב טוב)[\s!?.]*$/.test(t)) return 'hello';
+    return null;
+  }
+  if (!ctx.allowedStudentIds.length) return null;
+  liveMode = !!ctx.live;
+  if (ctx.live && /(היעדר|נוכחות|איחור)/.test(t)) return 'not_connected';
+  if (/(xp|באיזו רמה|הרמה שלי|כמה נקודות|הקלפים שלי|כמה קלפים|הישגים)/i.test(t)) return 'progress';
+  if (ctx.role === 'parent' && /^(מה המצב( השבוע)?|סיכום שבועי|מה שלומו|מה שלומה)[\s?]*$/.test(t)) return 'weekly';
+  if (/(היעדר|נוכחות|חיסור|חיסורים)/.test(t)) return 'attendance';
+  if (/ממוצע/.test(t)) return 'average';
+  if (/(ציון|ציונים|קיבלתי|קיבל|קיבלה)/.test(t) && !/(מתי המבחן|מתי יש מבחן)/.test(t)) return 'grades';
+  if (/(להגיש|הגשה|הגשות|מטלה|מטלות|שיעורי בית|באיחור)/.test(t)) return 'assignments';
+  if (/(הודעות|עדכונים|מה חדש)/.test(t)) return 'announcements';
+  if (!ctx.live && (findDay(t) != null || /(מערכת|שיעורים)/.test(t))) return 'schedule';
+  if (ctx.live && LIVE.events && /(יומן|מחר|היום)/.test(t)) return 'schedule';
+  if (/^(שלום|היי|הי|בוקר טוב|ערב טוב|מי את|מה את יודעת)[\s!?.]*$/.test(t)) return 'hello';
+  return null;
+}

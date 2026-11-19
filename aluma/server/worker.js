@@ -9,8 +9,8 @@
 
 const ALLOWED_ORIGINS = ['https://coolschooliltamar-bit.github.io', 'http://localhost:8765'];
 const GOOGLE_CLIENT_ID = '1054746371715-vpsff7knc52n61rmhgrgotf0ag3t90u2.apps.googleusercontent.com';
-const LIMITS = { user: 300, demoIp: 60, total: 5000 };      // Gemini calls per day
-const DOC_COLLECTIONS = ['convs', 'memories', 'settings'];
+const LIMITS = { user: 400, demoIp: 600, total: 8000 };     // Gemini calls per day (a whole school shares one IP behind NAT, so the demo limit per IP is high)
+const DOC_COLLECTIONS = ['convs', 'memories', 'settings', 'game'];
 const MAX_DOC = 300_000;                                      // bytes per stored document
 
 const tokenCache = new Map();                                 // access token -> { sub, exp }
@@ -47,6 +47,31 @@ export default {
         const up = await fetch(`https://generativelanguage.googleapis.com${url.pathname}${isList ? '?pageSize=200' : ''}`, {
           method: req.method, body, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY } });
         return new Response(up.body, { status: up.status, headers: { ...cors, 'Content-Type': 'application/json' } });
+      }
+
+      // ---------- class view of the rewards (opt-in) ----------
+      // A student shares a tiny profile (first name, level, card ids, badges) with one Classroom course.
+      // Membership is checked with Google Classroom using the student's own token, so only members
+      // of a course can share to it or read it. No XP numbers, no grades.
+      if (url.pathname === '/game/share' && req.method === 'POST') {
+        if (!who) return json({ error: { message: 'Unauthorized' } }, 401);
+        const b = JSON.parse((await req.text()).slice(0, 8000) || '{}');
+        const courseId = String(b.courseId || '').slice(0, 40);
+        if (!/^[\w-]+$/.test(courseId) || !(await inCourse(req, courseId))) return json({ error: { message: 'Not a member' } }, 403);
+        if (!b.profile) { await env.DB.prepare('DELETE FROM class_members WHERE course_id = ? AND user_sub = ?').bind(courseId, who.sub).run(); return json({ ok: true }); }
+        const p = b.profile, ints = (a, max) => (Array.isArray(a) ? a : []).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= max).slice(0, 40);
+        const profile = { first: String(p.first || '').replace(/[<>]/g, '').slice(0, 24), level: Math.max(0, Math.min(10, p.level | 0)), cards: ints(p.cards, 40),
+          badges: (Array.isArray(p.badges) ? p.badges : []).map(String).filter(x => /^[a-z0-9_]{2,20}$/.test(x)).slice(0, 12), avatar: ints([p.avatar], 40)[0] || null, race: !!p.race, week: Math.max(0, Math.min(200, p.week | 0)) };
+        await env.DB.prepare(`INSERT INTO class_members (course_id, user_sub, profile, updated_at) VALUES (?, ?, ?, ?)
+          ON CONFLICT(course_id, user_sub) DO UPDATE SET profile = excluded.profile, updated_at = excluded.updated_at`).bind(courseId, who.sub, JSON.stringify(profile), new Date().toISOString()).run();
+        return json({ ok: true });
+      }
+      const gm = url.pathname.match(/^\/game\/class\/([\w-]{1,40})$/);
+      if (gm && req.method === 'GET') {
+        if (!who) return json({ error: { message: 'Unauthorized' } }, 401);
+        if (!(await inCourse(req, gm[1]))) return json({ error: { message: 'Not a member' } }, 403);
+        const rows = await env.DB.prepare('SELECT user_sub, profile FROM class_members WHERE course_id = ? ORDER BY updated_at DESC LIMIT 60').bind(gm[1]).all();
+        return json({ members: (rows.results || []).map(r => ({ ...JSON.parse(r.profile), me: r.user_sub === who.sub })) });
       }
 
       // ---------- per-user storage ----------
@@ -98,6 +123,18 @@ async function identify(req, env) {
   await env.DB.prepare('INSERT INTO users (sub, first_seen, last_seen) VALUES (?, ?, ?) ON CONFLICT(sub) DO UPDATE SET last_seen = excluded.last_seen')
     .bind(info.sub, new Date().toISOString(), new Date().toISOString()).run();
   return who;
+}
+
+// Is the signed-in user a member (student or teacher) of this Classroom course? Asked with their own token.
+const courseCache = new Map();
+async function inCourse(req, courseId) {
+  const token = (req.headers.get('Authorization') || '').slice(7);
+  const k = token + '|' + courseId, hit = courseCache.get(k);
+  if (hit && hit.exp > Date.now()) return hit.ok;
+  const r = await fetch(`https://classroom.googleapis.com/v1/courses/${encodeURIComponent(courseId)}?fields=id`, { headers: { Authorization: `Bearer ${token}` } });
+  courseCache.set(k, { ok: r.ok, exp: Date.now() + 300000 });
+  if (courseCache.size > 5000) courseCache.clear();
+  return r.ok;
 }
 
 // Daily counters in D1. Returns false when the limit is reached.

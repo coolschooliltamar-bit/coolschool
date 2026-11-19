@@ -106,8 +106,29 @@ export function lessonQuestions(subject, unitIdx) {
 // ---------- progress (per user) ----------
 export function progress(userId) {
   const L = db().learn = db().learn || {};
-  return (L[userId] = L[userId] || { xp: 0, streak: 0, lastDay: null, done: {}, cards: {}, plans: [] });
+  const p = (L[userId] = L[userId] || { xp: 0, streak: 0, lastDay: null, done: {}, cards: {}, plans: [] });
+  p.reviews = p.reviews || 0; p.xpDay = p.xpDay || { day: null, n: 0 }; p.week = p.week || { key: null, lessons: 0 };
+  return p;
 }
+// XP from Aluma's learning tools (40% of the total, see game.js) – only from XP-earning activities,
+// with a daily cap so that grinding is not worth it: XP is a measure of learning, not the goal.
+export const DAILY_LEARNING_XP = 100;
+export const weekKey = (d = new Date()) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x.toISOString().slice(0, 10); };
+function awardXP(p, xp) {
+  const today = new Date().toDateString();
+  if (p.xpDay.day !== today) p.xpDay = { day: today, n: 0 };
+  const got = Math.max(0, Math.min(xp, DAILY_LEARNING_XP - p.xpDay.n));
+  p.xpDay.n += got; p.xp += got;
+  return got;
+}
+function countLesson(p) {
+  const k = weekKey();
+  if (p.week.key !== k) p.week = { key: k, lessons: 0 };
+  p.week.lessons++;
+  const today = new Date().toDateString(), yest = new Date(Date.now() - 864e5).toDateString();
+  if (p.lastDay !== today) { p.streak = p.lastDay === yest ? p.streak + 1 : 1; p.lastDay = today; }
+}
+export const weekLessons = userId => { const p = progress(userId); return p.week.key === weekKey() ? p.week.lessons : 0; };
 export const lessonKey = (s, u, l) => `${s}:${u}:${l}`;
 export function unitState(userId, subject, u) {
   const p = progress(userId);
@@ -124,13 +145,12 @@ export function nextLesson(userId, subject) {
 }
 export function finishLesson(userId, subject, u, l, correct, total) {
   const p = progress(userId);
-  const xp = correct * 10 + (correct === total ? 10 : 0);
-  p.xp += xp;
-  if (correct >= Math.ceil(total * 0.6)) p.done[lessonKey(subject, u, l)] = true;
-  const today = new Date().toDateString(), yest = new Date(Date.now() - 864e5).toDateString();
-  if (p.lastDay !== today) { p.streak = p.lastDay === yest ? p.streak + 1 : 1; p.lastDay = today; }
+  const passed = correct >= Math.ceil(total * 0.6);
+  const xp = awardXP(p, correct * 10 + (correct === total ? 10 : 0));
+  if (passed) p.done[lessonKey(subject, u, l)] = true;
+  countLesson(p);
   save(); audit(userId, 'practice_done', { kind: subject });
-  return { xp, passed: !!p.done[lessonKey(subject, u, l)] };
+  return { xp, passed, capped: xp < correct * 10 + (correct === total ? 10 : 0) };
 }
 
 // ---------- flashcards (simple spaced repetition: boxes 1..4) ----------
@@ -148,5 +168,32 @@ export function cardBox(userId, subject, i) { return (progress(userId).cards[`${
 export function rateCard(userId, subject, i, knew) {
   const p = progress(userId), k = `${subject}:${i}`;
   p.cards[k] = knew ? Math.min(4, (p.cards[k] || 1) + 1) : 1;
+  p.reviews++;
   save();
 }
+
+// ---------- generated paths & decks (spec ג/ד) ----------
+// path: { id, ownerId, ownerRole, title, subject, level, xp (true only for teacher/Aluma-adaptive paths),
+//         classId (when a teacher published it), units: [{ title, qs }], cards: [[front, back]], basedOn, source, createdAt }
+const paths = () => (db().paths = db().paths || {});
+export function savePath(path) { paths()[path.id] = path; save(); return path; }
+export const getPath = id => paths()[id] || null;
+export function deletePath(id) { delete paths()[id]; save(); }
+export const myPaths = userId => Object.values(paths()).filter(p => p.ownerId === userId && !p.classId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+export const adaptivePaths = userId => myPaths(userId).filter(p => p.adaptive);
+export const ownPaths = userId => myPaths(userId).filter(p => !p.adaptive);
+export const classPaths = classId => Object.values(paths()).filter(p => p.classId === classId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+export const publishedBy = teacherId => Object.values(paths()).filter(p => p.ownerId === teacherId && p.classId);
+export const pathKey = (id, u) => `P:${id}:${u}`;
+export const pathUnitDone = (userId, id, u) => !!progress(userId).done[pathKey(id, u)];
+export function finishPathLesson(userId, path, u, correct, total) {
+  const p = progress(userId);
+  const passed = correct >= Math.ceil(total * 0.6);
+  const full = correct * 10 + (correct === total ? 10 : 0);
+  const xp = path.xp ? awardXP(p, full) : 0;            // paths the student made for themselves: practice without XP
+  if (passed) p.done[pathKey(path.id, u)] = true;
+  countLesson(p);
+  save(); audit(userId, 'practice_done', { kind: path.subject });
+  return { xp, passed, noXp: !path.xp, capped: path.xp && xp < full };
+}
+export const deckBox = (userId, key, i) => progress(userId).cards[`${key}:${i}`] || 1;

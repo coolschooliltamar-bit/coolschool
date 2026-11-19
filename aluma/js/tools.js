@@ -17,17 +17,17 @@ function requireStudent(ctx, studentId) {
 function requireScope(ctx, scope) { if (!ctx.scopes[scope]) throw new Forbidden('המידע הזה לא זמין לחשבון שלך.'); }
 const logView = (ctx, studentId, kind) => audit(ctx.userId, 'view', { subjectStudent: studentId, kind });
 
-export function getGrades(ctx, { studentId, subject, limit } = {}) {
+export function getGrades(ctx, { studentId, subject, limit, quiet } = {}) {
   if (ctx.live) { requireStudent(ctx, studentId); let r = LIVE.grades.filter(g => !subject || g.subject === subject).sort((a, b) => new Date(b.date) - new Date(a.date)); return { data: limit ? r.slice(0, limit) : r, source: 'Google Classroom', fetchedAt: LIVE.fetchedAt }; }
-  requireScope(ctx, 'grades'); requireStudent(ctx, studentId); logView(ctx, studentId, 'grades');
+  requireScope(ctx, 'grades'); requireStudent(ctx, studentId); if (!quiet) logView(ctx, studentId, 'grades');
   let r = GRADES.filter(g => g.studentId === studentId && (!subject || g.subject === subject));
   r.sort((a, b) => new Date(b.date) - new Date(a.date));
   return { data: limit ? r.slice(0, limit) : r, source: 'משוב', fetchedAt: r[0] ? r[0].fetchedAt : NOW.toISOString() };
 }
 
-export function getAssignments(ctx, { studentId, status, subject, dueWithinDays, title } = {}) {
+export function getAssignments(ctx, { studentId, status, subject, dueWithinDays, title, quiet } = {}) {
   if (ctx.live) { requireStudent(ctx, studentId); let r = LIVE.assignments.filter(a => (!subject || a.subject === subject) && (!title || a.title.includes(title))); if (status === 'pending') r = r.filter(a => a.status !== 'submitted'); if (dueWithinDays != null) r = r.filter(a => a.due && new Date(a.due) - NOW < dueWithinDays * 864e5 && new Date(a.due) > NOW); r.sort((a, b) => (a.due ? new Date(a.due) : Infinity) - (b.due ? new Date(b.due) : Infinity)); /* no due date: kept, sorted last */ return { data: r, source: 'Google Classroom', fetchedAt: LIVE.fetchedAt }; }
-  requireScope(ctx, 'assignments'); requireStudent(ctx, studentId); logView(ctx, studentId, 'assignments');
+  requireScope(ctx, 'assignments'); requireStudent(ctx, studentId); if (!quiet) logView(ctx, studentId, 'assignments');
   const s = student(studentId);
   let r = ASSIGNMENTS.filter(a => a.classId === s.classId && (!subject || a.subject === subject))
     .map(a => ({ ...a, studentId, status: SUBMISSIONS[`${a.id}|${studentId}`] }));
@@ -183,4 +183,17 @@ export function classAttendance(ctx, { classId, days = 30, threshold = 3 }) {
     .filter(r => r.count >= threshold).sort((a, b) => b.count - a.count);
   audit(ctx.userId, 'class_attendance', { classId });
   return { className: CLASSES.find(c => c.id === classId).name, rows, threshold, days };
+}
+
+// ----- level of the class (aggregate only, for adaptive learning – spec ג) -----
+// A student may see the class AVERAGE in a subject (never other students' grades), and only when
+// at least 5 students have a grade, so no single student can be identified.
+export function classLevel(ctx, { studentId, subject }) {
+  requireStudent(ctx, studentId);
+  if (ctx.live) return null;
+  const s = student(studentId); if (!s) return null;
+  const mates = STUDENTS.filter(x => x.classId === s.classId).map(x => x.id);
+  const rows = GRADES.filter(g => mates.includes(g.studentId) && g.subject === subject);
+  if (new Set(rows.map(r => r.studentId)).size < 5) return null;
+  return { avg: Math.round(rows.reduce((a, b) => a + b.score / b.max * 100, 0) / rows.length), n: new Set(rows.map(r => r.studentId)).size, className: CLASSES.find(c => c.id === s.classId).name };
 }
