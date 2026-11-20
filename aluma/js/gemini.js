@@ -295,12 +295,12 @@ export async function geminiAnswer(ctx, question, { activeStudentId, history = [
 
 // ---------- structured generation (learning paths, flashcards, project ideas) ----------
 // Asks for JSON that matches a schema. Throws on failure, so callers fall back to the local generator.
-export async function generateJSON(prompt, schema, { deadlineMs = 20000, system } = {}) {
+export async function generateJSON(prompt, schema, { deadlineMs = 20000, system, maxTokens = 4096 } = {}) {
   const until = Date.now() + deadlineMs;
   const { j } = await generate({
     systemInstruction: { parts: [{ text: system || 'את "אלומה", עוזרת למידה בבית ספר בישראל. כותבת בעברית תקינה, ברורה ומתאימה לגיל. תוכן בטוח לילדים בלבד. מחזירה JSON בלבד.' }] },
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { maxOutputTokens: 4096, temperature: 0.6, responseMimeType: 'application/json', responseSchema: schema },
+    generationConfig: { maxOutputTokens: maxTokens, temperature: 0.6, responseMimeType: 'application/json', responseSchema: schema },
   }, null, 40000, until);
   const text = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || '').join('');
   return JSON.parse(text);

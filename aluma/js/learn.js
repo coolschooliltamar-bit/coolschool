@@ -78,7 +78,7 @@ export const BANK = {
   math: { icon: '➗', units: [{ title: 'משוואות ממעלה ראשונה', gen: 'eq' }, { title: 'אחוזים', gen: 'pct' }, { title: 'פונקציה קווית', gen: 'lin' }] },
 };
 export const LEARN_SUBJECTS = Object.keys(BANK);
-const LESSONS_PER_UNIT = 3, Q_PER_LESSON = 5;
+export const LESSONS_PER_UNIT = 3, Q_PER_LESSON = 5;
 
 // math questions are generated so they never run out
 const ri = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
@@ -184,14 +184,33 @@ export const adaptivePaths = userId => myPaths(userId).filter(p => p.adaptive);
 export const ownPaths = userId => myPaths(userId).filter(p => !p.adaptive);
 export const classPaths = classId => Object.values(paths()).filter(p => p.classId === classId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 export const publishedBy = teacherId => Object.values(paths()).filter(p => p.ownerId === teacherId && p.classId);
-export const pathKey = (id, u) => `P:${id}:${u}`;
-export const pathUnitDone = (userId, id, u) => !!progress(userId).done[pathKey(id, u)];
-export function finishPathLesson(userId, path, u, correct, total) {
+// generated paths: N units × M lessons (5 questions each). Old paths had one lesson per unit (lessonsPerUnit
+// missing → 1); lesson 0 keeps the old key P:id:u, so their progress stays.
+export const MAX_PATH_UNITS = 6, MAX_PATH_LESSONS = 5;
+export const pathLessons = path => Math.min(MAX_PATH_LESSONS, Math.max(1, path.lessonsPerUnit || 1));
+export const pathKey = (id, u, l = 0) => l ? `P:${id}:${u}:${l}` : `P:${id}:${u}`;
+export const pathLessonDone = (userId, path, u, l) => !!progress(userId).done[pathKey(path.id, u, l)];
+export const pathUnitState = (userId, path, u) => Array.from({ length: pathLessons(path) }, (_, l) => pathLessonDone(userId, path, u, l));
+export const pathUnitDone = (userId, path, u) => pathUnitState(userId, path, u).every(Boolean);
+export function pathNext(userId, path) {
+  for (let u = 0; u < path.units.length; u++) { const l = pathUnitState(userId, path, u).indexOf(false); if (l !== -1) return [u, l]; }
+  return null;
+}
+// the questions of lesson l in unit u: its own 5 questions when the unit has enough for every lesson,
+// otherwise a fresh shuffled pick of 5 from the unit (so every lesson is a full lesson)
+export function pathLessonQuestions(path, u, l) {
+  const qs = (path.units[u] || { qs: [] }).qs, n = pathLessons(path);
+  if (n === 1) return qs.slice().sort(() => Math.random() - 0.5);
+  const per = Q_PER_LESSON;
+  if (qs.length >= n * per) return qs.slice(l * per, l * per + per).sort(() => Math.random() - 0.5);
+  return qs.slice().sort(() => Math.random() - 0.5).slice(0, Math.min(per, qs.length));
+}
+export function finishPathLesson(userId, path, u, l, correct, total) {
   const p = progress(userId);
   const passed = correct >= Math.ceil(total * 0.6);
   const full = correct * 10 + (correct === total ? 10 : 0);
   const xp = path.xp ? awardXP(p, full) : 0;            // paths the student made for themselves: practice without XP
-  if (passed) p.done[pathKey(path.id, u)] = true;
+  if (passed) p.done[pathKey(path.id, u, l)] = true;
   countLesson(p);
   save(); audit(userId, 'practice_done', { kind: path.subject });
   return { xp, passed, noXp: !path.xp, capped: path.xp && xp < full };

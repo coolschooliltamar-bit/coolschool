@@ -422,10 +422,10 @@ body.in-app .proto-banner { display: none; }
 .studio .spacer { flex: 1; }
 .filebtn { display: inline-flex; align-items: center; gap: 6px; border: 1px dashed var(--mute); border-radius: 10px; padding: 7px 12px; cursor: pointer; font-weight: 600; font-size: 14px; background: var(--card); }
 .filebtn:hover { background: var(--hover); }
-.punits { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
-.punit { border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; background: var(--card); font-weight: 600; font-size: 13.5px; }
-.punit:hover { background: var(--hover); }
-.punit.done { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.pprog { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px; }
+.pprog .bar { max-width: 260px; height: 10px; }
+.pshape { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pmap-top { margin-bottom: 4px; }
 .gpath details { margin-top: 8px; font-size: 13.5px; } .gpath summary { cursor: pointer; color: var(--ink2); }
 .path-tabs { margin-top: 4px; }
 .attach:empty { display: none; }
@@ -512,3 +512,4 @@ body.in-app .proto-banner { display: none; }
 @media (max-width: 760px) { .cz-inner { flex-direction: column; gap: 14px; } .cz-tilt { width: min(86vw, calc(64vh * .75)); } .cz-info { text-align: center; } .cz-info .btns { justify-content: center; } }
 @media (prefers-reduced-motion: reduce) { .card-zoom, .cz-tilt { transition: none; } }
 .stk-card[data-zoom] { cursor: zoom-in; }
+[hidden] { display: none !important; }

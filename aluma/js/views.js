@@ -373,12 +373,17 @@ export function renderTeacherProjects() {
 }
 
 // ---------- generated paths & decks ----------
+// how many units and how many lessons in each unit (5 questions a lesson); default 3×3, like the basic path
+const shapeSelects = (pre = 's') => `<span class="pshape"><label for="${pre}u" style="min-width:auto">יחידות</label><select id="${pre}u">${Array.from({ length: L.MAX_PATH_UNITS }, (_, i) => `<option value="${i + 1}" ${i === 2 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>
+  <label for="${pre}l" style="min-width:auto">שיעורים בכל יחידה</label><select id="${pre}l">${Array.from({ length: L.MAX_PATH_LESSONS }, (_, i) => `<option value="${i + 1}" ${i === 2 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></span>`;
+const shapeOf = (root, pre = 's') => ({ units: +root.querySelector(`#${pre}u`).value, lessons: +root.querySelector(`#${pre}l`).value });
 export function createForm(ctx, { kind = 'path', forTeacher = false } = {}) {
   const subs = forTeacher ? ctx.subjects : (ctx.live ? LIVE.courses.map(c => c.name) : L.LEARN_SUBJECTS.concat(['literature', 'hebrew', 'bible']));
   return `<form class="studio" id="studio">
     <div class="formrow"><label for="sk">מה ליצור</label><select id="sk"><option value="path" ${kind === 'path' ? 'selected' : ''}>מסלול תרגול</option><option value="cards" ${kind === 'cards' ? 'selected' : ''}>כרטיסיות זיכרון</option></select>
       <label for="ss" style="min-width:auto">מקצוע</label><select id="ss"><option value="">לפי הבקשה</option>${subs.map(s => `<option value="${esc(s)}">${esc(subjectName(s))}</option>`).join('')}</select>
       ${forTeacher ? `<label for="sc" style="min-width:auto">לכיתה</label><select id="sc">${CLASSES.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>` : ''}</div>
+    <div class="formrow" id="sshape" ${kind === 'cards' ? 'hidden' : ''}>${shapeSelects()}<span class="hint">כל שיעור – 5 שאלות</span></div>
     <label for="sr" class="sr-only">הבקשה</label><textarea id="sr" rows="2" maxlength="500" placeholder="${forTeacher ? 'למשל: מסלול חזרה על המהפכה הצרפתית לקראת המבחן, עם דגש על הצהרת זכויות האדם' : 'למשל: כרטיסיות על זמן עבר באנגלית, או מסלול על התא החי'}"></textarea>
     <div class="formrow"><label class="filebtn">${icon('clip', 16)} העלאת קובץ עם החומר<input type="file" id="sf" accept=".txt,.md,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></label><span id="sfn" class="hint">TXT, PDF או Word · נשאר בדפדפן</span>
       <span class="spacer"></span><button class="btn primary" id="sgo">${icon('sparkle', 16)} ${forTeacher ? 'יצירה ופרסום לכיתה' : 'יצירה'}</button></div>
@@ -387,6 +392,7 @@ export function createForm(ctx, { kind = 'path', forTeacher = false } = {}) {
 export function bindCreateForm(root, ctx, onDone, { forTeacher = false } = {}) {
   const f = root.querySelector('#studio'); if (!f) return;
   let file = null;
+  const kindSel = f.querySelector('#sk'); kindSel.onchange = () => { f.querySelector('#sshape').hidden = kindSel.value !== 'path'; };
   f.querySelector('#sf').onchange = async e => {
     const fl = e.target.files[0]; if (!fl) return;
     f.querySelector('#sfn').textContent = `קוראת את ${fl.name}…`;
@@ -397,23 +403,24 @@ export function bindCreateForm(root, ctx, onDone, { forTeacher = false } = {}) {
     e.preventDefault();
     const go = f.querySelector('#sgo'); go.disabled = true; go.textContent = 'אלומה בונה…';
     try {
-      const path = await S.create(ctx, { kind: f.querySelector('#sk').value, subject: f.querySelector('#ss').value || null, request: f.querySelector('#sr').value, fileText: file ? file.text : '', fileName: file ? file.name : '', classId: forTeacher ? f.querySelector('#sc').value : null, studentId: ctx.role === 'student' ? ctx.userId : null });
+      const path = await S.create(ctx, { kind: f.querySelector('#sk').value, subject: f.querySelector('#ss').value || null, request: f.querySelector('#sr').value, fileText: file ? file.text : '', fileName: file ? file.name : '', classId: forTeacher ? f.querySelector('#sc').value : null, studentId: ctx.role === 'student' ? ctx.userId : null, ...shapeOf(f) });
       onDone(path);
     } catch (err) { go.disabled = false; go.textContent = 'יצירה'; f.querySelector('#smsg').innerHTML = `<p class="err">${esc(err.message)}</p>`; }
   };
 }
 export function pathCard(p, ctx, { manage = false } = {}) {
   const n = p.units.reduce((a, u) => a + u.qs.length, 0);
-  const done = ctx.role === 'student' ? p.units.filter((u, i) => L.pathUnitDone(ctx.userId, p.id, i)).length : 0;
+  const done = ctx.role === 'student' ? p.units.filter((u, i) => L.pathUnitDone(ctx.userId, p, i)).length : 0;
+  const per = L.pathLessons(p), lessonsDone = ctx.role === 'student' ? p.units.reduce((a, u, i) => a + L.pathUnitState(ctx.userId, p, i).filter(Boolean).length, 0) : 0;
   return `<article class="gpath"><div class="proj-h"><b>${esc(p.title)}</b>${p.xp ? '<span class="tag ok">עם XP</span>' : '<span class="tag">בלי XP</span>'}</div>
-    <div class="hint">${esc(subjectName(p.subject))} · רמה ${esc(p.level)} · ${p.units.length} יחידות · ${n} שאלות · ${p.cards.length} כרטיסיות${p.classId ? ` · ${esc((CLASSES.find(c => c.id === p.classId) || {}).name)} · מאת ${esc(p.ownerName)}` : ''}${p.fileName ? ` · מתוך ${esc(p.fileName)}` : ''} · ${p.source === 'gemini' ? 'נוצר ב-Gemini' : 'נבנה מהמאגר'}</div>
+    <div class="hint">${esc(subjectName(p.subject))} · רמה ${esc(p.level)} · ${p.units.length} יחידות × ${per} ${per === 1 ? 'שיעור' : 'שיעורים'} · ${n} שאלות · ${p.cards.length} כרטיסיות${p.classId ? ` · ${esc((CLASSES.find(c => c.id === p.classId) || {}).name)} · מאת ${esc(p.ownerName)}` : ''}${p.fileName ? ` · מתוך ${esc(p.fileName)}` : ''} · ${p.source === 'gemini' ? 'נוצר ב-Gemini' : 'נבנה מהמאגר'}</div>
     ${p.basedOn && (p.basedOn.my != null || p.basedOn.classAvg != null) ? `<div class="hint">מותאם לפי: ${p.basedOn.my != null ? `הממוצע ${ctx.role === 'teacher' ? 'של התלמיד/ה' : 'שלך'} ${p.basedOn.my}` : ''}${p.basedOn.my != null && p.basedOn.classAvg != null ? ' · ' : ''}${p.basedOn.classAvg != null ? `ממוצע הכיתה ${p.basedOn.classAvg}` : ''}${p.basedOn.weak && p.basedOn.weak.length ? ` · לחיזוק: ${p.basedOn.weak.map(esc).join(', ')}` : ''}</div>` : ''}
-    ${ctx.role === 'student' && p.units.length ? `<div class="punits">${p.units.map((u, i) => `<button class="punit ${L.pathUnitDone(ctx.userId, p.id, i) ? 'done' : ''}" data-start="${p.id}:${i}">${L.pathUnitDone(ctx.userId, p.id, i) ? '✓' : i + 1}. ${esc(u.title)}</button>`).join('')}</div><div class="hint">${done}/${p.units.length} יחידות הושלמו</div>` : ''}
-    <div class="btns">${p.cards.length && ctx.role === 'student' ? `<button class="btn" data-deck="${p.id}">${icon('layers', 15)} כרטיסיות</button>` : ''}${manage ? `<button class="btn link" data-delpath="${p.id}">מחיקה</button>` : ''}</div>
+    ${ctx.role === 'student' && p.units.length ? `<div class="pprog"><div class="bar" role="progressbar" aria-label="התקדמות במסלול" aria-valuemin="0" aria-valuemax="${p.units.length * per}" aria-valuenow="${lessonsDone}"><i style="width:${lessonsDone / (p.units.length * per) * 100}%"></i></div><span class="hint">${lessonsDone}/${p.units.length * per} שיעורים · ${done}/${p.units.length} יחידות</span></div>` : ''}
+    <div class="btns">${p.units.length ? `<button class="btn ${ctx.role === 'student' ? 'primary' : ''}" data-open="${p.id}">${icon('sparkle', 15)} ${ctx.role === 'student' ? (lessonsDone ? 'המשך במסלול' : 'כניסה למסלול') : 'צפייה במפת המסלול'}</button>` : ''}${p.cards.length && ctx.role === 'student' ? `<button class="btn" data-deck="${p.id}">${icon('layers', 15)} כרטיסיות</button>` : ''}${manage ? `<button class="btn link" data-delpath="${p.id}">מחיקה</button>` : ''}</div>
     ${ctx.role === 'teacher' ? `<details><summary>תצוגה מקדימה</summary>${p.units.map(u => `<b>${esc(u.title)}</b><ol>${u.qs.map(q => `<li>${esc(q.q)} <span class="hint">(${esc(q.options[q.answer])})</span></li>`).join('')}</ol>`).join('')}</details>` : ''}</article>`;
 }
 export function bindPathCards(root, ctx, redo) {
-  root.querySelectorAll('[data-start]').forEach(b => b.onclick = () => { const [id, u] = b.dataset.start.split(':'); E.startPath(id, +u); });
+  root.querySelectorAll('[data-open]').forEach(b => b.onclick = () => E.openPath(b.dataset.open));
   root.querySelectorAll('[data-deck]').forEach(b => b.onclick = () => E.openDeck(b.dataset.deck));
   root.querySelectorAll('[data-delpath]').forEach(b => b.onclick = () => { if (confirm('למחוק?')) { L.deletePath(b.dataset.delpath); redo(); } });
 }
@@ -426,11 +433,11 @@ export function pathTab(box, tab) {
     const list = L.adaptivePaths(uid);
     const subs = ctx.live ? LIVE.courses.filter(c => c.role === 'student').map(c => c.name) : L.LEARN_SUBJECTS;
     box.innerHTML = `<p class="hint">אלומה בודקת את הציונים שלך, את ממוצע הכיתה ואת המטלות והמבחנים האחרונים${ctx.live ? ' ב-Classroom' : ' (משוב ו-Classroom)'}, ובונה מסלול ברמה שמתאימה לך. המסלול המותאם <b>מזכה ב-XP</b>.</p>
-      <form class="formrow" id="adf"><label for="ads">מקצוע</label><select id="ads">${subs.map(s => `<option value="${esc(s)}">${esc(subjectName(s))}</option>`).join('')}</select><button class="btn primary" id="adgo">${icon('sparkle', 16)} בניית מסלול מותאם</button></form><div id="admsg"></div>
+      <form class="formrow" id="adf"><label for="ads">מקצוע</label><select id="ads">${subs.map(s => `<option value="${esc(s)}">${esc(subjectName(s))}</option>`).join('')}</select>${shapeSelects('ad')}<button class="btn primary" id="adgo">${icon('sparkle', 16)} בניית מסלול מותאם</button></form><div id="admsg"></div>
       ${list.map(p => pathCard(p, ctx, { manage: true })).join('') || '<p class="hint">עוד אין מסלולים מותאמים.</p>'}`;
     box.querySelector('#adf').onsubmit = async e => {
       e.preventDefault(); const b = box.querySelector('#adgo'); b.disabled = true; b.textContent = 'בודקת את הרמה ובונה…';
-      try { await S.create(ctx, { kind: 'path', subject: box.querySelector('#ads').value, adaptive: true, studentId: uid }); redo(); }
+      try { await S.create(ctx, { kind: 'path', subject: box.querySelector('#ads').value, adaptive: true, studentId: uid, ...shapeOf(box, 'ad') }); redo(); }
       catch (err) { b.disabled = false; b.textContent = 'בניית מסלול מותאם'; box.querySelector('#admsg').innerHTML = `<p class="err">${esc(err.message)}</p>`; }
     };
   } else if (tab === 'teacher') {

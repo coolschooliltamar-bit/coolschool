@@ -61,7 +61,7 @@ export function score(ctx, sid) {
   const parts = { submissions: Math.min(CAPS.submissions, sub), exams: Math.min(CAPS.exams, ex), learning: Math.min(CAPS.learning, p.xp) };
   const xp = parts.submissions + parts.exams + parts.learning;
   const st = state(sid);
-  const unitDone = Object.keys(p.done).some(k => { const m = k.match(/^([a-z]+):(\d+):\d$/); return m && L.unitState(sid, m[1], +m[2]).every(Boolean); }) || Object.keys(p.done).some(k => k.startsWith('P:'));
+  const unitDone = Object.keys(p.done).some(k => { const m = k.match(/^([a-z]+):(\d+):\d$/); return m && L.unitState(sid, m[1], +m[2]).every(Boolean); }) || Object.keys(p.done).some(k => { const m = k.match(/^P:([^:]+):(\d+)$/); const path = m && L.getPath(m[1]); return path ? L.pathUnitDone(sid, path, +m[2]) : !!m; });
   const ach = {
     first_lesson: Object.keys(p.done).length > 0 || p.week.lessons > 0,
     ontime3: onTime >= 3, exam85: best >= 85, improver: improved, unit_done: unitDone,
