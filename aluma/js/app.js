@@ -791,8 +791,7 @@ function renderPath() {
   const v = document.getElementById('view');
   if (ctx.role !== 'student') { go('chat'); return; }
   const tabsHTML = `<div class="subj-tabs path-tabs" role="tablist">${PATH_TABS.map(([k, l]) => `<button class="tab" role="tab" aria-selected="${pathTab === k}" data-ptab="${k}">${l}</button>`).join('')}</div>`;
-  if (pathTab !== 'basic' || ctx.live) {
-    if (ctx.live && pathTab === 'basic') pathTab = 'adaptive';
+  if (pathTab !== 'basic') {
     v.innerHTML = `<section class="panel lpanel"><h2 class="ph">${icon('sparkle', 20)} מסלול תרגול</h2>${statsBar()}${tabsHTML}<div id="ptbody"></div></section>`;
     v.querySelectorAll('[data-ptab]').forEach(b => b.onclick = () => { pathTab = b.dataset.ptab; renderPath(); });
     V.pathTab(v.querySelector('#ptbody'), pathTab); return;
@@ -803,7 +802,7 @@ function renderPath() {
   const units = L.BANK[sub].units;
   let node = 0;
   v.innerHTML = `<section class="panel lpanel"><h2 class="ph">${icon('sparkle', 20)} מסלול תרגול</h2>${statsBar()}${tabsHTML}
-    <div class="reco">${icon('sparkle', 16)} <b>מומלץ לתרגל ${esc(subjectName(w.sub))}</b> – הממוצע בשלושת הציונים האחרונים שלך בו הוא ${w.avg} (מתוך משוב).</div>
+    <div class="reco">${icon('sparkle', 16)} ${w.n ? `<b>מומלץ לתרגל ${esc(subjectName(w.sub))}</b> – הממוצע בשלושת הציונים האחרונים שלך בו הוא ${w.avg} (מתוך משוב).` : '<b>בחרו מקצוע ותתחילו לתרגל</b> – שיעורים קצרים של 5 שאלות.'}</div>
     ${subjectTabs(sub)}
     <div class="path">${units.map((u, ui) => {
       const st = L.unitState(ctx.userId, sub, ui);
@@ -871,10 +870,6 @@ function renderCards() {
   const cls = Game.classOf(ctx);
   const gen = [...L.myPaths(ctx.userId), ...(cls ? L.classPaths(cls.id) : [])].filter(p => p.cards.length);
   const custom = toolDeck && L.getPath(toolDeck) && L.getPath(toolDeck).cards.length ? L.getPath(toolDeck) : null;
-  if (ctx.live && !custom) {
-    v.innerHTML = `<section class="panel lpanel"><h2 class="ph">${icon('layers', 20)} כרטיסיות זיכרון</h2>${deckPicker(gen, null)}<p class="hint">בחרו חפיסה, או צרו חדשה במסלול התרגול ← "שלי", או בצ׳אט: "תיצרי לי כרטיסיות על…".</p></section>`;
-    bindDeckPicker(v); return;
-  }
   const sub = custom ? custom.id : toolSubject && L.BANK[toolSubject] ? toolSubject : weakest().sub;
   const deck = (custom ? custom.cards : L.flashDeck(sub)).map((c, i) => ({ c, i, box: L.cardBox(ctx.userId, sub, i) }));
   const order = deck.slice().sort((a, b) => a.box - b.box || a.i - b.i);
