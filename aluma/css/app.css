@@ -301,10 +301,10 @@ body.in-app .proto-banner { display: none; }
 .main { min-height: calc(100dvh - 56px); }
 @media (max-width: 900px) { .side { top: 0; height: 100vh; height: 100dvh; } }
 
-/* ---- sidebar: only the conversation list scrolls; settings always stay visible at the bottom ---- */
-.side { overflow: hidden; }
-.convs { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.side-bottom { flex: none; }
+/* ---- sidebar: the whole sidebar scrolls (like other AI chats); the account row stays pinned at the bottom ---- */
+.side { overflow-y: auto; overscroll-behavior: contain; padding-bottom: 0; }
+.convs { flex: none; }
+.side-bottom { flex: none; position: sticky; bottom: 0; background: var(--side); padding-bottom: 12px; z-index: 1; }
 .more-convs { border: 0; background: none; color: var(--accent); font-size: 13px; text-align: right; padding: 6px 10px; border-radius: 8px; }
 .more-convs:hover { background: var(--hover); }
 
