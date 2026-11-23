@@ -13,13 +13,25 @@
 <meta name="theme-color" content="#0b1636">
 <meta property="og:title" content="אלומה · פשוט שואלים">
 <meta property="og:description" content="סוכנת AI שעונה לתלמידים, להורים ולמורים על מה שקורה בבית הספר.">
-<meta property="og:image" content="https://coolschooliltamar-bit.github.io/coolschool/aluma/img/aluma-og.jpg">
+<meta property="og:image" content="https://coolschooliltamar-bit.github.io/coolschool/aluma/img/aluma-og.jpg?v=3">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/app.css">
 <script>
+  // updates: version.json is never read from cache; when the site changed, re-download every file
+  // (bypassing the browser cache) and reload once, so nobody keeps running yesterday's code
+  (function () {
+    var K = 'aluma-ver';
+    fetch('version.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (s) {
+      if (!s || !s.v) return;
+      var cur = null; try { cur = localStorage.getItem(K); } catch (e) {}
+      if (cur === s.v) return;
+      try { localStorage.setItem(K, s.v); } catch (e) { return; }
+      Promise.all(s.files.map(function (f) { return fetch(f, { cache: 'reload' }).catch(function () {}); })).then(function () { if (!navigator.webdriver) location.reload(); });
+    }).catch(function () {});
+  })();
   try { var th = JSON.parse(localStorage.getItem('aluma-theme') || '"light"'); document.documentElement.dataset.theme = th; } catch (e) {}
 </script>
 </head>

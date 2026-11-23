@@ -39,4 +39,4 @@ export const icon = (name, size = 18) =>
 
 // Aluma mark: a small gradient beam with three dots (chat bubble motif, spec 12)
 export const mark = (size = 28) =>
-  `<span class="mark img" style="width:${size}px;height:${size}px" aria-hidden="true"><img src="img/aluma-mark.webp" alt="" width="${size}" height="${size}" decoding="async"></span>`;
+  `<span class="mark img" style="width:${size}px;height:${size}px" aria-hidden="true"><img src="img/aluma-icon.webp" alt="" width="${size}" height="${size}" decoding="async"></span>`;
