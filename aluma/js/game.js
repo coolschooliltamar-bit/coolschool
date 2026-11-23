@@ -132,7 +132,23 @@ export const owns = (userId, c) => (state(userId).owned || []).includes(c.id);
 // ---------- per-student game settings (kept in the browser; synced for real accounts) ----------
 export function state(userId) {
   const G = (db().game = db().game || {});
-  return (G[userId] = G[userId] || { avatar: null, share: false, race: false, projectSent: false, projectDone: false, teamWeek: false, seen: [] });
+  const st = (G[userId] = G[userId] || { avatar: null, share: false, race: false, projectSent: false, projectDone: false, teamWeek: false, seen: [] });
+  if (userId === DEMO_COLLECTOR && !st.demoCollection) seedDemoCollection(st);
+  return st;
+}
+// The demo student Noa starts with a big collection (all rarities, a few cards ×4 so "combine" can be tried,
+// some ×2–3) – so the album, combining and trading can be shown right away. Demo accounts only.
+const DEMO_COLLECTOR = 'u-noa';
+function seedDemoCollection(st) {
+  const R = seeded(20261123);
+  const take = (rarity, n) => { const list = CARDS.filter(c => c.rarity === rarity).map(c => c.id); for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; } return list.slice(0, n); };
+  const ids = [...take('common', 160), ...take('uncommon', 80), ...take('rare', 45), ...take('epic', 22), ...take('legendary', 8)];
+  const four = [ids[0], ids[1], ids[160], ids[240], ids[285], ids[307]];          // common ×2, uncommon, rare, epic, legendary
+  const extra = [...four.flatMap(id => [id, id, id]), ...[ids[5], ids[9], ids[170], ids[250]].flatMap(id => [id, id]), ids[12], ids[180]];
+  st.owned = [...(st.owned || []), ...ids, ...extra];
+  st.seen = [...new Set(st.owned)];
+  st.demoCollection = true;
+  save();
 }
 export function setState(userId, patch) { Object.assign(state(userId), patch); save(); }
 export function avatarOf(userId) {
