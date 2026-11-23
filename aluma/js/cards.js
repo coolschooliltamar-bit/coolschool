@@ -1,21 +1,24 @@
-// Aluma sticker cards – the 40-card collection (rewards, spec א/ז).
-// Every 100 XP earns a card box. A box holds one card; its rarity is drawn with FIXED, PUBLISHED odds
-// that equal each rarity's share of the collection (50 / 25 / 15 / 7.5 / 2.5 %). Boxes are only earned
-// by learning – never bought – they never expire, and there are no duplicates (see game.js openBox).
-// The counts are fixed: 20 / 10 / 6 / 3 / 1 = 40.
+// Aluma sticker cards – 1,000 cards (rewards, spec א/ז).
+// Cards 1–40 are "the originals" (hand-drawn, js/cardart.js); cards 41–1000 come from 24 worlds of 40 creatures
+// each (js/card-worlds.js), drawn in code (js/creatures.js). Every 100 XP earns a card box. A box holds one card;
+// its rarity is drawn with FIXED, PUBLISHED odds that equal each rarity's share of the collection
+// (50 / 25 / 15 / 7.5 / 2.5 %). Boxes are only earned by learning – never bought – and they never expire.
+// The counts are fixed: 500 / 250 / 150 / 75 / 25 = 1,000 (every world, the originals too: 20 / 10 / 6 / 3 / 1).
+import { WORLDS } from './card-worlds.js';
+import { planKind } from './creatures.js';
 
 export const RARITY = {
-  common:    { he: 'רגיל',  en: 'Common',    count: 20, share: '50%',  odds: 50,  symbol: '●', color: '#7c8aa0' },
-  uncommon:  { he: 'מיוחד', en: 'Uncommon',  count: 10, share: '25%',  odds: 25,  symbol: '◆', color: '#2bb673' },
-  rare:      { he: 'נדיר',  en: 'Rare',      count: 6,  share: '15%',  odds: 15,  symbol: '★', color: '#2f7de1' },
-  epic:      { he: 'אפי',   en: 'Epic',      count: 3,  share: '7.5%', odds: 7.5, symbol: '✦', color: '#9b4dff' },
-  legendary: { he: 'אגדי',  en: 'Legendary', count: 1,  share: '2.5%', odds: 2.5, symbol: '♛', color: '#f2b705' },
+  common:    { he: 'רגיל',  en: 'Common',    count: 500, share: '50%',  odds: 50,  symbol: '●', color: '#7c8aa0' },
+  uncommon:  { he: 'מיוחד', en: 'Uncommon',  count: 250, share: '25%',  odds: 25,  symbol: '◆', color: '#2bb673' },
+  rare:      { he: 'נדיר',  en: 'Rare',      count: 150, share: '15%',  odds: 15,  symbol: '★', color: '#2f7de1' },
+  epic:      { he: 'אפי',   en: 'Epic',      count: 75,  share: '7.5%', odds: 7.5, symbol: '✦', color: '#9b4dff' },
+  legendary: { he: 'אגדי',  en: 'Legendary', count: 25,  share: '2.5%', odds: 2.5, symbol: '♛', color: '#f2b705' },
 };
 export const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 
-const C = (n, name, en, rarity, kind, bio, emoji) => ({ id: n, no: String(n).padStart(2, '0'), name, en, rarity, kind, bio, emoji });
+const C = (n, name, en, rarity, kind, bio, emoji) => ({ id: n, no: String(n).padStart(3, '0'), name, en, rarity, kind, bio, emoji, world: 'originals' });
 
-export const CARDS = [
+const ORIGINALS = [
   // ---------- Common (20) ----------
   C(1, 'פופי פופקורן', 'Popi Popcorn', 'common', 'מאכל', 'קופץ מהתרגשות מכל שאלה חדשה.', '🍿'),
   C(2, 'טוסטי', 'Toasty', 'common', 'מאכל', 'פרוסת לחם חמימה שתמיד קמה מוקדם.', '🍞'),
@@ -63,7 +66,21 @@ export const CARDS = [
   C(40, 'לומי – ציפור האור', 'Lumi, the Light Bird', 'legendary', 'יצור אגדי', 'ציפור האור של אלומה. נולדת מכל הניצוצות שאספת – הכי נדירה במשחק.', '🕊️'),
 ];
 
-export const cardById = id => CARDS.find(c => c.id === +id);
+// the 24 worlds → 960 cards. In every world: variants 1–2 of each species are common (20), variant 3 is
+// uncommon (10), variant 4 is rare for species 1–6 (6), epic for 7–9 (3) and legendary for the 10th (1).
+const rarityOf = (si, vi) => vi < 2 ? 'common' : vi === 2 ? 'uncommon' : si < 6 ? 'rare' : si < 9 ? 'epic' : 'legendary';
+const GENERATED = WORLDS.flatMap((w, wi) => w.species.flatMap(([sname, plan, f, sdesc], si) => w.variants.map(([vname, main, accent, el, vdesc], vi) => {
+  const id = 41 + wi * 40 + si * 4 + vi;
+  return { id, no: String(id).padStart(3, '0'), name: `${sname.replace(/(?<=[א-ת])-(?=[א-ת])/g, ' ')} ${vname}`, en: '', rarity: rarityOf(si, vi), kind: planKind(plan), bio: `${sdesc} ${vdesc}.`, emoji: w.emoji,
+    world: w.id, gen: true, si, vi, sp: { plan, f }, v: { main, accent, el } };
+})));
+export const CARDS = [...ORIGINALS, ...GENERATED];
+export const TOTAL = CARDS.length;
+export const SERIES = [{ id: 'originals', name: 'המקוריים', emoji: '✨' }, ...WORLDS.map(w => ({ id: w.id, name: w.name, emoji: w.emoji }))];
+export const seriesOf = c => SERIES.find(s => s.id === c.world) || SERIES[0];
+export const worldOf = c => WORLDS.find(w => w.id === c.world) || null;
+const BY_ID = new Map(CARDS.map(c => [c.id, c]));
+export const cardById = id => BY_ID.get(+id);
 // how a card is obtained – shown on locked cards and in the catalog
 export function unlockText(c) {
   const r = RARITY[c.rarity];

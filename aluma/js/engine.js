@@ -230,7 +230,7 @@ function progressAnswer(ctx, sid) {
   const who = ctx.role === 'parent' ? `ל${nameOf(sid)} יש` : 'יש לך';
   const box = Game.boxInfo(sid, s);
   const cards = Game.ownedCards(sid).length, badges = Object.values(s.ach).filter(Boolean).length;
-  return reply(`${who} **${s.xp} XP** – רמה ${s.level} (${Game.LEVELS[s.level]}): הגשות ${s.parts.submissions}/${Game.CAPS.submissions}, מבחנים ${s.parts.exams}/${Game.CAPS.exams}, תרגול ${s.parts.learning}/${Game.CAPS.learning}. ${cards} קלפים מתוך 40 ו-${badges} הישגים.${box.ready ? ` ${ctx.role === 'parent' ? 'מחכות' : 'מחכות לך'} ${box.ready === 1 ? 'תיבת קלפים אחת' : `${box.ready} תיבות קלפים`} לפתיחה.` : ''}${` התיבה הבאה בעוד ${box.toNext} XP.`}${Game.canCombine(sid).length ? ' יש קלף עם 4 עותקים – אפשר לשלב אותו לתיבה חדשה.' : ''}`,
+  return reply(`${who} **${s.xp} XP** – רמה ${s.level} (${Game.LEVELS[s.level]}): הגשות ${s.parts.submissions}/${Game.CAPS.submissions}, מבחנים ${s.parts.exams}/${Game.CAPS.exams}, תרגול ${s.parts.learning}/${Game.CAPS.learning}. ${cards} קלפים מתוך ${Game.CARDS.length} ו-${badges} הישגים.${box.ready ? ` ${ctx.role === 'parent' ? 'מחכות' : 'מחכות לך'} ${box.ready === 1 ? 'תיבת קלפים אחת' : `${box.ready} תיבות קלפים`} לפתיחה.` : ''}${` התיבה הבאה בעוד ${box.toNext} XP.`}${Game.canCombine(sid).length ? ' יש קלף עם 4 עותקים – אפשר לשלב אותו לתיבה חדשה.' : ''}`,
     { cards: [{ type: 'tool', tool: 'game', icon: '🏆', title: 'פרסים והישגים', desc: 'פירוט ה-XP, האלבום והכיתה', cta: 'פתיחה' }], chips: ctx.role === 'student' ? ['תיצרי לי מסלול מותאם', 'מה להגיש השבוע?'] : [] });
 }
 

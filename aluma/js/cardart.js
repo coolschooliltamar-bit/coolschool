@@ -5,7 +5,8 @@
 //   rare: metallic frame, light rays and glow · epic: chrome-rainbow frame, energy bolts, particles, 3D floor
 //   legendary: 3D gold frame, rainbow holographic sheen, halo, layered lights, LEGENDARY ribbon.
 // Works in the browser (inline SVG in the app) and in Node (tools/build-cards.mjs exports PNG/SVG files).
-import { RARITY } from './cards.js';
+import { RARITY, RARITY_ORDER, TOTAL, seriesOf, worldOf, cardById } from './cards.js';
+import { drawCreature, worldScene } from './creatures.js';
 
 const INK = '#2b2340';
 const OL = `stroke="${INK}" stroke-opacity=".28" stroke-width="3" stroke-linejoin="round"`;
@@ -449,60 +450,74 @@ function particles(d, c, W, H, seed) {
   return s;
 }
 
-// ---------- full card 600×800 (3:4) ----------
+// ---------- the illustration: the originals' hand-drawn art, or a generated creature in its world ----------
+function illustration(d, c, W, H) {
+  if (c.gen) {
+    const w = worldOf(c), R = rng(c.id * 31 + 7);
+    const k = Math.min(W, H * 1.05) / 400, ox = (W - 400 * k) / 2, oy = H - 400 * k - H * 0.02;
+    return `${worldScene(d, w, W, H, R, c.rarity)}<g transform="translate(${f(ox)} ${f(oy)}) scale(${f(k)})">${drawCreature(d, c)}</g>`;
+  }
+  const art = ART[c.id]; if (!art) return '';
+  const k = Math.min(W, H) / 400 * 0.98, ox = (W - 400 * k) / 2, oy = H - 400 * k - H * 0.01;
+  return `${scenery(d, c, W, H, c.id * 31)}<g transform="translate(${f(ox)} ${f(oy)}) scale(${f(k)})">${art.draw(d)}</g>${particles(d, c, W, H, c.id * 31)}`;
+}
+const f = n => Math.round(n * 100) / 100;
+
+// ---------- full card 600×840: full-bleed art, a name plate, rarity gems and a frame that grows with rarity ----------
 const FONT = `'Heebo', 'Noto Sans Hebrew', 'Arial Hebrew', Arial, sans-serif`;
+const FRAME = {
+  common:    { stops: ['#eef2f8', '#b8c3d4', '#f4f7fb', '#9eabc0'], ink: '#2b2340', plate: ['#ffffff', '#eef1f7'], line: '#9aa6b8', gem: '#7c8aa0' },
+  uncommon:  { stops: ['#c9ffe4', '#2bb673', '#e6fff2', '#178a55'], ink: '#0f3d2a', plate: ['#f3fff8', '#d8f7e7'], line: '#2bb673', gem: '#2bb673' },
+  rare:      { stops: ['#e1efff', '#4f86e8', '#f4f9ff', '#2a56b0', '#bcd6ff'], ink: '#ffffff', plate: ['#1d3f8f', '#0f2560'], line: '#9cc4ff', gem: '#2f7de1' },
+  epic:      { stops: ['#ff7ad9', '#a259ff', '#5b8cff', '#5ef0ff', '#b06bff', '#ff6bd5'], ink: '#ffffff', plate: ['#3a1a7a', '#1a0b44'], line: '#e2c6ff', gem: '#9b4dff' },
+  legendary: { stops: ['#fff3b0', '#e8a92a', '#fff8d6', '#b8761a', '#ffe27a', '#9a5e10'], ink: '#fff3c4', plate: ['#3a1d06', '#1e0d02'], line: '#ffe27a', gem: '#f2b705' },
+};
 export function cardSVG(c, { fontCSS = '', w = 600 } = {}) {
-  const art = ART[c.id], r = c.rarity, R = RARITY[r];
+  const r = c.rarity, R = RARITY[r], F = FRAME[r], lvl = RARITY_ORDER.indexOf(r);
   const d = makeCtx(`k${c.id}x${uid++}x`);
-  const W = 600, H = 800, ax = 44, ay = 124, aw = 512, ah = 520;
-  const frame = {
-    common: () => `<rect width="${W}" height="${H}" rx="40" fill="${d.lg(['#c7cfdb', '#9aa6b8'])}"/><rect x="16" y="16" width="${W - 32}" height="${H - 32}" rx="30" fill="#f7f8fb"/>`,
-    uncommon: () => `<rect width="${W}" height="${H}" rx="40" fill="${d.lg(['#5fe0a0', '#1f9a63'])}"/><rect x="12" y="12" width="${W - 24}" height="${H - 24}" rx="32" fill="none" stroke="#c9f7df" stroke-width="3"/><rect x="20" y="20" width="${W - 40}" height="${H - 40}" rx="28" fill="#f2fff7"/>
-      ${[[34, 34, 0], [W - 34, 34, 90], [W - 34, H - 34, 180], [34, H - 34, 270]].map(([x, y, a]) => `<path d="M${x} ${y + 26} Q${x} ${y} ${x + 26} ${y} M${x + 8} ${y + 14} l6 -6" stroke="#1f9a63" stroke-width="4" fill="none" stroke-linecap="round" transform="rotate(${a} ${x} ${y})"/>`).join('')}`,
-    rare: () => `<rect width="${W}" height="${H}" rx="40" fill="${d.lg(['#e8f1ff', '#7da7e8', '#f4f8ff', '#4f7fd0', '#cfe0ff', '#3a64b8'], 0, 0, 1, 1)}"/><rect x="8" y="8" width="${W - 16}" height="${H - 16}" rx="34" fill="none" stroke="#ffffff" stroke-width="2.5" opacity=".8"/><rect x="18" y="18" width="${W - 36}" height="${H - 36}" rx="28" fill="${d.lg(['#0f2a66', '#1d4fae'])}"/><rect x="18" y="18" width="${W - 36}" height="${H - 36}" rx="28" fill="none" stroke="#9cc4ff" stroke-width="2"/>`,
-    epic: () => `<rect width="${W}" height="${H}" rx="40" fill="${d.lg(['#ff6bd5', '#b06bff', '#6b8bff', '#5ef0ff', '#b06bff', '#ff6bd5'], 0, 0, 1, 1)}"/><rect width="${W}" height="${H}" rx="40" fill="${d.lg([['0', '#fff', 0], ['.45', '#fff', 0.55], ['.5', '#fff', 0], ['.62', '#fff', 0.35], ['1', '#fff', 0]], 0, 0, 1, 1)}"/><rect x="8" y="8" width="${W - 16}" height="${H - 16}" rx="34" fill="none" stroke="#fff" stroke-width="3" opacity=".85"/><rect x="18" y="18" width="${W - 36}" height="${H - 36}" rx="28" fill="${d.lg(['#2a1466', '#120a38'])}"/>`,
-    legendary: () => { const gold = d.lg(['#fff3b0', '#e8a92a', '#fff8d6', '#b8761a', '#ffe27a', '#9a5e10'], 0, 0, 1, 1), gold2 = d.lg(['#9a5e10', '#ffd96a', '#fff3b0', '#c48a1e'], 0, 0, 0, 1);
-      return `<rect width="${W}" height="${H}" rx="42" fill="${gold}"/><rect x="5" y="5" width="${W - 10}" height="${H - 10}" rx="38" fill="none" stroke="#fff6d0" stroke-width="3"/><rect x="12" y="12" width="${W - 24}" height="${H - 24}" rx="34" fill="${gold2}"/><rect x="20" y="20" width="${W - 40}" height="${H - 40}" rx="28" fill="${d.lg(['#1b0f45', '#0c0624'])}"/><rect x="20" y="20" width="${W - 40}" height="${H - 40}" rx="28" fill="none" stroke="#ffe27a" stroke-width="3"/>
-        ${[[36, 36], [W - 36, 36], [W - 36, H - 36], [36, H - 36]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="14" fill="${d.rg('#ff5fa8', { hl: 0.7 })}" stroke="#fff3b0" stroke-width="3"/>${shine(x - 4, y - 4, 4, 2.5, -30, 0.9)}`).join('')}`; },
-  }[r]();
-  const dark = r === 'rare' || r === 'epic' || r === 'legendary';
-  const plateFill = { common: '#ffffff', uncommon: '#ffffff', rare: d.lg(['#dbe8ff', '#9cbcf0']), epic: d.lg(['#ffffff', '#e2d4ff']), legendary: d.lg(['#fff6d0', '#f2c24a', '#fff3b0'], 0, 0, 0, 1) }[r];
-  const plateStroke = { common: '#9aa6b8', uncommon: '#1f9a63', rare: '#ffffff', epic: '#ffffff', legendary: '#9a5e10' }[r];
-  const artClip = d.clip(`<rect x="${ax}" y="${ay}" width="${aw}" height="${ah}" rx="22"/>`);
-  const seed = c.id * 31;
-  const holo = r === 'legendary' ? `<rect x="${ax}" y="${ay}" width="${aw}" height="${ah}" fill="${d.lg([['0', '#ff5f6d', 0.0], ['.2', '#ffb347', 0.22], ['.35', '#7ee8a0', 0.0], ['.5', '#5ecbff', 0.22], ['.65', '#9b7bff', 0.0], ['.8', '#ff7ad1', 0.22], ['1', '#ffe66b', 0.0]], 0, 0, 1, 1)}"/>`
-    : r === 'epic' ? `<rect x="${ax}" y="${ay}" width="${aw}" height="${ah}" fill="${d.lg([['0', '#fff', 0], ['.5', '#fff', 0.14], ['1', '#fff', 0]], 0, 0, 1, 1)}"/>` : '';
-  const scale = aw / 400, artY = ay + (ah - 400 * scale) / 2 + 6;
-  const nameSize = c.name.length > 14 ? 34 : 42;
-  const labelColor = dark ? '#ffffff' : '#2b2340';
-  const symbolBadge = `<circle cx="${W - 92}" cy="712" r="26" fill="${r === 'legendary' ? d.rg('#ffd34d', { hl: 0.7 }) : R.color}" stroke="#ffffff" stroke-width="3"/><text x="${W - 92}" y="722" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#fff">${R.symbol}</text>`;
-  const legendRibbon = r === 'legendary' ? `<g><path d="M${ax - 14} ${ay + ah - 70} L${ax + aw + 14} ${ay + ah - 70} L${ax + aw} ${ay + ah - 44} L${ax + aw + 14} ${ay + ah - 18} L${ax - 14} ${ay + ah - 18} L${ax} ${ay + ah - 44}Z" fill="${d.lg(['#7a1fa2', '#c2185b', '#7a1fa2'], 0, 0, 1, 0)}" stroke="#ffe27a" stroke-width="3"/>
-      <text x="${W / 2}" y="${ay + ah - 31}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="38" letter-spacing="9" fill="${d.lg(['#fff8d6', '#ffd34d', '#fff3b0', '#e8a92a'], 0, 0, 0, 1)}" stroke="#5a2a00" stroke-width="1.5" paint-order="stroke">LEGENDARY</text></g>` : '';
-  const body = `${frame}
-    <rect x="${ax - 4}" y="${ay - 4}" width="${aw + 8}" height="${ah + 8}" rx="25" fill="${dark ? '#ffffff' : plateStroke}" opacity="${dark ? 0.35 : 0.5}"/>
-    <g clip-path="${artClip}"><g transform="translate(${ax} ${ay})">${scenery(d, c, aw, ah, seed)}</g>
-      <g transform="translate(${ax} ${artY}) scale(${scale})">${art.draw(d)}</g>
-      <g transform="translate(${ax} ${ay})">${particles(d, c, aw, ah, seed)}</g>${holo}
-      <rect x="${ax}" y="${ay}" width="${aw}" height="${ah * 0.32}" fill="${d.lg([['0', '#fff', 0.28], ['1', '#fff', 0]])}"/></g>
-    ${legendRibbon}
-    <rect x="${ax}" y="38" width="${aw}" height="72" rx="36" fill="${plateFill}" stroke="${plateStroke}" stroke-width="3"/>
-    <text x="${W / 2}" y="${74 + nameSize * 0.36}" text-anchor="middle" direction="rtl" font-family="${FONT}" font-weight="800" font-size="${nameSize}" fill="#2b2340">${c.name}</text>
-    <rect x="${ax}" y="664" width="${aw}" height="96" rx="26" fill="${dark ? '#ffffff' : '#ffffff'}" opacity="${dark ? 0.1 : 1}" stroke="${dark ? '#ffffff' : plateStroke}" stroke-opacity="${dark ? 0.45 : 0.6}" stroke-width="2.5"/>
-    ${symbolBadge}
-    <text x="${W - 132}" y="706" text-anchor="end" font-family="${FONT}" font-weight="800" font-size="30" fill="${r === 'legendary' ? '#ffe27a' : labelColor}">${R.he}</text>
-    <text x="${W - 132}" y="740" text-anchor="end" font-family="${FONT}" font-weight="700" font-size="19" letter-spacing="3" fill="${labelColor}" opacity=".75">${R.en.toUpperCase()}</text>
-    <text x="${ax + 30}" y="726" font-family="${FONT}" font-weight="800" font-size="34" fill="${labelColor}" direction="ltr">${c.no}<tspan font-size="22" opacity=".7">/40</tspan></text>`;
-  const h = Math.round(w * 4 / 3);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${w}" height="${h}" direction="ltr" style="direction:ltr" role="img" aria-label="${c.name} – ${R.he} – ${c.no}/40">${fontCSS ? `<style>${fontCSS}</style>` : ''}<defs>${d.defs.join('')}</defs>${body}</svg>`;
+  const W = 600, H = 840, pad = 16, aw = W - pad * 2, ah = 600, ay = pad;
+  const series = seriesOf(c);
+  const frameFill = d.lg(F.stops, 0, 0, 1, 1);
+  const artClip = d.clip(`<rect x="${pad}" y="${ay}" width="${aw}" height="${ah + 40}" rx="26"/>`);
+  // foil: a soft diagonal sheen for rare+, a rainbow one for legendary
+  const foil = lvl >= 2 ? `<rect class="foil" x="${pad}" y="${ay}" width="${aw}" height="${ah}" fill="${d.lg(lvl === 4 ? [['0', '#ff5f6d', 0], ['.25', '#ffb347', 0.18], ['.4', '#7ee8a0', 0], ['.55', '#5ecbff', 0.18], ['.7', '#9b7bff', 0], ['.85', '#ff7ad1', 0.18], ['1', '#ffe66b', 0]] : [['0', '#fff', 0], ['.42', '#fff', 0], ['.5', '#fff', lvl === 3 ? 0.28 : 0.2], ['.58', '#fff', 0], ['1', '#fff', 0]], 0, 0, 1, 1)}"/>` : '';
+  const corners = lvl >= 3 ? [[pad + 10, pad + 10, 0], [W - pad - 10, pad + 10, 90], [W - pad - 10, H - pad - 10, 180], [pad + 10, H - pad - 10, 270]].map(([x, y, a]) => `<path d="M${x} ${y + 34} L${x} ${y} L${x + 34} ${y}" stroke="${F.line}" stroke-width="5" fill="none" stroke-linecap="round" transform="rotate(${a} ${x} ${y})"/>${sparkle(x + (a === 90 || a === 180 ? -16 : 16), y + (a >= 180 ? -16 : 16), 8, F.line)}`).join('') : '';
+  const nameSize = c.name.length > 16 ? 36 : c.name.length > 12 ? 42 : 48;
+  const py = ay + ah - 6;     // plate top
+  const gems = RARITY_ORDER.map((_, i) => { const x = W / 2 + (i - 2) * 30; return i <= lvl ? `<path d="M${x} ${py + 172} l11 11 l-11 11 l-11 -11Z" fill="${lvl === 4 ? d.lg(['#fff3b0', '#ffd34d', '#e8a92a'], 0, 0, 0, 1) : F.gem}" stroke="#fff" stroke-width="2"/>` : `<path d="M${x} ${py + 172} l11 11 l-11 11 l-11 -11Z" fill="none" stroke="${F.ink}" stroke-opacity=".35" stroke-width="2"/>`; }).join('');
+  const body = `<rect width="${W}" height="${H}" rx="38" fill="${frameFill}"/>
+    ${lvl >= 3 ? `<rect width="${W}" height="${H}" rx="38" fill="${d.lg([['0', '#fff', 0], ['.45', '#fff', 0.45], ['.52', '#fff', 0], ['.66', '#fff', 0.3], ['1', '#fff', 0]], 0, 0, 1, 1)}"/>` : ''}
+    <rect x="6" y="6" width="${W - 12}" height="${H - 12}" rx="33" fill="none" stroke="#ffffff" stroke-opacity=".7" stroke-width="2.5"/>
+    <g clip-path="${artClip}"><g transform="translate(${pad} ${ay})">${illustration(d, c, aw, ah + 40)}</g>${foil}
+      <rect x="${pad}" y="${ay}" width="${aw}" height="${ah * 0.3}" fill="${d.lg([['0', '#fff', 0.22], ['1', '#fff', 0]])}"/></g>
+    <rect x="${pad}" y="${ay}" width="${aw}" height="${ah + 40}" rx="26" fill="none" stroke="#ffffff" stroke-opacity=".55" stroke-width="3"/>
+    <g>
+      <rect x="${pad + 14}" y="${ay + 14}" width="128" height="44" rx="22" fill="#0b0620" fill-opacity=".45"/>
+      <text x="${pad + 78}" y="${ay + 44}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="24" fill="#fff" direction="ltr">#${c.no}</text>
+      <rect x="${W - pad - 168}" y="${ay + 14}" width="154" height="44" rx="22" fill="${lvl === 4 ? d.lg(['#fff3b0', '#e8a92a'], 0, 0, 1, 0) : R.color}" stroke="#fff" stroke-opacity=".8" stroke-width="2"/>
+      <text x="${W - pad - 91}" y="${ay + 44}" text-anchor="middle" direction="rtl" font-family="${FONT}" font-weight="800" font-size="24" fill="${lvl === 4 ? '#4a2a00' : '#fff'}">${R.symbol} ${R.he}</text>
+    </g>
+    <path d="M${pad} ${py + 24} Q${pad} ${py} ${pad + 24} ${py} L${W / 2 - 70} ${py} Q${W / 2 - 52} ${py} ${W / 2 - 40} ${py - 12} Q${W / 2} ${py - 30} ${W / 2 + 40} ${py - 12} Q${W / 2 + 52} ${py} ${W / 2 + 70} ${py} L${W - pad - 24} ${py} Q${W - pad} ${py} ${W - pad} ${py + 24} L${W - pad} ${H - pad - 24} Q${W - pad} ${H - pad} ${W - pad - 24} ${H - pad} L${pad + 24} ${H - pad} Q${pad} ${H - pad} ${pad} ${H - pad - 24}Z" fill="${d.lg(F.plate)}" stroke="${F.line}" stroke-width="3"/>
+    <circle cx="${W / 2}" cy="${py - 4}" r="26" fill="${d.lg(F.plate)}" stroke="${F.line}" stroke-width="3"/>
+    <text x="${W / 2}" y="${py + 7}" text-anchor="middle" font-size="28">${series.emoji}</text>
+    <text x="${W / 2}" y="${py + 82}" text-anchor="middle" direction="rtl" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${F.ink}">${c.name}</text>
+    <text x="${W / 2}" y="${py + 128}" text-anchor="middle" direction="rtl" font-family="${FONT}" font-weight="600" font-size="23" fill="${F.ink}" opacity=".78">${series.name} · ${c.kind}</text>
+    ${gems}
+    <text x="${W - pad - 30}" y="${py + 192}" text-anchor="end" font-family="${FONT}" font-weight="800" font-size="20" fill="${F.ink}" opacity=".7" direction="ltr">${c.no}/${TOTAL}</text>
+    ${corners}`;
+  const h = Math.round(w * H / W);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${w}" height="${h}" direction="ltr" style="direction:ltr" role="img" aria-label="${c.name} – ${R.he} – ${c.no}/${TOTAL}">${fontCSS ? `<style>${fontCSS}</style>` : ''}<defs>${d.defs.join('')}</defs>${body}</svg>`;
 }
 
 // ---------- in-app: the character on its background (avatar / small tiles) ----------
 export function cardArt(c, { mini = true } = {}) {
-  const art = ART[c.id]; if (!art) return '';
+  if (!c || (!c.gen && !ART[c.id])) return '';
   const d = makeCtx(`m${c.id}x${uid++}x`);
   const W = 400, H = 400;
+  if (c.gen) { const R = rng(c.id * 31 + 7); return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${(() => { const s = worldScene(d, worldOf(c), W, H, R, mini ? 'common' : c.rarity) + `<g transform="translate(20 30) scale(.9)">${drawCreature(d, c)}</g>`; return `<defs>${d.defs.join('')}</defs>${s}`; })()}</svg>`; }
+  const art = ART[c.id];
   const bg = scenery(d, c, W, H, c.id * 31), fx = mini && c.rarity === 'common' ? '' : particles(d, c, W, H, c.id * 31);
   const body = art.draw(d);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs>${d.defs.join('')}</defs>${bg}<g transform="translate(20 22) scale(.9)">${body}</g>${fx}</svg>`;
 }
-export const hasArt = id => !!ART[id];
+export const hasArt = id => !!ART[id] || !!(cardById(id) || {}).gen;
