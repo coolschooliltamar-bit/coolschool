@@ -62,6 +62,20 @@ export async function classGame(courseId) {
   catch { return null; }
 }
 
+// card trading between members of one Classroom course (the server checks membership with Google)
+const tradeCall = async (path, body) => {
+  if (!on()) throw new Error('צריך להתחבר עם Google כדי להחליף קלפים.');
+  let r;
+  try { r = await fetch(`${GEMINI_PROXY_URL}${path}`, { method: body ? 'POST' : 'GET', headers: { Authorization: `Bearer ${G.accessToken()}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }); }
+  catch { throw new Error('אין חיבור לשרת כרגע. נסו שוב עוד מעט.'); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error && j.error.message) || 'ההחלפה לא הצליחה.');
+  return j;
+};
+export const tradeOffer = (courseId, to, give, want) => tradeCall('/game/trade', { courseId, to, give, want });
+export const tradeAct = (courseId, id, action) => tradeCall(`/game/trade/${encodeURIComponent(id)}`, { courseId, action });
+export async function tradeList(courseId) { try { return (await tradeCall(`/game/trades/${encodeURIComponent(courseId)}`)).trades || []; } catch { return null; } }
+
 // ---------- shared learning of the fast-answer router ----------
 // Works for demo visitors too (counted per network); signed-in users are counted per account.
 // What is sent: a topic and a few word stems, e.g. { intent: 'assignments', keys: ['חיבור', '~חבר'] }.

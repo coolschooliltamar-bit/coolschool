@@ -5,6 +5,7 @@ import * as P from './projects.js';
 import * as S from './studio.js';
 import * as L from './learn.js';
 import * as Cloud from './cloud.js';
+import * as T from './trade.js';
 import { CARDS, RARITY, RARITY_ORDER, cardById, unlockText, TOTAL, SERIES, seriesOf } from './cards.js';
 import { cardArt, cardSVG } from './cardart.js';
 import { STUDENTS, CLASSES, TEACHERS, subjectName } from './data.js';
@@ -135,6 +136,7 @@ function openBoxFlow(sid) {
 
 // ---------- rewards: progress · album · class ----------
 let gameTab = 'progress', peek = null, albumSeries = null, albumFilter = 'all';
+let tradeTo = '', tradeGive = [], tradeWant = [], tradeMsg = '', tradeTimer = null;
 export function renderGame() {
   const v = view(); const ctx = E.ctx();
   const sid = ctx.role === 'parent' ? E.sid() : ctx.userId;
@@ -144,8 +146,8 @@ export function renderGame() {
   const av = Game.avatarOf(sid);
   const lv = s.level, inLevel = s.xp - lv * 100, last = lv === Game.LEVELS.length - 1;
   const fresh = own ? Game.newCards(sid) : [];
-  if (!own) gameTab = gameTab === 'class' ? 'progress' : gameTab;
-  const tabs = [['progress', 'התקדמות'], ['album', `אלבום (${Game.ownedCards(sid).length}/${TOTAL})`], ...(own ? [['class', 'הכיתה']] : [])];
+  if (!own) gameTab = ['class', 'trade'].includes(gameTab) ? 'progress' : gameTab;
+  const tabs = [['progress', 'התקדמות'], ['album', `אלבום (${Game.ownedCards(sid).length}/${TOTAL})`], ...(own ? [['trade', 'החלפות'], ['class', 'הכיתה']] : [])];
   v.innerHTML = `<section class="panel lpanel"><h2 class="ph">${icon('trophy', 20)} ${own ? 'פרסים והישגים' : `ההתקדמות של ${esc(first(nameOf(sid)))}`}</h2>
     <div class="lvl">
       <div class="lvl-av">${av ? cardArt(av, { mini: true }) : '<span class="lvl-empty">?</span>'}</div>
@@ -158,11 +160,12 @@ export function renderGame() {
     <div id="gbody"></div></section>`;
   v.querySelectorAll('[data-gtab]').forEach(b => b.onclick = () => { gameTab = b.dataset.gtab; peek = null; renderGame(); });
   const body = v.querySelector('#gbody');
-  const fl = flash ? `<div class="reco flash" role="status">${esc(flash)}</div>` : ''; flash = '';
+  const fl = flash ? `<div class="reco tmsg" role="status">${esc(flash)}</div>` : ''; flash = '';
   if (gameTab === 'progress') body.innerHTML = fl + boxPanel(sid, s, own) + progressTab(s, own, fresh);
   if (gameTab === 'album') body.innerHTML = fl + boxPanel(sid, s, own) + albumTab(sid, s, own, fresh);
   const ob = body.querySelector('#openbox'); if (ob) ob.onclick = () => openBoxFlow(sid);
   if (gameTab === 'class') { classTab(body, ctx, s); return; }
+  if (gameTab === 'trade') { tradeTab(body, ctx, s); return; }
   body.querySelectorAll('[data-combine]').forEach(b => b.onclick = () => {
     try { const r = Game.combine(sid, b.dataset.combine); flash = `✨ שילבת 4 עותקים של ${r.card.name}: 3 יצאו מהאוסף, אחד נשאר – וקיבלת תיבה חדשה 🎁`; E.live(flash); renderGame(); E.refreshSide(); }
     catch (e) { E.live(e.message); }
@@ -241,6 +244,81 @@ function classTab(body, ctx, s) {
     ${mates.length - shared.length ? `<p class="hint">עוד ${mates.length - shared.length} חברים בחרו לא לשתף.</p>` : ''}`;
   bind();
 }
+// ---------- card trading with classmates ----------
+const tthumb = (id, { pick = '', sel = false, n = 0 } = {}) => { const c = cardById(id); if (!c) return ''; const r = RARITY[c.rarity];
+  return `<button type="button" class="tthumb ${c.rarity} ${sel ? 'sel' : ''}" ${pick ? `data-tpick="${pick}" data-id="${c.id}" aria-pressed="${sel}"` : `data-zoom="${c.id}"`} title="${esc(c.name)} – ${r.he}"><span class="tt-art">${cardArt(c)}</span><span class="tt-n">${esc(c.name)}</span><span class="tt-r" style="color:${r.color}">${r.symbol} ${r.he}</span>${n > 1 ? `<span class="tt-x" dir="ltr">×${n}</span>` : ''}${sel ? '<span class="tt-ok">✓</span>' : ''}</button>`; };
+const fairBadge = (give, want) => { const f = T.fairness(give, want); return f.verdict === 'empty' ? '' : `<span class="tfair ${f.verdict}">${f.verdict === 'fair' ? '⚖️' : '⚠️'} ${T.FAIR_TEXT[f.verdict]} <small>(נותן/ת ${f.g} · מקבל/ת ${f.w} נק׳ נדירות)</small></span>`; };
+const STATUS_HE = { accepted: '✅ בוצעה', declined: '❌ סורבה', cancelled: 'בוטלה', expired: 'פגה', pending: 'ממתינה' };
+function tradeTab(body, ctx, s) {
+  const st = Game.state(ctx.userId);
+  const rules = `<p class="hint">${icon('users', 14)} מחליפים רק עם חברים מהכיתה ששיתפו את האוסף · רק קלפים – בלי כסף ובלי XP · עד ${T.MAX_SIDE} קלפים בכל צד · הקלפים שהצעת נשמרים בצד עד התשובה · אפשר לבטל עד שההצעה מתקבלת · הצעה פגה אחרי ${T.EXPIRE_DAYS} ימים.</p>`;
+  if (!st.share) { body.innerHTML = `${rules}<div class="reco">${icon('users', 16)} <span>כדי להחליף קלפים צריך קודם <b>לשתף את האוסף עם הכיתה</b> (בלשונית "הכיתה"). רק מי שמשתף/ת יכול/ה להחליף.</span> <button class="btn" data-goto="class">ללשונית הכיתה</button></div>`; body.querySelector('[data-goto]').onclick = () => { gameTab = 'class'; renderGame(); }; return; }
+  if (ctx.live) { liveTrade(body, ctx, rules, s); return; }
+  T.demoTick(ctx);
+  const data = T.myTrades(ctx);
+  const mates = T.classmatesForTrade(ctx).map(m => ({ key: m.id, first: m.first, cards: m.cards }));
+  drawTrade(body, ctx, rules, mates, data, {
+    send: (to, give, want) => T.offer(ctx, to, give, want),
+    act: (id, action) => T.respond(ctx, id, action),
+  });
+  clearTimeout(tradeTimer);
+  if (data.outgoing.some(t => /^u-s-/.test(t.to))) tradeTimer = setTimeout(() => { if (gameTab === 'trade' && document.querySelector('.trade') && T.demoTick(ctx)) { tradeMsg = 'החבר/ה ענה/תה על ההצעה שלך 👇'; renderGame(); E.refreshSide(); } }, 3600);
+}
+async function liveTrade(body, ctx, rules, s) {
+  const course = LIVE.courses.find(c => c.role === 'student');
+  if (!course) { body.innerHTML = `${rules}<p class="hint">לא נמצאה כיתה ב-Classroom שבה את/ה תלמיד/ה.</p>`; return; }
+  body.innerHTML = `${rules}<p class="hint">טוענת את ההחלפות בכיתה "${esc(course.name)}"…</p>`;
+  const [members, data] = await Promise.all([Cloud.classGame(course.id), T.liveSync(ctx, course.id)]);
+  if (!members || !data) { body.innerHTML = `${rules}<p class="err">לא הצלחתי להתחבר לשרת ההחלפות. נסו שוב עוד מעט.</p>`; return; }
+  shareLive(ctx, s);                                     // the shared collection follows trades
+  const mates = members.filter(m => !m.me && m.handle).map(m => ({ key: m.handle, first: m.first, cards: m.cards || [] }));
+  drawTrade(body, ctx, rules, mates, data, {
+    live: true,
+    send: async (to, give, want) => T.liveOffer(ctx, course.id, to, give, want),
+    act: async (id, action) => { const t = [...data.incoming, ...data.outgoing].find(x => x.id === id); return T.liveRespond(ctx, course.id, id, action, t); },
+  });
+}
+function drawTrade(body, ctx, rules, mates, data, api) {
+  const counts = Game.counts(ctx.userId);
+  const mineIds = Object.keys(counts).map(Number).sort((a, b) => T.VALUE[cardById(b).rarity] - T.VALUE[cardById(a).rarity] || a - b);
+  if (tradeTo && !mates.some(m => m.key === tradeTo)) { tradeTo = ''; tradeWant = []; }
+  const mate = mates.find(m => m.key === tradeTo);
+  const offerRow = (t, dir) => `<div class="toffer"><div class="to-h"><b>${dir === 'in' ? `${esc(t.other)} מציע/ה לך` : `הצעה ל${esc(t.other)}`}</b>${t.status !== 'pending' ? `<span class="to-st ${t.status}">${STATUS_HE[t.status] || t.status}</span>` : ''}<span class="hint">${new Date(t.at).toLocaleDateString('he-IL')}</span></div>
+      <div class="to-sides"><div><small>${dir === 'in' ? 'את/ה מקבל/ת' : 'את/ה נותן/ת'}</small><div class="tthumbs">${(dir === 'in' ? t.give : t.give).map(id => tthumb(id)).join('')}</div></div><span class="to-arrow" aria-hidden="true">⇄</span>
+        <div><small>${dir === 'in' ? 'את/ה נותן/ת' : 'את/ה מקבל/ת'}</small><div class="tthumbs">${t.want.map(id => tthumb(id)).join('')}</div></div></div>
+      ${t.status === 'pending' ? `${dir === 'in' ? fairBadge(t.want, t.give) : fairBadge(t.give, t.want)}<div class="btns">${dir === 'in' ? `<button class="btn primary" data-tact="accept" data-tid="${t.id}" ${T.hasAll(ctx.userId, t.want) ? '' : 'disabled title="אין לך את הקלפים שביקשו"'}>אישור ההחלפה</button><button class="btn" data-tact="decline" data-tid="${t.id}">לא, תודה</button>` : `<button class="btn" data-tact="cancel" data-tid="${t.id}">ביטול ההצעה (הקלפים חוזרים אליך)</button>`}</div>` : t.note === 'not_fair' ? '<p class="hint">החבר/ה חשב/ה שההחלפה לא הוגנת. נסו להציע קלף ברמת נדירות דומה.</p>' : ''}</div>`;
+  body.innerHTML = `<div class="trade">${rules}${tradeMsg ? `<div class="reco tmsg" role="status">${esc(tradeMsg)}</div>` : ''}
+    ${data.incoming.length ? `<h3>${icon('inbox', 16)} הצעות שקיבלת (${data.incoming.length})</h3>${data.incoming.map(t => offerRow(t, 'in')).join('')}` : ''}
+    ${data.outgoing.length ? `<h3>הצעות ששלחת וממתינות (${data.outgoing.length}/${T.MAX_OPEN})</h3>${data.outgoing.map(t => offerRow(t, 'out')).join('')}` : ''}
+    <h3>${icon('sparkle', 16)} הצעה חדשה</h3>
+    ${!mates.length ? '<p class="hint">עוד אף אחד מהכיתה לא שיתף את האוסף. כשחברים ישתפו – תוכלו להחליף איתם.</p>' : !mineIds.length ? '<p class="hint">עוד אין לך קלפים להחלפה. כל 100 XP = תיבת קלפים.</p>' : `
+    <div class="formrow"><label for="tto">עם מי?</label><select id="tto"><option value="">בחרו חבר/ה מהכיתה</option>${mates.map(m => `<option value="${esc(m.key)}" ${m.key === tradeTo ? 'selected' : ''}>${esc(m.first)} · ${m.cards.length} קלפים</option>`).join('')}</select></div>
+    ${mate ? `<div class="tpick"><div><h4>מה תבקש/י מ${esc(mate.first)}? <small>${tradeWant.length}/${T.MAX_SIDE}</small></h4><div class="tthumbs grid">${[...new Set(mate.cards)].map(id => tthumb(id, { pick: 'want', sel: tradeWant.includes(id) })).join('') || '<p class="hint">אין קלפים.</p>'}</div></div>
+      <div><h4>מה תיתן/י? <small>${tradeGive.length}/${T.MAX_SIDE}</small></h4><div class="tthumbs grid">${mineIds.map(id => tthumb(id, { pick: 'give', sel: tradeGive.includes(id), n: counts[id] })).join('')}</div></div></div>
+      <div class="tsend">${fairBadge(tradeGive, tradeWant)}<button class="btn primary" id="tsend" ${tradeGive.length && tradeWant.length ? '' : 'disabled'}>שליחת ההצעה ל${esc(mate.first)}</button></div>` : ''}`}
+    ${data.history.length ? `<h3>היסטוריה</h3>${data.history.map(t => offerRow(t, t.dir)).join('')}` : ''}</div>`;
+  tradeMsg = '';
+  const sel = body.querySelector('#tto'); if (sel) sel.onchange = () => { tradeTo = sel.value; tradeWant = []; renderGame(); };
+  body.querySelectorAll('[data-tpick]').forEach(b => b.onclick = () => {
+    const id = +b.dataset.id, list = b.dataset.tpick === 'give' ? tradeGive : tradeWant;
+    const i = list.indexOf(id); if (i >= 0) list.splice(i, 1); else if (list.length < T.MAX_SIDE) list.push(id); else { E.live(`אפשר עד ${T.MAX_SIDE} קלפים בכל צד`); return; }
+    renderGame();
+  });
+  const go = async (fn, okMsg) => { try { await fn(); tradeMsg = okMsg; } catch (err) { tradeMsg = err.message; } renderGame(); E.refreshSide(); E.live(tradeMsg); };
+  const send = body.querySelector('#tsend');
+  if (send) send.onclick = () => {
+    const f = T.fairness(tradeGive, tradeWant);
+    if (f.verdict === 'you-give-more' && !confirm('ההחלפה הזאת לא הוגנת כלפייך – את/ה נותן/ת הרבה יותר ממה שמקבל/ת. לשלוח בכל זאת?')) return;
+    send.disabled = true;
+    go(async () => { await api.send(tradeTo, tradeGive, tradeWant); tradeGive = []; tradeWant = []; }, `ההצעה נשלחה ✓ הקלפים שהצעת שמורים בצד עד התשובה.${api.live ? '' : ' החבר/ה יענה/תענה עוד רגע.'}`);
+  };
+  body.querySelectorAll('[data-tact]').forEach(b => b.onclick = () => {
+    const a = b.dataset.tact;
+    if (a === 'accept' && !confirm('לאשר את ההחלפה? אי אפשר לבטל אחרי האישור.')) return;
+    go(() => api.act(b.dataset.tid, a), { accept: 'ההחלפה בוצעה! 🎉 הקלפים החדשים כבר באלבום.', decline: 'סירבת להצעה. הקלפים חזרו לחבר/ה.', cancel: 'ההצעה בוטלה והקלפים חזרו אליך.' }[a]);
+  });
+}
+
 // live accounts: the class is a Google Classroom course; profiles go through Aluma's server
 function shareLive(ctx, s) {
   const course = LIVE.courses.find(c => c.role === 'student'); if (!course) return;

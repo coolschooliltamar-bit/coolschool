@@ -40,3 +40,16 @@ CREATE TABLE IF NOT EXISTS router_votes (     -- shared learning of the fast-ans
   at     TEXT NOT NULL,
   PRIMARY KEY (word, intent, voter)
 );
+CREATE TABLE IF NOT EXISTS card_trades (      -- card trading offers between members of one Classroom course
+  id         TEXT PRIMARY KEY,
+  course_id  TEXT NOT NULL,
+  from_sub   TEXT NOT NULL,
+  to_sub     TEXT NOT NULL,
+  give       TEXT NOT NULL,            -- JSON card ids the sender gives (1–3)
+  want       TEXT NOT NULL,            -- JSON card ids the sender asks for (1–3)
+  status     TEXT NOT NULL,            -- pending | accepted | declined | cancelled | expired
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS trades_from ON card_trades (from_sub, status);
+CREATE INDEX IF NOT EXISTS trades_to ON card_trades (to_sub, status);

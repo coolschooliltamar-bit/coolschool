@@ -22,6 +22,8 @@ const ROUTER_BLOCK = new Set(('לא אל למה איך כדי אם צריך עצ
   'חולה מחלה בריאות דיכאון חרדה תרופה טיפול פסיכולוג אבא אמא הורים גירושים כסף משכורת חוב כתובת טלפון רחוב דת מוות אלימות מכות סמים אלכוהול סקס הריון משטרה עונש').split(' '));
 const routerBlocked = k => { const w = k.replace(/^~/, ''); return ROUTER_BLOCK.has(w) || [...ROUTER_BLOCK].some(b => b.length >= 3 && w === b.replace(/[םןץףך]/g, c => ({ 'ם': 'מ', 'ן': 'נ', 'ץ': 'צ', 'ף': 'פ', 'ך': 'כ' }[c])).replace(/(?!^)[וי]/g, '')); };
 let vocabCache = null;
+const MAX_CARD = 1000;                                        // cards 1–1000
+const handleOf = async (env, course, sub) => (await hmac(env, `member|${course}|${sub}`)).slice(0, 16);
 async function hmac(env, text) {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.GEMINI_API_KEY || 'aluma'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('router|' + text)));
@@ -94,13 +96,13 @@ export default {
       // of a course can share to it or read it. No XP numbers, no grades.
       if (url.pathname === '/game/share' && req.method === 'POST') {
         if (!who) return json({ error: { message: 'Unauthorized' } }, 401);
-        const b = JSON.parse((await req.text()).slice(0, 8000) || '{}');
+        const b = JSON.parse((await req.text()).slice(0, 16000) || '{}');
         const courseId = String(b.courseId || '').slice(0, 40);
         if (!/^[\w-]+$/.test(courseId) || !(await inCourse(req, courseId))) return json({ error: { message: 'Not a member' } }, 403);
         if (!b.profile) { await env.DB.prepare('DELETE FROM class_members WHERE course_id = ? AND user_sub = ?').bind(courseId, who.sub).run(); return json({ ok: true }); }
-        const p = b.profile, ints = (a, max) => (Array.isArray(a) ? a : []).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= max).slice(0, 40);
-        const profile = { first: String(p.first || '').replace(/[<>]/g, '').slice(0, 24), level: Math.max(0, Math.min(10, p.level | 0)), cards: ints(p.cards, 40),
-          badges: (Array.isArray(p.badges) ? p.badges : []).map(String).filter(x => /^[a-z0-9_]{2,20}$/.test(x)).slice(0, 12), avatar: ints([p.avatar], 40)[0] || null, race: !!p.race, week: Math.max(0, Math.min(200, p.week | 0)) };
+        const p = b.profile, ints = (a, max) => (Array.isArray(a) ? a : []).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= max).slice(0, 1000);
+        const profile = { first: String(p.first || '').replace(/[<>]/g, '').slice(0, 24), level: Math.max(0, Math.min(10, p.level | 0)), cards: [...new Set(ints(p.cards, MAX_CARD))],
+          badges: (Array.isArray(p.badges) ? p.badges : []).map(String).filter(x => /^[a-z0-9_]{2,20}$/.test(x)).slice(0, 12), avatar: ints([p.avatar], MAX_CARD)[0] || null, race: !!p.race, week: Math.max(0, Math.min(200, p.week | 0)) };
         await env.DB.prepare(`INSERT INTO class_members (course_id, user_sub, profile, updated_at) VALUES (?, ?, ?, ?)
           ON CONFLICT(course_id, user_sub) DO UPDATE SET profile = excluded.profile, updated_at = excluded.updated_at`).bind(courseId, who.sub, JSON.stringify(profile), new Date().toISOString()).run();
         return json({ ok: true });
@@ -110,7 +112,63 @@ export default {
         if (!who) return json({ error: { message: 'Unauthorized' } }, 401);
         if (!(await inCourse(req, gm[1]))) return json({ error: { message: 'Not a member' } }, 403);
         const rows = await env.DB.prepare('SELECT user_sub, profile FROM class_members WHERE course_id = ? ORDER BY updated_at DESC LIMIT 60').bind(gm[1]).all();
-        return json({ members: (rows.results || []).map(r => ({ ...JSON.parse(r.profile), me: r.user_sub === who.sub })) });
+        const members = [];
+        for (const r of rows.results || []) members.push({ ...JSON.parse(r.profile), me: r.user_sub === who.sub, handle: r.user_sub === who.sub ? null : await handleOf(env, gm[1], r.user_sub) });
+        return json({ members });
+      }
+
+      // ---------- card trading between members of one course (both must share their profile) ----------
+      // Members are addressed by a per-course handle (HMAC), never by their Google id. The server keeps the
+      // offers; each client applies an answered trade to its own collection once. Limits: 1–3 cards a side,
+      // 5 open offers, offers expire after 7 days, 40 trade actions a day.
+      if (url.pathname.startsWith('/game/trade')) {
+        if (!who) return json({ error: { message: 'צריך להתחבר עם Google.' } }, 401);
+        const now = new Date().toISOString(), weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
+        await env.DB.prepare("UPDATE card_trades SET status = 'expired', updated_at = ? WHERE status = 'pending' AND created_at < ?").bind(now, weekAgo).run();
+        const tl = url.pathname.match(/^\/game\/trades\/([\w-]{1,40})$/);
+        if (tl && req.method === 'GET') {
+          if (!(await inCourse(req, tl[1]))) return json({ error: { message: 'Not a member' } }, 403);
+          const names = new Map(((await env.DB.prepare('SELECT user_sub, profile FROM class_members WHERE course_id = ?').bind(tl[1]).all()).results || []).map(r => [r.user_sub, JSON.parse(r.profile).first]));
+          const rows = (await env.DB.prepare('SELECT * FROM card_trades WHERE course_id = ? AND (from_sub = ? OR to_sub = ?) AND created_at > ? ORDER BY created_at DESC LIMIT 60')
+            .bind(tl[1], who.sub, who.sub, new Date(Date.now() - 30 * 864e5).toISOString()).all()).results || [];
+          return json({ trades: rows.map(t => { const out = t.from_sub === who.sub; return { id: t.id, dir: out ? 'out' : 'in', other: names.get(out ? t.to_sub : t.from_sub) || 'חבר/ה', give: JSON.parse(t.give), want: JSON.parse(t.want), status: t.status, at: t.created_at }; }) });
+        }
+        if (req.method !== 'POST') return json({ error: { message: 'Not found' } }, 404);
+        const b = JSON.parse((await req.text()).slice(0, 2000) || '{}');
+        const courseId = String(b.courseId || '').slice(0, 40);
+        if (!/^[\w-]+$/.test(courseId) || !(await inCourse(req, courseId))) return json({ error: { message: 'Not a member' } }, 403);
+        if (!(await take(env, `trade:${who.sub}`, 40))) return json({ error: { message: 'הגעת למספר ההחלפות היומי. נסו שוב מחר.' } }, 429);
+        if (url.pathname === '/game/trade') {
+          const ids = a => [...new Set((Array.isArray(a) ? a : []).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= MAX_CARD))];
+          const give = ids(b.give), want = ids(b.want);
+          if (!give.length || !want.length || give.length > 3 || want.length > 3) return json({ error: { message: 'אפשר 1–3 קלפים בכל צד.' } }, 400);
+          const rows = (await env.DB.prepare('SELECT user_sub, profile FROM class_members WHERE course_id = ?').bind(courseId).all()).results || [];
+          const me = rows.find(r => r.user_sub === who.sub);
+          if (!me) return json({ error: { message: 'כדי להחליף צריך לשתף את האוסף עם הכיתה.' } }, 403);
+          let to = null; for (const r of rows) if (r.user_sub !== who.sub && (await handleOf(env, courseId, r.user_sub)) === String(b.to || '')) to = r;
+          if (!to) return json({ error: { message: 'החבר/ה לא נמצא/ה בכיתה או הפסיק/ה לשתף.' } }, 404);
+          const mine = JSON.parse(me.profile).cards || [], theirs = JSON.parse(to.profile).cards || [];
+          if (!give.every(id => mine.includes(id))) return json({ error: { message: 'אחד הקלפים שהצעת לא נמצא באוסף ששיתפת.' } }, 409);
+          if (!want.every(id => theirs.includes(id))) return json({ error: { message: 'אחד הקלפים שביקשת כבר לא אצל החבר/ה.' } }, 409);
+          const open = await env.DB.prepare("SELECT COUNT(*) AS n FROM card_trades WHERE from_sub = ? AND status = 'pending'").bind(who.sub).first();
+          if (open.n >= 5) return json({ error: { message: 'יש לך כבר 5 הצעות פתוחות. חכו לתשובה או בטלו אחת.' } }, 429);
+          const id = crypto.randomUUID();
+          await env.DB.prepare('INSERT INTO card_trades (id, course_id, from_sub, to_sub, give, want, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+            .bind(id, courseId, who.sub, to.user_sub, JSON.stringify(give), JSON.stringify(want), 'pending', now, now).run();
+          await audit(env, who.sub, 'trade_offer');
+          return json({ ok: true, id });
+        }
+        const ta = url.pathname.match(/^\/game\/trade\/([\w-]{8,40})$/);
+        if (ta) {
+          const action = String(b.action || '');
+          const rule = { accept: ['to_sub', 'accepted'], decline: ['to_sub', 'declined'], cancel: ['from_sub', 'cancelled'] }[action];
+          if (!rule) return json({ error: { message: 'פעולה לא מוכרת' } }, 400);
+          const r = await env.DB.prepare(`UPDATE card_trades SET status = ?, updated_at = ? WHERE id = ? AND course_id = ? AND ${rule[0]} = ? AND status = 'pending'`).bind(rule[1], now, ta[1], courseId, who.sub).run();
+          if (!r.meta || r.meta.changes !== 1) return json({ error: { message: 'ההצעה כבר לא פתוחה.' } }, 409);
+          await audit(env, who.sub, `trade_${action}`);
+          return json({ ok: true, status: rule[1] });
+        }
+        return json({ error: { message: 'Not found' } }, 404);
       }
 
       // ---------- per-user storage ----------
