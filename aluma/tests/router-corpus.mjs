@@ -4,6 +4,7 @@
 // Demo data: Noa (student, ט׳2), Avi (parent of Dana and Yoav), Rina (teacher, homeroom ט׳2).
 export const CORPUS = {
   'u-noa': [
+    ['על מה אני מאחרת', 'assignments'], ['איפה השיעור הבא', 'schedule'], ['מה שם המורה למתמטיקה', 'teachers'], ['איפה אני יכולה ללמוד', 'ai'],
     ['תזכירי לי מה צריך להגיש', 'assignments'], ['באיזו שעה יש לי אנגלית', 'schedule'], ['תזכירי לי מתי המבחן באנגלית', 'ai'],
     // grades
     ['כמה קיבלתי בהיסטוריה?', 'grades', '88'], ['מה הציון שלי באנגלית', 'grades'], ['מה קיבלתי במבחן האחרון?', 'grades'], ['הציונים שלי', 'grades'],
