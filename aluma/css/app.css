@@ -560,3 +560,15 @@ body.in-app .proto-banner { display: none; }
 .login-hero { position: relative; z-index: 1; width: min(340px, 80%); height: auto; aspect-ratio: 1; margin-top: 26px; border-radius: 28px; box-shadow: 0 18px 50px rgba(11,22,54,.35), 0 0 40px rgba(255,180,60,.25); }
 .login-brand h1 { position: relative; z-index: 1; }
 @media (max-width: 860px) { .login-hero { width: min(200px, 60%); margin-top: 16px; border-radius: 22px; } }
+/* ---- copies of a card & combining ---- */
+.stk-x { top: -10px; inset-inline-end: -8px; min-width: 38px; height: 30px; font-size: 15px; background: linear-gradient(135deg, #ff7a59, #ff4d8d); color: #fff; border: 2px solid #fff; z-index: 2; }
+.stk-wrap.can .stk-x { background: linear-gradient(135deg, #ffd34d, #ff9f1c); color: #3b2400; }
+.stk-count { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12.5px; color: var(--ink2); }
+.stk-count b { font-weight: 700; }
+.stk-wrap.dup .stk-count b { color: #e0457b; } .stk-wrap.can .stk-count b { color: #b26a00; }
+.stk-dots { display: flex; gap: 4px; } .stk-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.stk-dots i.on { background: #ff9f1c; }
+.stk-wrap.can .stk-card { box-shadow: 0 0 0 3px #ffb347, 0 6px 18px rgba(255,159,28,.45); }
+.alb-dupes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; margin: 6px 0 10px; border-radius: 14px; background: #fff6e8; border: 1px solid #ffd39b; font-size: 14px; color: #5a3a00; }
+.alb-dupes span { flex: 1 1 260px; }
+[data-theme="dark"] .alb-dupes { background: #3a2a10; border-color: #7a5420; color: #ffe2b0; }

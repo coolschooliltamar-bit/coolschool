@@ -68,8 +68,11 @@ export function cardTile(c, { locked = false, isNew = false, size = 'm', pick = 
   const r = RARITY[c.rarity];
   if (!locked && (copies > 1 || combine)) {
     const need = Game.COMBINE_NEED;
-    return `<div class="stk-wrap ${size}">${cardTile(c, { isNew, size, pick, on })}${copies > 1 ? `<span class="stk-x" dir="ltr" aria-label="${copies} עותקים">×${copies}</span>` : ''}
-      ${combine && copies >= need ? `<button class="btn combine" data-combine="${c.id}">✨ שילוב ${need} → תיבה</button>` : combine && copies > 1 ? `<span class="stk-prog">${copies}/${need} לשילוב</span>` : ''}</div>`;
+    // every owned card shows how many copies you have and how close it is to combining (4 → a new box)
+    const dots = Array.from({ length: need }, (_, i) => `<i class="${i < copies ? 'on' : ''}"></i>`).join('');
+    return `<div class="stk-wrap ${size} ${copies >= need ? 'can' : copies > 1 ? 'dup' : ''}">${cardTile(c, { isNew, size, pick, on })}${copies > 1 ? `<span class="stk-x" dir="ltr" aria-hidden="true">×${copies}</span>` : ''}
+      <span class="stk-count" aria-label="${copies === 1 ? 'עותק אחד' : `${copies} עותקים`}${combine ? ` – ${copies >= need ? 'אפשר לשלב' : `עוד ${need - copies} לשילוב`}` : ''}"><b>${copies === 1 ? 'עותק אחד' : `${copies} עותקים`}</b>${combine ? `<span class="stk-dots" aria-hidden="true">${dots}</span>` : ''}</span>
+      ${combine && copies >= need ? `<button class="btn combine" data-combine="${c.id}">✨ שילוב ${need} → תיבה</button>` : combine && copies > 1 ? `<span class="stk-prog">עוד ${need - copies} לשילוב</span>` : ''}</div>`;
   }
   if (!locked) return `<button class="stk-card ${c.rarity} ${size} ${on ? 'on' : ''}" data-zoom="${c.id}" ${pick ? 'data-own="1"' : ''} aria-label="${esc(c.name)} – ${r.he} – ${c.no}/${TOTAL}${on ? ' – הדמות שלך' : ''} – הגדלה" title="${esc(c.bio)}">${cardSVG(c, { w: 240 })}${isNew ? '<span class="stk-new">חדש!</span>' : ''}${on ? '<span class="stk-on">הדמות שלי</span>' : ''}</button>`;
   return `<button class="stk ${c.rarity} ${locked ? 'locked' : ''} ${size} ${on ? 'on' : ''}" ${pick && !locked ? `data-avatar="${c.id}"` : 'tabindex="-1"'} aria-label="${esc(c.name)} – ${r.he}${locked ? ' – נעול: ' + esc(unlockText(c, Game.achName)) : ''}">
@@ -172,7 +175,8 @@ export function renderGame() {
   });
 
   const go = body.querySelector('[data-goto]'); if (go) go.onclick = () => { gameTab = go.dataset.goto; if (go.dataset.series) albumSeries = go.dataset.series; renderGame(); };
-  body.querySelectorAll('[data-series]').forEach(b => b.onclick = () => { albumSeries = b.dataset.series; renderGame(); });
+  body.querySelectorAll('[data-series]').forEach(b => b.onclick = () => { albumSeries = b.dataset.series; if (['dupes', 'combine'].includes(albumFilter)) albumFilter = 'all'; renderGame(); });
+  body.querySelectorAll('[data-afilter]').forEach(b => b.onclick = () => { albumFilter = b.dataset.afilter; renderGame(); const h = body.querySelector('.alb-h'); if (h) h.scrollIntoView({ block: 'start', behavior: 'smooth' }); });
   const af = body.querySelector('#albf'); if (af) af.onchange = () => { albumFilter = af.value; renderGame(); };
   body.querySelectorAll('[data-go]').forEach(b => b.onclick = () => E.go(b.dataset.go));
   if (own && gameTab === 'album') { Game.markSeen(sid); E.refreshSide(); }
@@ -200,14 +204,19 @@ function albumTab(sid, s, own, fresh) {
   if (!albumSeries) albumSeries = (fresh[0] || mine[mine.length - 1] || { world: 'originals' }).world;
   const bySeries = id => CARDS.filter(c => c.world === id);
   const got = id => bySeries(id).filter(c => n[c.id]).length;
-  const list = bySeries(albumSeries).filter(c => albumFilter === 'all' || (albumFilter === 'mine' ? n[c.id] : albumFilter === 'missing' ? !n[c.id] : c.rarity === albumFilter));
+  const dupes = CARDS.filter(c => n[c.id] > 1), ready = dupes.filter(c => n[c.id] >= Game.COMBINE_NEED);
+  const global = albumFilter === 'dupes' || albumFilter === 'combine';      // these two look across all the worlds
+  const list = global ? (albumFilter === 'combine' ? ready : dupes).slice().sort((a, b) => n[b.id] - n[a.id] || a.id - b.id)
+    : bySeries(albumSeries).filter(c => albumFilter === 'all' || (albumFilter === 'mine' ? n[c.id] : albumFilter === 'missing' ? !n[c.id] : c.rarity === albumFilter));
   const ser = SERIES.find(x => x.id === albumSeries) || SERIES[0];
   const rar = RARITY_ORDER.map(r => { const all = CARDS.filter(c => c.rarity === r); return `<span class="alb-r ${r}"><span style="color:${RARITY[r].color}">${RARITY[r].symbol}</span> ${RARITY[r].he} <b>${all.filter(c => n[c.id]).length}/${all.length}</b> <small>${RARITY[r].share}</small></span>`; }).join('');
   return `<div class="alb-top"><div class="alb-total"><b>${mine.length}</b><span>/${TOTAL} קלפים באוסף</span></div><div class="alb-rs">${rar}</div></div>
     <p class="hint">${own ? 'לחצו על קלף כדי להגדיל אותו ולבחור אותו כדמות. ' : ''}25 עולמות, 40 קלפים בכל עולם. כל הקלפים מוצגים מראש, גם אלה שעוד לא יצאו. הסיכוי בכל תיבה: רגיל 50% · מיוחד 25% · נדיר 15% · אפי 7.5% · אגדי 2.5%.</p>
+    ${dupes.length ? `<div class="alb-dupes">🔁 <span>יש לך <b>${dupes.length}</b> קלפים כפולים${ready.length ? ` · <b>${ready.length}</b> מהם עם ${Game.COMBINE_NEED} עותקים – אפשר לשלב לתיבה חדשה ✨` : ` · כשיש ${Game.COMBINE_NEED} עותקים מאותו קלף אפשר לשלב לתיבה`}</span>
+      <button class="btn" data-afilter="dupes">הצגת הכפולים</button>${ready.length ? `<button class="btn combine" data-afilter="combine">מה אפשר לשלב</button>` : ''}</div>` : ''}
     <div class="alb-worlds" role="tablist" aria-label="עולמות">${SERIES.map(w => { const g = got(w.id); return `<button class="alb-w ${w.id === albumSeries ? 'on' : ''} ${g === 40 ? 'full' : ''}" role="tab" aria-selected="${w.id === albumSeries}" data-series="${w.id}"><span class="aw-e">${w.emoji}</span><span class="aw-n">${esc(w.name)}</span><span class="aw-c">${g}/40</span></button>`; }).join('')}</div>
-    <div class="alb-h"><b>${ser.emoji} ${esc(ser.name)}</b> <span class="hint">${got(ser.id)}/40</span><span class="spacer"></span>
-      <label for="albf" class="sr-only">סינון</label><select id="albf">${[['all', 'כל הקלפים'], ['mine', 'רק שיש לי'], ['missing', 'רק שחסרים'], ...RARITY_ORDER.map(r => [r, `רק ${RARITY[r].he}`])].map(([k, l]) => `<option value="${k}" ${albumFilter === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    <div class="alb-h">${global ? `<b>${albumFilter === 'combine' ? '✨ אפשר לשלב' : '🔁 הקלפים הכפולים שלך'}</b> <span class="hint">${list.length} קלפים מכל העולמות</span>` : `<b>${ser.emoji} ${esc(ser.name)}</b> <span class="hint">${got(ser.id)}/40</span>`}<span class="spacer"></span>
+      <label for="albf" class="sr-only">סינון</label><select id="albf">${[['all', 'כל הקלפים'], ['mine', 'רק שיש לי'], ['missing', 'רק שחסרים'], ['dupes', 'כפולים (מכל העולמות)'], ['combine', 'אפשר לשלב (מכל העולמות)'], ...RARITY_ORDER.map(r => [r, `רק ${RARITY[r].he}`])].map(([k, l]) => `<option value="${k}" ${albumFilter === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
     <div class="stk-grid">${list.map(c => cardTile(c, { locked: !n[c.id], isNew: isNew.has(c.id), pick: own, on: av && av.id === c.id, copies: n[c.id] || 0, combine: own })).join('') || '<p class="hint">אין קלפים שמתאימים לסינון.</p>'}</div>`;
 }
 function classTab(body, ctx, s) {
