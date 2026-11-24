@@ -8,3 +8,7 @@ export const GOOGLE_CLIENT_ID = '1054746371715-vpsff7knc52n61rmhgrgotf0ag3t90u2.
 export const GEMINI_PROXY_URL = 'https://aluma.aluma-school.workers.dev';   // Aluma's Cloudflare Worker (aluma/server)
 // Leave empty to pick the newest available "flash" model automatically.
 export const GEMINI_MODEL = '';
+// Warm phrasing (js/warm.js): after a fast answer, Gemini rewords it to sound more human. The numbers come
+// from the data and are checked; if Gemini is slow or the wording fails a check, the plain answer stays.
+// true = on. Set to false to turn it off at once.
+export const WARM_PHRASING = true;
