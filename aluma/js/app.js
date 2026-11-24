@@ -893,12 +893,16 @@ function renderIntro(v, s) {
   v.innerHTML = `<section class="panel lesson lintro">${top}
     <div class="intro-badge">${icon('sparkle', 16)} לפני שמתחילים</div>
     <h2>${esc(unit.title)}</h2>
-    <p class="intro-short">${ltr(it.short)}</p>
-    ${it.examples.length ? `<div class="intro-ex"><b>${it.facts ? 'מה חשוב לדעת' : it.examples.length > 1 ? 'דוגמאות' : 'לדוגמה'}</b><ul>${it.examples.map(e => `<li ${/[a-zA-Z]{3}/.test(e) && !/[א-ת]/.test(e) ? 'dir="ltr"' : ''}>${ltr(e)}</li>`).join('')}</ul></div>` : ''}
-    ${it.more ? `<details class="intro-more"><summary>רוצה הסבר מפורט יותר?</summary><p>${ltr(it.more)}</p></details>` : ''}
+    ${(() => {
+      // the start of the text at once (about two short paragraphs), the rest with "המשך ההסבר"
+      const ps = Intro.paragraphs(it); let n = 1, len = (ps[0] || '').length;
+      while (n < ps.length - 1 && len + ps[n].length < 520) len += ps[n++].length;
+      const para = p => `<p>${ltr(p)}</p>`;
+      return `<div class="intro-text">${ps.slice(0, n).map(para).join('')}</div>${ps.length > n ? `<details class="intro-more"><summary>המשך ההסבר</summary><div class="intro-text">${ps.slice(n).map(para).join('')}</div></details>` : ''}`;
+    })()}
     <div class="btns lesson-btns"><button class="btn primary wide" id="golesson">יאללה, לשאלות! (${s.qs.length})</button></div></section>`;
   v.querySelector('#quit').onclick = quit; v.querySelector('#golesson').onclick = start;
-  live.textContent = `לפני השיעור: ${it.short}`;
+  live.textContent = `לפני השיעור: ${Intro.paragraphs(it)[0] || ''}`;
 }
 function renderLesson() {
   const v = document.getElementById('view');

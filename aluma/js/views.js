@@ -593,10 +593,8 @@ function draftEditor(p) {
     ${missing ? `<p class="hint warn-line">Gemini היה עמוס, אז ${missing === 1 ? 'הסבר אחד עוד לא נכתב' : `${missing} הסברים עוד לא נכתבו`}. אפשר לנסות שוב עכשיו, לכתוב בעצמכם, או להשאיר – אלומה תכתוב אותם כשהתלמיד/ה יפתח/תפתח את השיעור.</p>` : ''}
     <div class="btns"><button class="btn" type="button" data-regen="${p.id}">${icon('sparkle', 15)} ${missing && missing === p.units.length * per ? 'כתיבת ההסברים' : p.video ? 'כתיבת ההסברים מחדש לפי הסיכום' : 'כתיבת ההסברים מחדש'}</button></div>
     <details open><summary>ההסברים לפני כל שיעור (${p.units.length * per})</summary>
-    ${p.units.map((u, ui) => Array.from({ length: per }, (_, l) => { const it = (p.intros || {})[`${ui}:${l}`] || { short: '', examples: [], more: '' }; return `<fieldset class="dintro" data-k="${ui}:${l}"><legend>יחידה ${ui + 1}: ${esc(u.title)}${per > 1 ? ` · שיעור ${l + 1}` : ''}</legend>
-      <label>הסבר קצר – מלמד את הרעיון<textarea data-f="short" rows="3" maxlength="700" placeholder="${it.short ? '' : 'עוד לא נכתב'}">${esc(it.short)}</textarea></label>
-      <label>דוגמאות פתורות (שורה לכל דוגמה)<textarea data-f="examples" rows="3" maxlength="1300">${esc(it.examples.join('\n'))}</textarea></label>
-      <label>הסבר מפורט (למי שלוחץ "עוד")<textarea data-f="more" rows="4" maxlength="2400">${esc(it.more)}</textarea></label></fieldset>`; }).join('')).join('')}</details>
+    ${p.units.map((u, ui) => Array.from({ length: per }, (_, l) => { const it = (p.intros || {})[`${ui}:${l}`] || { text: '' }; return `<fieldset class="dintro" data-k="${ui}:${l}"><legend>יחידה ${ui + 1}: ${esc(u.title)}${per > 1 ? ` · שיעור ${l + 1}` : ''}</legend>
+      <label>טקסט ההסבר (פסקאות מופרדות בשורה ריקה)<textarea data-f="text" rows="10" maxlength="4000" placeholder="${it.text ? '' : 'עוד לא נכתב'}">${esc(it.text)}</textarea></label></fieldset>`; }).join('')).join('')}</details>
     <details><summary>השאלות</summary>${p.units.map(u => `<b>${esc(u.title)}</b><ol>${u.qs.map(q => `<li>${esc(q.q)} <span class="hint">(${esc(q.options[q.answer])})</span></li>`).join('')}</ol>`).join('')}</details>
     <div class="btns"><button class="btn primary" type="button" data-publish="${p.id}">${icon('check', 15)} שמירה ופרסום ל${esc(cls)}</button><button class="btn" type="button" data-savedraft="${p.id}">שמירת הטיוטה</button><button class="btn link" type="button" data-delpath="${p.id}">מחיקה</button></div><div class="pmsg"></div></article>`;
 }
@@ -604,7 +602,7 @@ function readDraft(box, p) {
   p.intros = p.intros || {};
   box.querySelectorAll('.dintro').forEach(fs => {
     const val = f => fs.querySelector(`[data-f="${f}"]`).value.trim();
-    const it = Intro.validIntro({ short: val('short'), examples: val('examples').split('\n'), more: val('more') });
+    const it = Intro.validIntro({ text: val('text') });
     if (it) p.intros[fs.dataset.k] = it;
   });
   const sum = box.querySelector('[data-f="summary"]'); if (sum && p.video) p.video.summary = sum.value.trim().slice(0, 4000);

@@ -11,17 +11,17 @@ ok(I.youtubeId('https://youtu.be/dQw4w9WgXcQ') === 'dQw4w9WgXcQ', 'short link');
 ok(I.youtubeId('https://youtube.com/shorts/dQw4w9WgXcQ') === 'dQw4w9WgXcQ', 'shorts link');
 ok(I.youtubeId('https://example.com/watch?v=dQw4w9WgXcQ') === null, 'another site is refused');
 
-const v = I.validIntro({ short: ' <b>היום</b> נלמד שברים ', examples: ['½ + ½ = 1', '', 'x'.repeat(900)], more: 'עוד' });
-ok(v && !/[<>]/.test(v.short) && v.examples.length === 2 && v.examples[1].length <= 420, 'explanation is cleaned and trimmed');
-ok(I.validIntro({ short: '', examples: [] }) === null, 'an empty explanation is refused');
-
+const v = I.validIntro({ text: ' <b>היום</b> נלמד שברים: חצי ועוד חצי הם שלם.\n\n\n  פסקה שנייה   עם רווחים ' });
+ok(v && !/[<>]/.test(v.text) && I.paragraphs(v).length === 2 && I.paragraphs(v)[1] === 'פסקה שנייה עם רווחים', 'the text is cleaned and keeps its paragraphs');
+ok(I.validIntro({ text: 'קצר' }) === null, 'a too-short text is refused');
+const old = I.validIntro({ short: 'הסבר ישן על הנושא, מספיק ארוך כדי לעבור.', examples: ['דוגמה ראשונה'], more: 'עוד פרטים' });
+ok(old && I.paragraphs(old).length === 3 && old.text.includes('לדוגמה: דוגמה ראשונה'), 'an explanation in the older format becomes one text');
 const loc = I.localIntro('המהפכה הצרפתית', L.BANK.history.units[0].qs);
-ok(loc.local && loc.facts && loc.short.includes('המהפכה הצרפתית') && loc.examples.length === 3, 'last fallback: the key facts of the lesson');
-// every unit of the basic path has a ready, real explanation (no Gemini needed)
+ok(loc.local && loc.text.includes('המהפכה הצרפתית') && I.paragraphs(loc).length >= 2, 'last fallback: the key facts of the lesson');
 const { BANK_INTROS } = await import('../js/intro-bank.js');
 const units = Object.entries(L.BANK).flatMap(([s, b]) => b.units.map((_, i) => `${s}:${i}`));
-ok(units.every(k => BANK_INTROS[k] && BANK_INTROS[k].short.length > 120 && BANK_INTROS[k].examples.length === 2 && BANK_INTROS[k].more.length > 300), `all ${units.length} basic-path units have a full explanation`);
-ok(units.every(k => I.cached(null, k.split(':')[0], +k.split(':')[1], 0) === BANK_INTROS[k]), 'the basic path uses the ready explanations');
+ok(units.every(k => BANK_INTROS[k] && I.paragraphs(BANK_INTROS[k]).length >= 4 && BANK_INTROS[k].text.length > 800), `all ${units.length} basic-path units have a full explanatory text`);
+ok(units.every(k => I.cached(null, k.split(':')[0], +k.split(':')[1], 0) === BANK_INTROS[k]), 'the basic path uses the ready texts');
 
 // a path without Gemini: every lesson gets an explanation
 const p = { id: 'tst', subject: 'history', lessonsPerUnit: 2, units: [{ title: 'א', qs: L.BANK.history.units[0].qs }, { title: 'ב', qs: L.BANK.history.units[1].qs }] };
