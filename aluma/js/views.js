@@ -586,15 +586,17 @@ export function renderTeacherPaths() {
 function draftEditor(p) {
   const per = L.pathLessons(p);
   const cls = (CLASSES.find(c => c.id === p.classId) || {}).name || '';
+  const missing = p.units.length * per - Object.keys(p.intros || {}).length;
   return `<article class="gpath draft" data-draft="${p.id}"><div class="proj-h"><b>${esc(p.title)}</b><span class="tag warn">טיוטה · ${esc(cls)}</span></div>
     <div class="hint">${esc(subjectName(p.subject))} · ${p.units.length} יחידות × ${per} ${per === 1 ? 'שיעור' : 'שיעורים'}${p.fileName ? ` · מתוך ${esc(p.fileName)}` : ''}</div>
-    ${p.video ? `<label class="dlab">סיכום הסרטון שאלומה הכינה – אפשר לתקן<textarea data-f="summary" rows="5" maxlength="4000">${esc(p.video.summary)}</textarea></label>
-      <div class="btns"><button class="btn" type="button" data-regen="${p.id}">${icon('sparkle', 15)} כתיבת ההסברים מחדש לפי הסיכום</button></div>` : ''}
+    ${p.video ? `<label class="dlab">סיכום הסרטון שאלומה הכינה – אפשר לתקן<textarea data-f="summary" rows="5" maxlength="4000">${esc(p.video.summary)}</textarea></label>` : ''}
+    ${missing ? `<p class="hint warn-line">Gemini היה עמוס, אז ${missing === 1 ? 'הסבר אחד עוד לא נכתב' : `${missing} הסברים עוד לא נכתבו`}. אפשר לנסות שוב עכשיו, לכתוב בעצמכם, או להשאיר – אלומה תכתוב אותם כשהתלמיד/ה יפתח/תפתח את השיעור.</p>` : ''}
+    <div class="btns"><button class="btn" type="button" data-regen="${p.id}">${icon('sparkle', 15)} ${missing && missing === p.units.length * per ? 'כתיבת ההסברים' : p.video ? 'כתיבת ההסברים מחדש לפי הסיכום' : 'כתיבת ההסברים מחדש'}</button></div>
     <details open><summary>ההסברים לפני כל שיעור (${p.units.length * per})</summary>
-    ${p.units.map((u, ui) => Array.from({ length: per }, (_, l) => { const it = (p.intros || {})[`${ui}:${l}`] || Intro.localIntro(u.title, u.qs); return `<fieldset class="dintro" data-k="${ui}:${l}"><legend>יחידה ${ui + 1}: ${esc(u.title)}${per > 1 ? ` · שיעור ${l + 1}` : ''}</legend>
-      <label>הסבר קצר<textarea data-f="short" rows="2" maxlength="360">${esc(it.short)}</textarea></label>
-      <label>דוגמאות (שורה לכל דוגמה)<textarea data-f="examples" rows="2" maxlength="720">${esc(it.examples.join('\n'))}</textarea></label>
-      <label>הסבר מפורט (למי שלוחץ "עוד")<textarea data-f="more" rows="3" maxlength="1600">${esc(it.more)}</textarea></label></fieldset>`; }).join('')).join('')}</details>
+    ${p.units.map((u, ui) => Array.from({ length: per }, (_, l) => { const it = (p.intros || {})[`${ui}:${l}`] || { short: '', examples: [], more: '' }; return `<fieldset class="dintro" data-k="${ui}:${l}"><legend>יחידה ${ui + 1}: ${esc(u.title)}${per > 1 ? ` · שיעור ${l + 1}` : ''}</legend>
+      <label>הסבר קצר – מלמד את הרעיון<textarea data-f="short" rows="3" maxlength="700" placeholder="${it.short ? '' : 'עוד לא נכתב'}">${esc(it.short)}</textarea></label>
+      <label>דוגמאות פתורות (שורה לכל דוגמה)<textarea data-f="examples" rows="3" maxlength="1300">${esc(it.examples.join('\n'))}</textarea></label>
+      <label>הסבר מפורט (למי שלוחץ "עוד")<textarea data-f="more" rows="4" maxlength="2400">${esc(it.more)}</textarea></label></fieldset>`; }).join('')).join('')}</details>
     <details><summary>השאלות</summary>${p.units.map(u => `<b>${esc(u.title)}</b><ol>${u.qs.map(q => `<li>${esc(q.q)} <span class="hint">(${esc(q.options[q.answer])})</span></li>`).join('')}</ol>`).join('')}</details>
     <div class="btns"><button class="btn primary" type="button" data-publish="${p.id}">${icon('check', 15)} שמירה ופרסום ל${esc(cls)}</button><button class="btn" type="button" data-savedraft="${p.id}">שמירת הטיוטה</button><button class="btn link" type="button" data-delpath="${p.id}">מחיקה</button></div><div class="pmsg"></div></article>`;
 }
@@ -602,7 +604,8 @@ function readDraft(box, p) {
   p.intros = p.intros || {};
   box.querySelectorAll('.dintro').forEach(fs => {
     const val = f => fs.querySelector(`[data-f="${f}"]`).value.trim();
-    p.intros[fs.dataset.k] = Intro.validIntro({ short: val('short'), examples: val('examples').split('\n'), more: val('more') }) || p.intros[fs.dataset.k];
+    const it = Intro.validIntro({ short: val('short'), examples: val('examples').split('\n'), more: val('more') });
+    if (it) p.intros[fs.dataset.k] = it;
   });
   const sum = box.querySelector('[data-f="summary"]'); if (sum && p.video) p.video.summary = sum.value.trim().slice(0, 4000);
   L.savePath(p);
@@ -614,6 +617,6 @@ function bindDrafts(root, redo) {
   root.querySelectorAll('[data-regen]').forEach(b => b.onclick = async () => {
     const p = L.getPath(b.dataset.regen); readDraft(box(p.id), p);
     b.disabled = true; b.textContent = 'אלומה כותבת מחדש…';
-    await Intro.forPath(p, { sourceText: `סיכום הסרטון:\n${p.video.summary}` }); L.savePath(p); redo();
+    await Intro.forPath(p, { sourceText: p.video ? `סיכום הסרטון:\n${p.video.summary}` : '' }); L.savePath(p); redo();
   });
 }

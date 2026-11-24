@@ -868,6 +868,8 @@ function lessonLabel(s) {
   const p = s.custom && L.getPath(s.custom);
   return p ? `${esc(p.title)} · ${esc((p.units[s.u] || {}).title || '')}${L.pathLessons(p) > 1 ? ` · שיעור ${s.l + 1}` : ''}` : `${L.BANK[s.sub].icon} ${esc(subjectName(s.sub))} · ${esc(L.BANK[s.sub].units[s.u].title)}`;
 }
+// formulas and English inside Hebrew text: each run is shown left-to-right, so "3x + 5 = 20" is not reversed
+const ltr = t => String(t ?? '').split(/("?[\w(‎][\w\s·×÷−+\-=()%./,'"!?✓‎]*[\w)%✓"])/).map((m, k) => k % 2 && /[0-9=A-Za-z]/.test(m) ? `<span dir="ltr" class="ltr">${esc(m)}</span>` : esc(m)).join('');
 function renderIntro(v, s) {
   const p = s.custom ? L.getPath(s.custom) : null;
   const unit = p ? p.units[s.u] : L.BANK[s.sub].units[s.u];
@@ -891,9 +893,9 @@ function renderIntro(v, s) {
   v.innerHTML = `<section class="panel lesson lintro">${top}
     <div class="intro-badge">${icon('sparkle', 16)} לפני שמתחילים</div>
     <h2>${esc(unit.title)}</h2>
-    <p class="intro-short">${esc(it.short)}</p>
-    ${it.examples.length ? `<div class="intro-ex"><b>${it.examples.length > 1 ? 'דוגמאות' : 'לדוגמה'}</b><ul>${it.examples.map(e => `<li ${/[a-zA-Z]{3}/.test(e) && !/[א-ת]/.test(e) ? 'dir="ltr"' : ''}>${esc(e)}</li>`).join('')}</ul></div>` : ''}
-    ${it.more ? `<details class="intro-more"><summary>רוצה הסבר מפורט יותר?</summary><p>${esc(it.more)}</p></details>` : ''}
+    <p class="intro-short">${ltr(it.short)}</p>
+    ${it.examples.length ? `<div class="intro-ex"><b>${it.facts ? 'מה חשוב לדעת' : it.examples.length > 1 ? 'דוגמאות' : 'לדוגמה'}</b><ul>${it.examples.map(e => `<li ${/[a-zA-Z]{3}/.test(e) && !/[א-ת]/.test(e) ? 'dir="ltr"' : ''}>${ltr(e)}</li>`).join('')}</ul></div>` : ''}
+    ${it.more ? `<details class="intro-more"><summary>רוצה הסבר מפורט יותר?</summary><p>${ltr(it.more)}</p></details>` : ''}
     <div class="btns lesson-btns"><button class="btn primary wide" id="golesson">יאללה, לשאלות! (${s.qs.length})</button></div></section>`;
   v.querySelector('#quit').onclick = quit; v.querySelector('#golesson').onclick = start;
   live.textContent = `לפני השיעור: ${it.short}`;
