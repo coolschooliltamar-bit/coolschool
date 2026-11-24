@@ -93,6 +93,7 @@ export async function forLesson({ path, sub, u, l, title, qs }) {
 }
 
 // ---------- teacher material: a video → a summary Gemini writes first ----------
+const SUMMARY_SYSTEM = 'את מסכמת סרטוני לימוד למורים בבית ספר בישראל. סיכום עובדתי, ענייני וברור בעברית – בלי פנייה לתלמידים, בלי בדיחות ובלי להמציא. תוכן בטוח לילדים. מחזירה JSON בלבד.';
 const SUMMARY = { type: 'OBJECT', properties: { title: { type: 'STRING' }, summary: { type: 'STRING' } }, required: ['summary'] };
 export const youtubeId = url => { const m = String(url || '').trim().match(/^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/); return m ? m[1] : null; };
 const toBase64 = file => new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => bad(new Error('קריאת הקובץ נכשלה')); r.readAsDataURL(file); });
@@ -110,7 +111,7 @@ export async function summarizeVideo({ url, file }) {
   const prompt = 'סכמי את הסרטון המצורף כחומר לימוד לתלמידים: הנושא, המושגים והעובדות החשובים, ודוגמאות שמופיעות בו. ' +
     '6–12 משפטים ברורים, בעברית, בלי להמציא דבר שלא בסרטון. title – כותרת קצרה לנושא. החזירי {"title": "...", "summary": "..."}.';
   try {
-    const out = await AI.generateJSON(prompt, SUMMARY, { system: SYSTEM, deadlineMs: 90000, maxTokens: 2048, parts: [part], timeoutMs: 85000 });
+    const out = await AI.generateJSON(prompt, SUMMARY, { system: SUMMARY_SYSTEM, deadlineMs: 90000, maxTokens: 2048, parts: [part], timeoutMs: 85000 });
     const summary = clean(out.summary, 4000);
     if (!summary) throw new Error('empty');
     return { title: clean(out.title, 80), summary };

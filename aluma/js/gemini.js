@@ -99,6 +99,7 @@ async function generate(body, onRetry, budgetMs = 60000, until = Infinity, maxCa
         last = e; tried.push(`${model}: ${e.status}`);
         // 403 on one model (e.g. not in the free tier) → try the next model; 400 (bad request) is our bug → stop
         if (![500, 503, 504, 429, 404, 403].includes(e.status)) throw e;
+        if (e.status === 404 && CANDIDATES) CANDIDATES = CANDIDATES.filter(n => n !== model);   // a model Google retired: never try it again
         if ([429, 404, 504, 403].includes(e.status)) break;
         if (Date.now() - started > budgetMs) throw e;
         await wait(800 * (attempt + 1));
