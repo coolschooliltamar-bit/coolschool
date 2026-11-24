@@ -3,6 +3,7 @@
 import * as Game from './game.js';
 import * as P from './projects.js';
 import * as S from './studio.js';
+import * as Intro from './intro.js';
 import * as L from './learn.js';
 import * as Cloud from './cloud.js';
 import * as T from './trade.js';
@@ -485,7 +486,11 @@ export function createForm(ctx, { kind = 'path', forTeacher = false } = {}) {
     <div class="formrow" id="sshape" ${kind === 'cards' ? 'hidden' : ''}>${shapeSelects()}<span class="hint">כל שיעור – 5 שאלות</span></div>
     <label for="sr" class="sr-only">הבקשה</label><textarea id="sr" rows="2" maxlength="500" placeholder="${forTeacher ? 'למשל: מסלול חזרה על המהפכה הצרפתית לקראת המבחן, עם דגש על הצהרת זכויות האדם' : 'למשל: כרטיסיות על זמן עבר באנגלית, או מסלול על התא החי'}"></textarea>
     <div class="formrow"><label class="filebtn">${icon('clip', 16)} העלאת קובץ עם החומר<input type="file" id="sf" accept=".txt,.md,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></label><span id="sfn" class="hint">TXT, PDF או Word · נשאר בדפדפן</span>
-      <span class="spacer"></span><button class="btn primary" id="sgo">${icon('sparkle', 16)} ${forTeacher ? 'יצירה ופרסום לכיתה' : 'יצירה'}</button></div>
+      <span class="spacer"></span>${forTeacher ? '' : `<button class="btn primary" id="sgo">${icon('sparkle', 16)} יצירה</button>`}</div>
+    ${forTeacher ? `<div class="formrow vidrow"><label for="svu" style="min-width:auto">${icon('play', 16)} סרטון</label><input id="svu" type="url" dir="ltr" placeholder="קישור YouTube (לא חובה)" autocomplete="off">
+      <label class="filebtn">או העלאת סרטון<input type="file" id="svf" accept="video/*" hidden></label><span id="svn" class="hint">עד ${Intro.MAX_VIDEO_MB}MB</span></div>
+      <p class="hint">אלומה תכין <b>הסבר קצר לפני כל שיעור</b>, עם דוגמאות ואפשרות להסבר מפורט. העליתם מסמך או סרטון? ההסברים והשאלות יתבססו עליו – ואת הסרטון אלומה מסכמת קודם. לפני הפרסום תוכלו לקרוא ולתקן הכול.</p>
+      <div class="btns"><span class="spacer"></span><button class="btn primary" id="sgo">${icon('sparkle', 16)} יצירת טיוטה לבדיקה</button></div>` : ''}
     <p class="hint">${forTeacher ? 'אלומה מתאימה את הרמה לפי ממוצע הכיתה במקצוע והנושאים האחרונים. מסלול שמורה מפרסם/ת <b>מזכה ב-XP</b>.' : 'אלומה מתאימה את הרמה לפי הציונים שלך וממוצע הכיתה. מסלולים שיצרת לעצמך הם <b>תרגול חופשי בלי XP</b>.'}</p><div id="smsg"></div></form>`;
 }
 export function bindCreateForm(root, ctx, onDone, { forTeacher = false } = {}) {
@@ -498,13 +503,28 @@ export function bindCreateForm(root, ctx, onDone, { forTeacher = false } = {}) {
     try { file = { name: fl.name, text: await S.fileToText(fl) }; f.querySelector('#sfn').innerHTML = `${icon('clip', 14)} ${esc(fl.name)} (${Math.round(file.text.length / 100) / 10}K תווים)`; }
     catch (err) { file = null; f.querySelector('#sfn').innerHTML = `<span class="err">${esc(err.message)}</span>`; }
   };
+  let vfile = null;
+  const vf = f.querySelector('#svf');
+  if (vf) vf.onchange = e => {
+    vfile = e.target.files[0] || null; const n = f.querySelector('#svn');
+    if (!vfile) { n.textContent = `עד ${Intro.MAX_VIDEO_MB}MB`; return; }
+    if (vfile.size > Intro.MAX_VIDEO_MB * 1024 * 1024) { n.innerHTML = `<span class="err">הסרטון גדול מ-${Intro.MAX_VIDEO_MB}MB. לסרטון ארוך – הדביקו קישור YouTube.</span>`; vfile = null; return; }
+    n.innerHTML = `${icon('play', 14)} ${esc(vfile.name)} (${Math.round(vfile.size / 1e5) / 10}MB)`;
+  };
   f.onsubmit = async e => {
     e.preventDefault();
-    const go = f.querySelector('#sgo'); go.disabled = true; go.textContent = 'אלומה בונה…';
+    const go = f.querySelector('#sgo'), label = go.innerHTML; go.disabled = true;
+    const kind = f.querySelector('#sk').value, url = (f.querySelector('#svu') || {}).value || '';
     try {
-      const path = await S.create(ctx, { kind: f.querySelector('#sk').value, subject: f.querySelector('#ss').value || null, request: f.querySelector('#sr').value, fileText: file ? file.text : '', fileName: file ? file.name : '', classId: forTeacher ? f.querySelector('#sc').value : null, studentId: ctx.role === 'student' ? ctx.userId : null, ...shapeOf(f) });
+      let video = null;
+      if (forTeacher && kind === 'path' && (vfile || url.trim())) {
+        go.textContent = 'אלומה צופה בסרטון ומסכמת…';
+        video = { ...(await Intro.summarizeVideo(vfile ? { file: vfile } : { url })), from: vfile ? vfile.name : url.trim() };
+      }
+      go.textContent = kind === 'path' ? 'אלומה בונה שאלות והסברים…' : 'אלומה בונה…';
+      const path = await S.create(ctx, { kind, subject: f.querySelector('#ss').value || null, request: f.querySelector('#sr').value, fileText: file ? file.text : '', fileName: file ? file.name : '', classId: forTeacher ? f.querySelector('#sc').value : null, studentId: ctx.role === 'student' ? ctx.userId : null, video, ...shapeOf(f) });
       onDone(path);
-    } catch (err) { go.disabled = false; go.textContent = 'יצירה'; f.querySelector('#smsg').innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+    } catch (err) { go.disabled = false; go.innerHTML = label; f.querySelector('#smsg').innerHTML = `<p class="err">${esc(err.message)}</p>`; }
   };
 }
 export function pathCard(p, ctx, { manage = false } = {}) {
@@ -553,9 +573,47 @@ export function pathTab(box, tab) {
 export function renderTeacherPaths() {
   const v = view(); const ctx = E.ctx();
   const list = L.publishedBy(ctx.userId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const drafts = L.draftsBy(ctx.userId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   v.innerHTML = `<section class="panel lpanel"><h2 class="ph">${icon('sparkle', 20)} מסלולים לכיתה</h2>
-    <p class="hint">כתבו מה אתם רוצים – אלומה תבנה מסלול תרגול או כרטיסיות לפי הבקשה, לפי הרמה של הכיתה ולפי קובץ שתעלו, ותפרסם לכיתה. אפשר גם לבקש בצ׳אט: "תבני מסלול לט׳2 על…".</p>
+    <p class="hint">כתבו מה אתם רוצים – אלומה תבנה מסלול תרגול או כרטיסיות לפי הבקשה, לפי הרמה של הכיתה ולפי מסמך או סרטון שתעלו. מסלול נשמר קודם כטיוטה: בודקים את ההסברים, ורק אז מפרסמים לכיתה. אפשר גם לבקש בצ׳אט: "תבני מסלול לט׳2 על…".</p>
+    ${drafts.length ? `<h3>מחכים לבדיקה שלך (${drafts.length})</h3>${drafts.map(draftEditor).join('')}` : ''}
     ${createForm(ctx, { forTeacher: true })}<h3>פורסמו (${list.length})</h3>${list.map(p => pathCard(p, ctx, { manage: true })).join('') || '<p class="hint">עוד לא פרסמת מסלולים.</p>'}</section>`;
-  bindCreateForm(v, ctx, p => { E.live(`פורסם לכיתה: ${p.title}`); renderTeacherPaths(); }, { forTeacher: true });
+  bindCreateForm(v, ctx, p => { E.live(p.draft ? `טיוטה מוכנה לבדיקה: ${p.title}` : `פורסם לכיתה: ${p.title}`); renderTeacherPaths(); if (p.draft) v.querySelector(`[data-draft="${p.id}"]`)?.scrollIntoView({ block: 'start' }); }, { forTeacher: true });
   bindPathCards(v, ctx, renderTeacherPaths);
+  bindDrafts(v, renderTeacherPaths);
+}
+// a draft class path: the teacher reads and fixes the video summary and every lesson's explanation, then publishes
+function draftEditor(p) {
+  const per = L.pathLessons(p);
+  const cls = (CLASSES.find(c => c.id === p.classId) || {}).name || '';
+  return `<article class="gpath draft" data-draft="${p.id}"><div class="proj-h"><b>${esc(p.title)}</b><span class="tag warn">טיוטה · ${esc(cls)}</span></div>
+    <div class="hint">${esc(subjectName(p.subject))} · ${p.units.length} יחידות × ${per} ${per === 1 ? 'שיעור' : 'שיעורים'}${p.fileName ? ` · מתוך ${esc(p.fileName)}` : ''}</div>
+    ${p.video ? `<label class="dlab">סיכום הסרטון שאלומה הכינה – אפשר לתקן<textarea data-f="summary" rows="5" maxlength="4000">${esc(p.video.summary)}</textarea></label>
+      <div class="btns"><button class="btn" type="button" data-regen="${p.id}">${icon('sparkle', 15)} כתיבת ההסברים מחדש לפי הסיכום</button></div>` : ''}
+    <details open><summary>ההסברים לפני כל שיעור (${p.units.length * per})</summary>
+    ${p.units.map((u, ui) => Array.from({ length: per }, (_, l) => { const it = (p.intros || {})[`${ui}:${l}`] || Intro.localIntro(u.title, u.qs); return `<fieldset class="dintro" data-k="${ui}:${l}"><legend>יחידה ${ui + 1}: ${esc(u.title)}${per > 1 ? ` · שיעור ${l + 1}` : ''}</legend>
+      <label>הסבר קצר<textarea data-f="short" rows="2" maxlength="360">${esc(it.short)}</textarea></label>
+      <label>דוגמאות (שורה לכל דוגמה)<textarea data-f="examples" rows="2" maxlength="720">${esc(it.examples.join('\n'))}</textarea></label>
+      <label>הסבר מפורט (למי שלוחץ "עוד")<textarea data-f="more" rows="3" maxlength="1600">${esc(it.more)}</textarea></label></fieldset>`; }).join('')).join('')}</details>
+    <details><summary>השאלות</summary>${p.units.map(u => `<b>${esc(u.title)}</b><ol>${u.qs.map(q => `<li>${esc(q.q)} <span class="hint">(${esc(q.options[q.answer])})</span></li>`).join('')}</ol>`).join('')}</details>
+    <div class="btns"><button class="btn primary" type="button" data-publish="${p.id}">${icon('check', 15)} שמירה ופרסום ל${esc(cls)}</button><button class="btn" type="button" data-savedraft="${p.id}">שמירת הטיוטה</button><button class="btn link" type="button" data-delpath="${p.id}">מחיקה</button></div><div class="pmsg"></div></article>`;
+}
+function readDraft(box, p) {
+  p.intros = p.intros || {};
+  box.querySelectorAll('.dintro').forEach(fs => {
+    const val = f => fs.querySelector(`[data-f="${f}"]`).value.trim();
+    p.intros[fs.dataset.k] = Intro.validIntro({ short: val('short'), examples: val('examples').split('\n'), more: val('more') }) || p.intros[fs.dataset.k];
+  });
+  const sum = box.querySelector('[data-f="summary"]'); if (sum && p.video) p.video.summary = sum.value.trim().slice(0, 4000);
+  L.savePath(p);
+}
+function bindDrafts(root, redo) {
+  const box = id => root.querySelector(`[data-draft="${id}"]`);
+  root.querySelectorAll('[data-savedraft]').forEach(b => b.onclick = () => { const p = L.getPath(b.dataset.savedraft); readDraft(box(p.id), p); box(p.id).querySelector('.pmsg').innerHTML = '<span class="sent">נשמר ✓</span>'; });
+  root.querySelectorAll('[data-publish]').forEach(b => b.onclick = () => { const p = L.getPath(b.dataset.publish); readDraft(box(p.id), p); L.publishPath(p.id); E.live(`פורסם לכיתה: ${p.title}`); redo(); });
+  root.querySelectorAll('[data-regen]').forEach(b => b.onclick = async () => {
+    const p = L.getPath(b.dataset.regen); readDraft(box(p.id), p);
+    b.disabled = true; b.textContent = 'אלומה כותבת מחדש…';
+    await Intro.forPath(p, { sourceText: `סיכום הסרטון:\n${p.video.summary}` }); L.savePath(p); redo();
+  });
 }

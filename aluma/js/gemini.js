@@ -72,9 +72,9 @@ export async function pickModel() { return (await candidates())[0]; }
 // quota (429) or unknown model (404) → next model right away.
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const noThinking = new Set();
-async function generate(body, onRetry, budgetMs = 60000, until = Infinity) {
+async function generate(body, onRetry, budgetMs = 60000, until = Infinity, maxCallMs = 30000) {
   const started = Date.now(); const tried = [];
-  const left = () => Math.min(30000, until - Date.now());        // hard deadline for the whole answer (ו)
+  const left = () => Math.min(maxCallMs, until - Date.now());        // hard deadline for the whole answer (ו)
   const late = () => { const e = new Error('Gemini לא הספיק לענות בזמן.'); e.status = 504; e.deadline = true; return e; };
   const list = await candidates();
   let last;
@@ -295,13 +295,14 @@ export async function geminiAnswer(ctx, question, { activeStudentId, history = [
 
 // ---------- structured generation (learning paths, flashcards, project ideas) ----------
 // Asks for JSON that matches a schema. Throws on failure, so callers fall back to the local generator.
-export async function generateJSON(prompt, schema, { deadlineMs = 20000, system, maxTokens = 4096 } = {}) {
+// parts: extra content before the prompt (e.g. a video for the teacher's material); timeoutMs: one call's limit
+export async function generateJSON(prompt, schema, { deadlineMs = 20000, system, maxTokens = 4096, parts = [], timeoutMs = 30000 } = {}) {
   const until = Date.now() + deadlineMs;
   const { j } = await generate({
     systemInstruction: { parts: [{ text: system || 'את "אלומה", עוזרת למידה בבית ספר בישראל. כותבת בעברית תקינה, ברורה ומתאימה לגיל. תוכן בטוח לילדים בלבד. מחזירה JSON בלבד.' }] },
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    contents: [{ role: 'user', parts: [...parts, { text: prompt }] }],
     generationConfig: { maxOutputTokens: maxTokens, temperature: 0.6, responseMimeType: 'application/json', responseSchema: schema },
-  }, null, 40000, until);
+  }, null, Math.max(40000, deadlineMs), until, timeoutMs);
   const text = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || '').join('');
   return JSON.parse(text);
 }

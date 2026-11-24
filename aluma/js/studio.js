@@ -11,6 +11,7 @@ import * as AI from './gemini.js';
 import { SUBJECTS, STUDENTS, CLASSES, subjectName } from './data.js';
 import { LIVE } from './google.js';
 import { audit } from './store.js';
+import * as Intro from './intro.js';
 
 const VENDOR = '../vendor/';
 const loaded = {};
@@ -155,7 +156,10 @@ ${fileText ? `חומר הלימוד שהמשתמש העלה – בססי את ה
 }
 
 // kind: 'path' | 'cards'. Returns the saved path object.
-export async function create(ctx, { kind = 'path', subject, request = '', fileText = '', fileName = '', classId = null, adaptive = false, studentId, units = 3, lessons = 3 }) {
+// video: { title, summary, from } – a teacher's video that Gemini already summarized (intro.js); it becomes the material.
+// A teacher's class path is saved as a draft: the teacher reviews the explanations, then publishes it.
+export async function create(ctx, { kind = 'path', subject, request = '', fileText = '', fileName = '', classId = null, adaptive = false, studentId, units = 3, lessons = 3, video = null }) {
+  if (video && video.summary) { fileText = [fileText, `סיכום הסרטון "${video.title || ''}":\n${video.summary}`].filter(Boolean).join('\n\n'); fileName = fileName || `סרטון: ${video.title || video.from || ''}`; }
   const shape = { units: Math.min(L.MAX_PATH_UNITS, Math.max(1, Math.round(+units) || 3)), lessons: Math.min(L.MAX_PATH_LESSONS, Math.max(1, Math.round(+lessons) || 3)) };
   subject = subject || subjectFrom(request) || (fileText ? subjectFrom(fileText.slice(0, 2000)) : null) || (ctx.role === 'teacher' && ctx.subjects ? ctx.subjects[0] : null);
   const forClass = ctx.role === 'teacher' && !!classId;
@@ -180,9 +184,12 @@ export async function create(ctx, { kind = 'path', subject, request = '', fileTe
     xp: forClass || adaptive, adaptive, classId: forClass ? classId : null,
     units: out.units, lessonsPerUnit: kind === 'path' ? shape.lessons : 1, cards: out.cards, request: clean(request, 200), fileName: clean(fileName, 80),
     basedOn: { my: profile.my, classAvg: profile.classAvg, weak: profile.weak.slice(0, 3), recent: profile.recent.slice(0, 3) },
-    source, createdAt: new Date().toISOString(),
+    source, createdAt: new Date().toISOString(), draft: forClass && kind === 'path',
+    video: video ? { title: clean(video.title, 80), summary: clean(video.summary, 4000), from: clean(video.from, 200) } : null,
   });
-  audit(ctx.userId, forClass ? 'class_path_published' : 'path_created', { kind: path.subject });
+  // the explanation before every lesson – based on the teacher's material when there is any
+  if (kind === 'path') { await Intro.forPath(path, { sourceText: fileText }); L.savePath(path); }
+  audit(ctx.userId, forClass ? (path.draft ? 'class_path_drafted' : 'class_path_published') : 'path_created', { kind: path.subject });
   return path;
 }
 

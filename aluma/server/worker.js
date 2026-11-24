@@ -11,6 +11,7 @@ const ALLOWED_ORIGINS = ['https://coolschooliltamar-bit.github.io', 'http://loca
 const GOOGLE_CLIENT_ID = '1054746371715-vpsff7knc52n61rmhgrgotf0ag3t90u2.apps.googleusercontent.com';
 const LIMITS = { user: 400, demoIp: 600, total: 8000 };     // Gemini calls per day (a whole school shares one IP behind NAT, so the demo limit per IP is high)
 const DOC_COLLECTIONS = ['convs', 'memories', 'settings', 'game'];
+const VIDEO_COST = 10;                                        // a video summary uses this many of the daily Gemini calls
 const MAX_DOC = 300_000;                                      // bytes per stored document
 
 const tokenCache = new Map();                                 // access token -> { sub, exp }
@@ -58,7 +59,17 @@ export default {
           if (!ok) return json({ error: { message: who ? 'הגעת למכסת השאלות היומית.' : 'מכסת ההדגמה היומית נגמרה. התחברו עם Google כדי להמשיך.' } }, 429);
         }
         const body = isGen ? await req.text() : undefined;
-        if (body && body.length > 400_000) return json({ error: { message: 'Request too large' } }, 413);
+        // a teacher's short video (inline, for a lesson summary) may be up to ~20MB; everything else stays small.
+        // A video request counts as VIDEO_COST calls of the daily limits.
+        const video = body && body.length > 400_000 && /"inlineData"\s*:\s*\{\s*"mimeType"\s*:\s*"video\/[\w.+-]+"/.test(body.slice(0, 4000));
+        if (body && body.length > (video ? 20_000_000 : 400_000)) return json({ error: { message: 'Request too large' } }, 413);
+        if (video) {
+          const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
+          for (let i = 1; i < VIDEO_COST; i++) {
+            const ok = who ? await take(env, `u:${who.sub}`, LIMITS.user) : await take(env, `ip:${ip}`, LIMITS.demoIp);
+            if (!ok) return json({ error: { message: 'הגעת למכסה היומית – אי אפשר לסכם עוד סרטונים היום.' } }, 429);
+          }
+        }
         const up = await fetch(`https://generativelanguage.googleapis.com${url.pathname}${isList ? '?pageSize=200' : ''}`, {
           method: req.method, body, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY } });
         return new Response(up.body, { status: up.status, headers: { ...cors, 'Content-Type': 'application/json' } });

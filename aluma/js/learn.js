@@ -182,8 +182,10 @@ export function deletePath(id) { delete paths()[id]; save(); }
 export const myPaths = userId => Object.values(paths()).filter(p => p.ownerId === userId && !p.classId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 export const adaptivePaths = userId => myPaths(userId).filter(p => p.adaptive);
 export const ownPaths = userId => myPaths(userId).filter(p => !p.adaptive);
-export const classPaths = classId => Object.values(paths()).filter(p => p.classId === classId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-export const publishedBy = teacherId => Object.values(paths()).filter(p => p.ownerId === teacherId && p.classId);
+export const classPaths = classId => Object.values(paths()).filter(p => p.classId === classId && !p.draft).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+export const publishedBy = teacherId => Object.values(paths()).filter(p => p.ownerId === teacherId && p.classId && !p.draft);
+export const draftsBy = teacherId => Object.values(paths()).filter(p => p.ownerId === teacherId && p.classId && p.draft);
+export function publishPath(id) { const p = paths()[id]; if (p) { delete p.draft; save(); audit(p.ownerId, 'class_path_published', { kind: p.subject }); } return p; }
 // generated paths: N units × M lessons (5 questions each). Old paths had one lesson per unit (lessonsPerUnit
 // missing → 1); lesson 0 keeps the old key P:id:u, so their progress stays.
 export const MAX_PATH_UNITS = 6, MAX_PATH_LESSONS = 5;

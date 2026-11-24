@@ -14,6 +14,7 @@ import * as V from './views.js';
 import * as S from './studio.js';
 import * as P from './projects.js';
 import * as Warm from './warm.js';
+import * as Intro from './intro.js';
 
 const $app = document.getElementById('app');
 const live = document.getElementById('live');
@@ -354,7 +355,8 @@ async function createInChat(c, text, file) {
     const what = p.kind === 'cards' ? `${p.cards.length} כרטיסיות` : `מסלול של ${p.units.length} יחידות × ${L.pathLessons(p)} שיעורים`;
     const why = p.basedOn.my != null ? ` לפי הממוצע שלך במקצוע (${p.basedOn.my})${p.basedOn.classAvg != null ? ` וממוצע הכיתה (${p.basedOn.classAvg})` : ''}` : p.basedOn.classAvg != null ? ` לפי ממוצע הכיתה (${p.basedOn.classAvg})` : '';
     const txt = ctx.role === 'teacher'
-      ? `פרסמתי ל${(CLASSES.find(x => x.id === p.classId) || {}).name}: **${p.title}** – ${what}, ברמה ${p.level}${why}. התלמידים יראו אותו בלשונית "מהמורה" ויקבלו עליו XP.`
+      ? (p.draft ? `הכנתי טיוטה ל${(CLASSES.find(x => x.id === p.classId) || {}).name}: **${p.title}** – ${what}, ברמה ${p.level}${why}, עם הסבר קצר לפני כל שיעור. בדקו את ההסברים בדף "מסלולים לכיתה" ופרסמו – רק אז התלמידים יראו אותו.`
+        : `פרסמתי ל${(CLASSES.find(x => x.id === p.classId) || {}).name}: **${p.title}** – ${what}, ברמה ${p.level}${why}. התלמידים יראו אותו בלשונית "מהמורה" ויקבלו עליו XP.`)
       : `בניתי לך **${p.title}** – ${what}, ברמה ${p.level}${why}${file ? `, מתוך "${file.name}"` : ''}. זה תרגול חופשי, בלי XP.`;
     return { text: txt, chips: [], cards: [{ type: 'tool', tool: ctx.role === 'teacher' ? 'tpaths' : p.kind === 'cards' ? 'cards' : 'path', pathId: p.id, icon: p.kind === 'cards' ? '🃏' : '🧩', title: p.title, desc: `${subjectName(p.subject)} · רמה ${p.level}${p.source === 'gemini' ? ' · נוצר ב-Gemini' : ''}`, cta: 'פתיחה' }] };
   } catch (e) { return { text: e.message, cards: [], chips: [] }; }
@@ -759,7 +761,7 @@ function renderPolicy() {
   };
 }
 
-const ACTION_NAMES = { login: 'התחברות', logout: 'התנתקות', question: 'שאלה לאלומה', view: 'צפייה בנתונים', access_denied: 'ניסיון גישה נחסם', draft_created: 'נוצרה טיוטה',
+const ACTION_NAMES = { login: 'התחברות', logout: 'התנתקות', question: 'שאלה לאלומה', view: 'צפייה בנתונים', access_denied: 'ניסיון גישה נחסם', draft_created: 'נוצרה טיוטה', class_path_drafted: 'טיוטת מסלול לכיתה', class_path_published: 'מסלול פורסם לכיתה',
   draft_cancelled: 'טיוטה בוטלה', message_sent: 'הודעה נשלחה', message_undone: 'שליחה בוטלה', memory_saved: 'זיכרון נשמר', memory_deleted: 'זיכרון נמחק', history_deleted: 'היסטוריה נמחקה',
   parent_code_issued: 'הונפק קוד הזמנה', parent_linked: 'הורה קושר', link_code_failed: 'קוד הזמנה שגוי', link_blocked: 'קישור נחסם', link_active: 'קישור הופעל', policy_changed: 'שינוי מדיניות',
   emergency_stop: 'עצירת חירום', service_resumed: 'השירות הופעל מחדש', class_summary: 'סיכום כיתה', class_attendance: 'נוכחות כיתה', message_reported: 'דיווח על הודעה' };
@@ -796,7 +798,7 @@ const PATH_TABS = [['basic', 'מסלול בסיסי'], ['adaptive', 'מותאם 
 function startPathLesson(id, u, l = 0) {
   const p = L.getPath(id); if (!p || !p.units[u]) return;
   openPathId = id;
-  lessonState = { custom: id, sub: p.subject, u, l, qs: L.pathLessonQuestions(p, u, l), i: 0, correct: 0, picked: null, checked: false };
+  lessonState = { custom: id, sub: p.subject, u, l, qs: L.pathLessonQuestions(p, u, l), i: 0, correct: 0, picked: null, checked: false, introDone: false };
   go('lesson');
 }
 function renderPath() {
@@ -822,7 +824,7 @@ function renderPath() {
   v.querySelectorAll('[data-ptab]').forEach(b => b.onclick = () => { pathTab = b.dataset.ptab; renderPath(); });
   v.querySelectorAll('[data-lesson]').forEach(b => b.onclick = () => {
     const [u, l] = b.dataset.lesson.split(':').map(Number);
-    lessonState = { sub, u, l, qs: L.lessonQuestions(sub, u), i: 0, correct: 0, picked: null, checked: false };
+    lessonState = { sub, u, l, qs: L.lessonQuestions(sub, u), i: 0, correct: 0, picked: null, checked: false, introDone: false };
     go('lesson');
   });
 }
@@ -861,10 +863,46 @@ function renderPathMap() {
   if (student) v.querySelectorAll('[data-lesson]').forEach(b => b.onclick = () => { const [u, l] = b.dataset.lesson.split(':').map(Number); startPathLesson(p.id, u, l); });
 }
 
+// before every lesson's questions: a short, friendly explanation with examples, and "more" for those who want it
+function lessonLabel(s) {
+  const p = s.custom && L.getPath(s.custom);
+  return p ? `${esc(p.title)} · ${esc((p.units[s.u] || {}).title || '')}${L.pathLessons(p) > 1 ? ` · שיעור ${s.l + 1}` : ''}` : `${L.BANK[s.sub].icon} ${esc(subjectName(s.sub))} · ${esc(L.BANK[s.sub].units[s.u].title)}`;
+}
+function renderIntro(v, s) {
+  const p = s.custom ? L.getPath(s.custom) : null;
+  const unit = p ? p.units[s.u] : L.BANK[s.sub].units[s.u];
+  const it = s.intro || Intro.cached(p, s.sub, s.u, s.l);
+  const top = `<div class="lesson-top"><button class="iconbtn" id="quit" aria-label="יציאה מהשיעור">✕</button><div class="bar" aria-hidden="true"><i style="width:0"></i></div><span class="hint">הסבר</span></div><div class="unit-label">${lessonLabel(s)}</div>`;
+  const start = () => { s.introDone = true; renderLesson(); window.scrollTo({ top: 0 }); };
+  const quit = () => { if (!s.custom) toolSubject = s.sub; lessonState = null; go(s.custom ? 'pmap' : 'path'); };
+  if (!it) {
+    v.innerHTML = `<section class="panel lesson lintro">${top}<div class="intro-badge">${icon('sparkle', 16)} לפני שמתחילים</div><h2>${esc(unit.title)}</h2>
+      <div class="intro-loading" role="status"><span class="dot"></span>אלומה מכינה לך הסבר קצר…</div>
+      <div class="btns lesson-btns"><button class="btn wide" id="golesson">ישר לשאלות</button></div></section>`;
+    v.querySelector('#quit').onclick = quit; v.querySelector('#golesson').onclick = start;
+    if (!s.loadingIntro) {
+      s.loadingIntro = true;
+      const qs = (unit.qs && unit.qs.length ? unit.qs : s.qs);
+      Intro.forLesson({ path: p, sub: s.sub, u: s.u, l: s.l, title: unit.title, qs }).then(x => { s.intro = x; if (lessonState === s && !s.introDone && view === 'lesson') renderLesson(); });
+    }
+    return;
+  }
+  s.intro = it;
+  v.innerHTML = `<section class="panel lesson lintro">${top}
+    <div class="intro-badge">${icon('sparkle', 16)} לפני שמתחילים</div>
+    <h2>${esc(unit.title)}</h2>
+    <p class="intro-short">${esc(it.short)}</p>
+    ${it.examples.length ? `<div class="intro-ex"><b>${it.examples.length > 1 ? 'דוגמאות' : 'לדוגמה'}</b><ul>${it.examples.map(e => `<li ${/[a-zA-Z]{3}/.test(e) && !/[א-ת]/.test(e) ? 'dir="ltr"' : ''}>${esc(e)}</li>`).join('')}</ul></div>` : ''}
+    ${it.more ? `<details class="intro-more"><summary>רוצה הסבר מפורט יותר?</summary><p>${esc(it.more)}</p></details>` : ''}
+    <div class="btns lesson-btns"><button class="btn primary wide" id="golesson">יאללה, לשאלות! (${s.qs.length})</button></div></section>`;
+  v.querySelector('#quit').onclick = quit; v.querySelector('#golesson').onclick = start;
+  live.textContent = `לפני השיעור: ${it.short}`;
+}
 function renderLesson() {
   const v = document.getElementById('view');
   const s = lessonState;
   if (!s) { go('path'); return; }
+  if (!s.introDone && s.i === 0) { renderIntro(v, s); return; }
   if (s.i >= s.qs.length) {
     const before = Game.score(ctx, ctx.userId);
     if (!s.result) { s.result = s.custom ? L.finishPathLesson(ctx.userId, L.getPath(s.custom), s.u, s.l, s.correct, s.qs.length) : L.finishLesson(ctx.userId, s.sub, s.u, s.l, s.correct, s.qs.length); const b0 = Game.boxInfo(ctx.userId, before).earned; s.newBoxes = Game.boxInfo(ctx.userId, Game.score(ctx, ctx.userId)).earned - b0; }
@@ -878,7 +916,7 @@ function renderLesson() {
     const tb = v.querySelector('#toboxes'); if (tb) tb.onclick = () => { lessonState = null; V.showBoxes(); go('game'); };
     v.querySelector('#back').onclick = () => { toolSubject = s.custom ? toolSubject : s.sub; lessonState = null; go(s.custom ? 'pmap' : 'path'); };
     const nl = v.querySelector('#nextl'); if (nl) nl.onclick = () => { const [u, l] = L.pathNext(ctx.userId, L.getPath(s.custom)); startPathLesson(s.custom, u, l); };
-    const ag = v.querySelector('#again'); if (ag) ag.onclick = () => { if (s.custom) return startPathLesson(s.custom, s.u, s.l); lessonState = { ...s, qs: L.lessonQuestions(s.sub, s.u), i: 0, correct: 0, picked: null, checked: false, result: null, newBoxes: 0 }; render(); };
+    const ag = v.querySelector('#again'); if (ag) ag.onclick = () => { if (s.custom) return startPathLesson(s.custom, s.u, s.l); lessonState = { ...s, qs: L.lessonQuestions(s.sub, s.u), i: 0, correct: 0, picked: null, checked: false, result: null, newBoxes: 0, introDone: false }; render(); };
     live.textContent = `סיום שיעור: ${s.correct} מתוך ${s.qs.length}`;
     return;
   }
@@ -888,7 +926,7 @@ function renderLesson() {
     <div class="lesson-top"><button class="iconbtn" id="quit" aria-label="יציאה מהשיעור">✕</button>
       <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${s.qs.length}" aria-valuenow="${s.i}"><i style="width:${(s.i / s.qs.length) * 100}%"></i></div>
       <span class="hint">${s.i + 1}/${s.qs.length}</span></div>
-    <div class="unit-label">${s.custom ? `${esc((L.getPath(s.custom) || {}).title || '')} · ${esc(((L.getPath(s.custom) || { units: [] }).units[s.u] || {}).title || '')}${L.getPath(s.custom) && L.pathLessons(L.getPath(s.custom)) > 1 ? ` · שיעור ${s.l + 1}` : ''}` : `${L.BANK[s.sub].icon} ${esc(subjectName(s.sub))} · ${esc(L.BANK[s.sub].units[s.u].title)}`}</div>
+    <div class="unit-label">${lessonLabel(s)}</div>
     <h2 class="q" ${/[a-zA-Z]{3}/.test(q.q) && !/[א-ת]/.test(q.q) ? 'dir="ltr"' : ''}>${esc(q.q)}</h2>
     <div class="opts">${q.options.map((o, i) => `<button class="opt ${s.picked === i ? 'picked' : ''} ${s.checked && i === q.answer ? 'right' : ''} ${s.checked && s.picked === i && i !== q.answer ? 'wrong' : ''}" data-opt="${i}" ${s.checked ? 'disabled' : ''} ${/^[\x00-\x7F]+$/.test(o) ? 'dir="ltr"' : ''}>${esc(o)}</button>`).join('')}</div>
     ${s.checked ? `<div class="feedback ${right ? 'good' : 'bad'}" role="status"><b>${right ? (s.custom && !(L.getPath(s.custom) || {}).xp ? 'נכון!' : 'נכון! +10 XP') : 'לא בדיוק'}</b><div>${esc(q.explain)}</div></div>` : ''}
