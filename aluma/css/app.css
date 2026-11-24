@@ -555,9 +555,9 @@ body.in-app .proto-banner { display: none; }
 .to-arrow { font-size: 26px; color: var(--mute); }
 .toffer .btns { margin-top: 10px; }
 /* ---- the Aluma logo image ---- */
-.mark.img { background: #0b1636; overflow: hidden; box-shadow: 0 2px 10px rgba(255,170,40,.35); }
+.mark.img { background: transparent; overflow: hidden; box-shadow: 0 2px 10px rgba(11,22,54,.3); }
 .mark.img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.login-hero { position: relative; z-index: 1; width: min(340px, 80%); height: auto; aspect-ratio: 1; margin-top: 26px; border-radius: 28px; box-shadow: 0 18px 50px rgba(11,22,54,.35), 0 0 40px rgba(255,180,60,.25); }
+.login-hero { position: relative; z-index: 1; width: min(300px, 70%); height: auto; aspect-ratio: 1; margin-top: 26px; filter: drop-shadow(0 18px 36px rgba(11,22,54,.35)); }
 .login-brand h1 { position: relative; z-index: 1; }
 @media (max-width: 860px) { .login-hero { width: min(200px, 60%); margin-top: 16px; border-radius: 22px; } }
 /* ---- copies of a card & combining ---- */

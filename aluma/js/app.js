@@ -59,7 +59,7 @@ function renderLogin() {
   <main class="login">
     <section class="login-brand">
       <div class="brand-row">${mark(40)}<span>אלומה</span></div>
-      <img class="login-hero" src="img/aluma-logo.webp" alt="הלוגו של אלומה: שיבולי זהב סביב שמש" width="640" height="640" decoding="async">
+      <img class="login-hero" src="img/aluma-logo.webp" alt="הלוגו של אלומה: אלומת שיבולים קשורה, על רקע כחול" width="640" height="640" decoding="async">
       <h1>פשוט שואלים.</h1>
       <p>סוכנת AI שמחוברת למערכות של בית הספר ועונה לתלמידים, להורים ולמורים – בלי לחפש בתפריטים.</p>
       <ul class="brand-points">
