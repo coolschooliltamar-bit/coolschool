@@ -13,6 +13,7 @@ import * as Game from './game.js';
 import * as V from './views.js';
 import * as S from './studio.js';
 import * as P from './projects.js';
+import * as Warm from './warm.js';
 
 const $app = document.getElementById('app');
 const live = document.getElementById('live');
@@ -434,6 +435,14 @@ async function ask(text, { full = false } = {}) {
   const final = aiMsg(res, true); el.replaceWith(final);
   addActions(final, res, text);
   conv.messages.push({ who: 'ai', res }); save();
+  // warm phrasing: the fast answer is already on screen; Gemini rewords it in the background (js/warm.js)
+  if (res.fast && Warm.on(ctx)) Warm.polish(ctx, text, res).then(warm => {
+    if (!warm || !final.isConnected) return;
+    const box = final.querySelector('.ai-text'); if (!box) return;
+    box.classList.add('warm-in'); box.innerHTML = md(warm);
+    res.plain = res.text; res.text = warm; res.warm = true; save();
+    live.textContent = warm.replace(/\*\*/g, '');
+  });
   if (ctx.live) Cloud.push(ctx.userId);
   live.textContent = res.text.replace(/\*\*/g, '');
   busy = false; scrollDown();

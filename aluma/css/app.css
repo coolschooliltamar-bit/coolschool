@@ -573,3 +573,4 @@ body.in-app .proto-banner { display: none; }
 .alb-dupes span { flex: 1 1 260px; }
 [data-theme="dark"] .alb-dupes { background: #3a2a10; border-color: #7a5420; color: #ffe2b0; }
 .legal-links { margin: 6px 0 0; font-size: 13px; } .legal-links a { color: inherit; }
+.ai-text.warm-in { animation: warmIn .45s ease both; } @keyframes warmIn { from { opacity: .35; } }
