@@ -424,9 +424,17 @@ async function ask(text, { full = false } = {}) {
         note: e.deadline ? 'Gemini עמוס כרגע אצל Google, אז ענתה המנוע המהיר של אלומה. אפשר לשאול שוב בעוד רגע לתשובה מלאה.' : `Gemini לא זמין (${e.message}) – ענה המנוע המהיר של אלומה.` };
     }
   } else {
-    for (let i = 0; i < steps.length; i++) { st.querySelector(`[data-i="${i}"]`).classList.add('run'); await sleep(fastIntent ? 90 : 260 + Math.random() * 220); st.querySelector(`[data-i="${i}"]`).classList.replace('run', 'done'); }
     res = answer(ctx, text, { activeStudentId, intent: fastIntent && fastIntent !== 'safety' ? fastIntent : undefined, routed: routed && routed.t });
     if (fastIntent && fastIntent !== 'safety' && AI.enabled()) res = { ...res, fast: true, q: text };
+    // warm phrasing (js/warm.js): the fast engine already has the answer; Gemini rewords it while the steps run,
+    // and the answer is shown only once – warm if Gemini made it in time, the plain one if Gemini is busy or slow
+    const warmP = res.fast && Warm.on(ctx) ? Warm.polish(ctx, text, res, { waitMs: Warm.WARM.waitMs }) : null;
+    for (let i = 0; i < steps.length; i++) { st.querySelector(`[data-i="${i}"]`).classList.add('run'); await sleep(fastIntent ? 90 : 260 + Math.random() * 220); st.querySelector(`[data-i="${i}"]`).classList.replace('run', 'done'); }
+    if (warmP) {
+      st.querySelector('.steps').insertAdjacentHTML('beforeend', '<div class="step run"><span class="dot"></span>מנסחת את התשובה</div>'); scrollDown();
+      const warm = await warmP;
+      if (warm) res = { ...res, plain: res.text, text: warm, warm: true };
+    }
   }
   st.remove();
   const el = aiMsg({ ...res, text: '', cards: [] }, false); chat.appendChild(el);
@@ -435,14 +443,6 @@ async function ask(text, { full = false } = {}) {
   const final = aiMsg(res, true); el.replaceWith(final);
   addActions(final, res, text);
   conv.messages.push({ who: 'ai', res }); save();
-  // warm phrasing: the fast answer is already on screen; Gemini rewords it in the background (js/warm.js)
-  if (res.fast && Warm.on(ctx)) Warm.polish(ctx, text, res).then(warm => {
-    if (!warm || !final.isConnected) return;
-    const box = final.querySelector('.ai-text'); if (!box) return;
-    box.classList.add('warm-in'); box.innerHTML = md(warm);
-    res.plain = res.text; res.text = warm; res.warm = true; save();
-    live.textContent = warm.replace(/\*\*/g, '');
-  });
   if (ctx.live) Cloud.push(ctx.userId);
   live.textContent = res.text.replace(/\*\*/g, '');
   busy = false; scrollDown();
