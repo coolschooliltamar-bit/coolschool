@@ -4,6 +4,7 @@ import * as Game from './game.js';
 import * as P from './projects.js';
 import * as S from './studio.js';
 import * as Intro from './intro.js';
+import * as QT from './qtypes.js';
 import * as L from './learn.js';
 import * as Cloud from './cloud.js';
 import * as T from './trade.js';
@@ -536,7 +537,12 @@ export function pathCard(p, ctx, { manage = false } = {}) {
     ${p.basedOn && (p.basedOn.my != null || p.basedOn.classAvg != null) ? `<div class="hint">מותאם לפי: ${p.basedOn.my != null ? `הממוצע ${ctx.role === 'teacher' ? 'של התלמיד/ה' : 'שלך'} ${p.basedOn.my}` : ''}${p.basedOn.my != null && p.basedOn.classAvg != null ? ' · ' : ''}${p.basedOn.classAvg != null ? `ממוצע הכיתה ${p.basedOn.classAvg}` : ''}${p.basedOn.weak && p.basedOn.weak.length ? ` · לחיזוק: ${p.basedOn.weak.map(esc).join(', ')}` : ''}</div>` : ''}
     ${ctx.role === 'student' && p.units.length ? `<div class="pprog"><div class="bar" role="progressbar" aria-label="התקדמות במסלול" aria-valuemin="0" aria-valuemax="${p.units.length * per}" aria-valuenow="${lessonsDone}"><i style="width:${lessonsDone / (p.units.length * per) * 100}%"></i></div><span class="hint">${lessonsDone}/${p.units.length * per} שיעורים · ${done}/${p.units.length} יחידות</span></div>` : ''}
     <div class="btns">${p.units.length ? `<button class="btn ${ctx.role === 'student' ? 'primary' : ''}" data-open="${p.id}">${icon('sparkle', 15)} ${ctx.role === 'student' ? (lessonsDone ? 'המשך במסלול' : 'כניסה למסלול') : 'צפייה במפת המסלול'}</button>` : ''}${p.cards.length && ctx.role === 'student' ? `<button class="btn" data-deck="${p.id}">${icon('layers', 15)} כרטיסיות</button>` : ''}${manage ? `<button class="btn link" data-delpath="${p.id}">מחיקה</button>` : ''}</div>
-    ${ctx.role === 'teacher' ? `<details><summary>תצוגה מקדימה</summary>${p.units.map(u => `<b>${esc(u.title)}</b><ol>${u.qs.map(q => `<li>${esc(q.q)} <span class="hint">(${esc(q.options[q.answer])})</span></li>`).join('')}</ol>`).join('')}</details>` : ''}</article>`;
+    ${ctx.role === 'teacher' ? `<details><summary>תצוגה מקדימה</summary>${questionList(p)}</details>` : ''}</article>`;
+}
+// every unit, its lessons and their questions – with the kind and the right answer (teachers)
+function questionList(p) {
+  const li = q => `<li>${esc(q.q)} <span class="tag">${esc(QT.KIND_NAMES[q.kind] || q.kind)}</span> <span class="hint">(${esc(QT.answerText(q))})</span></li>`;
+  return p.units.map((u, ui) => `<b>יחידה ${ui + 1}: ${esc(u.title)}</b>${u.lessons ? u.lessons.map((ls, l) => `<div class="hint">שיעור ${l + 1}: ${esc(ls.title)}</div><ol>${ls.qs.map(li).join('')}</ol>`).join('') : `<ol>${u.qs.map(li).join('')}</ol>`}`).join('');
 }
 export function bindPathCards(root, ctx, redo) {
   root.querySelectorAll('[data-open]').forEach(b => b.onclick = () => E.openPath(b.dataset.open));
@@ -593,9 +599,9 @@ function draftEditor(p) {
     ${missing ? `<p class="hint warn-line">Gemini היה עמוס, אז ${missing === 1 ? 'הסבר אחד עוד לא נכתב' : `${missing} הסברים עוד לא נכתבו`}. אפשר לנסות שוב עכשיו, לכתוב בעצמכם, או להשאיר – אלומה תכתוב אותם כשהתלמיד/ה יפתח/תפתח את השיעור.</p>` : ''}
     <div class="btns"><button class="btn" type="button" data-regen="${p.id}">${icon('sparkle', 15)} ${missing && missing === p.units.length * per ? 'כתיבת ההסברים' : p.video ? 'כתיבת ההסברים מחדש לפי הסיכום' : 'כתיבת ההסברים מחדש'}</button></div>
     <details open><summary>ההסברים לפני כל שיעור (${p.units.length * per})</summary>
-    ${p.units.map((u, ui) => Array.from({ length: per }, (_, l) => { const it = (p.intros || {})[`${ui}:${l}`] || { text: '' }; return `<fieldset class="dintro" data-k="${ui}:${l}"><legend>יחידה ${ui + 1}: ${esc(u.title)}${per > 1 ? ` · שיעור ${l + 1}` : ''}</legend>
+    ${p.units.map((u, ui) => Array.from({ length: per }, (_, l) => { const it = (p.intros || {})[`${ui}:${l}`] || { text: '' }; return `<fieldset class="dintro" data-k="${ui}:${l}"><legend>יחידה ${ui + 1}: ${esc(u.title)}${per > 1 || (u.lessons && u.lessons[l]) ? ` · שיעור ${l + 1}${u.lessons && u.lessons[l] ? `: ${esc(u.lessons[l].title)}` : ''}` : ''}</legend>
       <label>טקסט ההסבר (פסקאות מופרדות בשורה ריקה)<textarea data-f="text" rows="10" maxlength="4000" placeholder="${it.text ? '' : 'עוד לא נכתב'}">${esc(it.text)}</textarea></label></fieldset>`; }).join('')).join('')}</details>
-    <details><summary>השאלות</summary>${p.units.map(u => `<b>${esc(u.title)}</b><ol>${u.qs.map(q => `<li>${esc(q.q)} <span class="hint">(${esc(q.options[q.answer])})</span></li>`).join('')}</ol>`).join('')}</details>
+    <details><summary>השאלות</summary>${questionList(p)}</details>
     <div class="btns"><button class="btn primary" type="button" data-publish="${p.id}">${icon('check', 15)} שמירה ופרסום ל${esc(cls)}</button><button class="btn" type="button" data-savedraft="${p.id}">שמירת הטיוטה</button><button class="btn link" type="button" data-delpath="${p.id}">מחיקה</button></div><div class="pmsg"></div></article>`;
 }
 function readDraft(box, p) {

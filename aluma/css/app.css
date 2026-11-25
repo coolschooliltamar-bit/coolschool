@@ -601,3 +601,35 @@ body.in-app .proto-banner { display: none; }
 .intro-text p { font-size: 17px; line-height: 1.8; margin: 0 0 12px; }
 .intro-more .intro-text { margin-top: 10px; }
 .intro-more .intro-text p:last-child { margin-bottom: 2px; }
+
+/* question types (js/qtypes.js) */
+.qkind { font-size: 12px; font-weight: 600; color: var(--mute); margin-top: 4px; }
+.qkind b { color: var(--accent); }
+.wchip, .slot, .mitem, .oitem { font: inherit; font-size: 16px; color: var(--ink); background: var(--card); border: 1.5px solid var(--line); border-bottom-width: 3px; border-radius: 12px; padding: 9px 14px; cursor: pointer; }
+.wchip:hover:not(:disabled), .mitem:hover:not(:disabled), .oitem:hover:not(:disabled) { background: var(--hover); }
+.wchip:disabled { opacity: .35; cursor: default; }
+.chipsrow { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; }
+.bankq { line-height: 2.2; }
+.slot { display: inline-block; min-width: 90px; min-height: 1.6em; padding: 2px 12px; margin: 0 4px; vertical-align: middle; border-style: dashed; font-size: 18px; font-weight: 600; }
+.slot.full { border-style: solid; border-color: var(--accent); background: var(--accent-soft); }
+.right.slot, .mitem.right, .oitem.right, .winput.right { border-color: #3DBE7B; background: #E4F8EC; color: #17663F; }
+.wrong.slot, .mitem.wrong, .oitem.wrong, .winput.wrong { border-color: #E5484D; background: #FDECEC; color: #A3171E; }
+.wrow { margin: 6px 0 4px; }
+.winput { width: 100%; box-sizing: border-box; font: inherit; font-size: 18px; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); }
+.winput:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.matchq { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0; }
+.mcol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mitem { text-align: right; min-height: 48px; overflow-wrap: anywhere; }
+.mitem.sel { outline: 3px solid var(--accent); outline-offset: 1px; }
+.mitem.m0 { border-color: #6C8CFF; background: #EEF1FF; } .mitem.m1 { border-color: #F2A33A; background: #FFF4E3; }
+.mitem.m2 { border-color: #B57BEA; background: #F6EEFF; } .mitem.m3 { border-color: #3EB8B0; background: #E6F7F6; } .mitem.m4 { border-color: #E5739A; background: #FDEEF3; }
+.orderq { margin: 8px 0; padding-inline-start: 26px; display: flex; flex-direction: column; gap: 8px; }
+.orderq .oitem { width: 100%; text-align: right; }
+.orderq .oempty { height: 44px; border: 1.5px dashed var(--line); border-radius: 12px; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mitem.m0, :root:not([data-theme="light"]) .mitem.m1, :root:not([data-theme="light"]) .mitem.m2,
+  :root:not([data-theme="light"]) .mitem.m3, :root:not([data-theme="light"]) .mitem.m4 { background: var(--hover); }
+}
+:root[data-theme="dark"] .mitem.m0, :root[data-theme="dark"] .mitem.m1, :root[data-theme="dark"] .mitem.m2, :root[data-theme="dark"] .mitem.m3, :root[data-theme="dark"] .mitem.m4 { background: var(--hover); }
+:root[data-theme="dark"] .right.slot, :root[data-theme="dark"] .mitem.right, :root[data-theme="dark"] .oitem.right, :root[data-theme="dark"] .winput.right { background: #12291F; color: #6FE0A6; }
+:root[data-theme="dark"] .wrong.slot, :root[data-theme="dark"] .mitem.wrong, :root[data-theme="dark"] .oitem.wrong, :root[data-theme="dark"] .winput.wrong { background: #351718; color: #FF9C96; }

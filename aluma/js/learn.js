@@ -2,6 +2,8 @@
 // Questions come from a built-in bank in the prototype; with the AI connected they would be generated
 // from the class material. Practice only – Aluma still never writes work to hand in (spec 18).
 import { db, save, audit } from './store.js';
+import { LESSONS, genQuestion } from './bank-lessons.js';
+export { genQuestion };
 
 const mc = (q, options, answer, explain) => ({ kind: 'mc', q, options, answer, explain });
 const tf = (q, answer, explain) => ({ kind: 'tf', q, options: ['נכון', 'לא נכון'], answer: answer ? 0 : 1, explain });
@@ -78,7 +80,40 @@ export const BANK = {
   math: { icon: '➗', units: [{ title: 'משוואות ממעלה ראשונה', gen: 'eq' }, { title: 'אחוזים', gen: 'pct' }, { title: 'פונקציה קווית', gen: 'lin' }] },
 };
 export const LEARN_SUBJECTS = Object.keys(BANK);
-export const LESSONS_PER_UNIT = 3, Q_PER_LESSON = 5;
+export const LESSONS_PER_UNIT = 3, Q_PER_LESSON = 5, REVIEW_PER_LESSON = 1;
+// every unit is one topic; its lessons (bank-lessons.js) each teach a more specific part, with their own questions
+for (const [s, units] of Object.entries(LESSONS)) units.forEach((ls, u) => {
+  const unit = BANK[s].units[u]; if (!unit) return;
+  unit.lessons = ls;
+  const qs = ls.flatMap(l => l.qs || []); if (qs.length) unit.qs = qs;
+});
+
+// ---------- one lesson's questions: mostly its own, and a review question from earlier lessons ----------
+const shuffle = a => a.map(x => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map(p => p[1]);
+// pick n questions with as many different kinds as possible (no two of a kind before every kind was used)
+function diverse(pool, n) {
+  const left = shuffle(pool.filter((q, i) => pool.findIndex(x => x.q === q.q) === i)), out = [], used = {};
+  while (out.length < n && left.length) {
+    let best = 0; left.forEach((q, i) => { if ((used[q.kind] || 0) < (used[left[best].kind] || 0)) best = i; });
+    const q = left.splice(best, 1)[0]; out.push(q); used[q.kind] = (used[q.kind] || 0) + 1;
+  }
+  return shuffle(out);
+}
+// own: the lesson's pool; earlier: the pool of the lessons before it (same unit, or the unit before for a first lesson)
+export function composeLesson(own, earlier = [], n = Q_PER_LESSON) {
+  const r = earlier.length ? Math.min(REVIEW_PER_LESSON, n - 1) : 0;
+  const mine = diverse(own, n - r);
+  const rev = shuffle(earlier).slice(0, r).map(q => ({ ...q, review: true }));
+  const out = mine.slice(); rev.forEach((q, i) => out.splice(Math.min(out.length, 2 + i * 2), 0, q));
+  return out;
+}
+const poolOf = lesson => (lesson.gen ? Array.from({ length: 14 }, () => genQuestion(lesson.gen)) : lesson.qs || []);
+// the lessons before lesson l of unit u: the earlier lessons of the unit, or the last unit's lessons for a first lesson
+export function earlierLessons(units, u, l) {
+  const ls = (units[u] && units[u].lessons) || [];
+  if (l > 0) return ls.slice(0, l);
+  return u > 0 ? ((units[u - 1] && units[u - 1].lessons) || []) : [];
+}
 
 // math questions are generated so they never run out
 const ri = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
@@ -97,11 +132,13 @@ function genMath(kind) {
   return { kind: 'mc', q: `בפונקציה y = ${m}x ${b < 0 ? '−' : '+'} ${Math.abs(b)}, מה הערך של y כש-x = ${x}?`, ...o, explain: `מציבים: y = ${m}·(${x}) ${b < 0 ? '−' : '+'} ${Math.abs(b)} = ${y}.` };
 }
 
-export function lessonQuestions(subject, unitIdx) {
-  const unit = BANK[subject].units[unitIdx];
+export function lessonQuestions(subject, unitIdx, l = 0) {
+  const units = BANK[subject].units, unit = units[unitIdx];
+  if (unit.lessons && unit.lessons[l]) return composeLesson(poolOf(unit.lessons[l]), earlierLessons(units, unitIdx, l).flatMap(poolOf));
   if (unit.gen) return Array.from({ length: Q_PER_LESSON }, () => genMath(unit.gen));
   return [...unit.qs].sort(() => Math.random() - 0.5).slice(0, Q_PER_LESSON);
 }
+export const bankLesson = (subject, u, l) => ((BANK[subject].units[u] || {}).lessons || [])[l] || null;
 
 // ---------- progress (per user) ----------
 export function progress(userId) {
@@ -162,7 +199,8 @@ export function flashDeck(subject) {
     ['מה נקודת החיתוך עם ציר y ב-y = 3x + 2?', '(0, 2) – המספר החופשי'],
     ['מה זה אחוז?', 'חלק מתוך 100'],
   ];
-  return BANK[subject].units.flatMap(u => u.qs.filter(q => q.kind === 'mc').map(q => [q.q, q.options[q.answer]]));
+  const all = BANK[subject].units.flatMap(u => u.qs.flatMap(q => q.kind === 'mc' ? [[q.q, q.options[q.answer]]] : q.kind === 'write' ? [[q.q, q.accept[0]]] : q.kind === 'match' ? q.pairs.map(p => [p[0], p[1]]) : []));
+  return all.filter((c, i) => all.findIndex(x => x[0] === c[0]) === i);
 }
 export function cardBox(userId, subject, i) { return (progress(userId).cards[`${subject}:${i}`] || 1); }
 export function rateCard(userId, subject, i, knew) {
@@ -201,7 +239,9 @@ export function pathNext(userId, path) {
 // the questions of lesson l in unit u: its own 5 questions when the unit has enough for every lesson,
 // otherwise a fresh shuffled pick of 5 from the unit (so every lesson is a full lesson)
 export function pathLessonQuestions(path, u, l) {
-  const qs = (path.units[u] || { qs: [] }).qs, n = pathLessons(path);
+  const unit = path.units[u] || { qs: [] };
+  if (unit.lessons && unit.lessons[l]) return composeLesson(unit.lessons[l].qs, earlierLessons(path.units, u, l).flatMap(x => x.qs || []));
+  const qs = unit.qs, n = pathLessons(path);
   if (n === 1) return qs.slice().sort(() => Math.random() - 0.5);
   const per = Q_PER_LESSON;
   if (qs.length >= n * per) return qs.slice(l * per, l * per + per).sort(() => Math.random() - 0.5);

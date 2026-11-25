@@ -18,10 +18,9 @@ const old = I.validIntro({ short: 'הסבר ישן על הנושא, מספיק �
 ok(old && I.paragraphs(old).length === 3 && old.text.includes('לדוגמה: דוגמה ראשונה'), 'an explanation in the older format becomes one text');
 const loc = I.localIntro('המהפכה הצרפתית', L.BANK.history.units[0].qs);
 ok(loc.local && loc.text.includes('המהפכה הצרפתית') && I.paragraphs(loc).length >= 2, 'last fallback: the key facts of the lesson');
-const { BANK_INTROS } = await import('../js/intro-bank.js');
-const units = Object.entries(L.BANK).flatMap(([s, b]) => b.units.map((_, i) => `${s}:${i}`));
-ok(units.every(k => BANK_INTROS[k] && I.paragraphs(BANK_INTROS[k]).length >= 4 && BANK_INTROS[k].text.length > 800), `all ${units.length} basic-path units have a full explanatory text`);
-ok(units.every(k => I.cached(null, k.split(':')[0], +k.split(':')[1], 0) === BANK_INTROS[k]), 'the basic path uses the ready texts');
+const units = Object.entries(L.BANK).flatMap(([s, b]) => b.units.flatMap((_, u) => [0, 1, 2].map(l => [s, u, l])));
+ok(units.every(([s, u, l]) => { const it = I.cached(null, s, u, l); return it && I.paragraphs(it).length >= 2 && it.text.length > 200; }), `all ${units.length} basic-path lessons have their own explanatory text`);
+ok(I.cached(null, 'history', 0, 0).text !== I.cached(null, 'history', 0, 1).text, 'each lesson of a unit has a different text');
 
 // a path without Gemini: every lesson gets an explanation
 const p = { id: 'tst', subject: 'history', lessonsPerUnit: 2, units: [{ title: 'א', qs: L.BANK.history.units[0].qs }, { title: 'ב', qs: L.BANK.history.units[1].qs }] };

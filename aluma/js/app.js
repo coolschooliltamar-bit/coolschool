@@ -15,6 +15,7 @@ import * as S from './studio.js';
 import * as P from './projects.js';
 import * as Warm from './warm.js';
 import * as Intro from './intro.js';
+import * as QT from './qtypes.js';
 
 const $app = document.getElementById('app');
 const live = document.getElementById('live');
@@ -817,14 +818,14 @@ function renderPath() {
   v.innerHTML = `<section class="panel lpanel"><h2 class="ph">${icon('sparkle', 20)} מסלול תרגול</h2>${statsBar()}${tabsHTML}
     <div class="reco">${icon('sparkle', 16)} ${w.n ? `<b>מומלץ לתרגל ${esc(subjectName(w.sub))}</b> – הממוצע בשלושת הציונים האחרונים שלך בו הוא ${w.avg} (מתוך משוב).` : '<b>בחרו מקצוע ותתחילו לתרגל</b> – שיעורים קצרים של 5 שאלות.'}</div>
     ${subjectTabs(sub)}
-    ${pathMapHTML(units.map((u, ui) => ({ title: u.title, st: L.unitState(ctx.userId, sub, ui) })), next)}
+    ${pathMapHTML(units.map((u, ui) => ({ title: u.title, names: (u.lessons || []).map(x => x.title), st: L.unitState(ctx.userId, sub, ui) })), next)}
     ${!next ? '<p class="sent" style="text-align:center">סיימת את כל המסלול במקצוע הזה! 🏆</p>' : ''}
     <p class="hint">תרגול בלבד – אלומה לא כותבת עבודות להגשה. מסלול מותאם לרמה שלך, מסלולים מהמורה ומסלולים משלך – בלשוניות למעלה.</p></section>`;
   bindSubjectTabs(v, 'path');
   v.querySelectorAll('[data-ptab]').forEach(b => b.onclick = () => { pathTab = b.dataset.ptab; renderPath(); });
   v.querySelectorAll('[data-lesson]').forEach(b => b.onclick = () => {
     const [u, l] = b.dataset.lesson.split(':').map(Number);
-    lessonState = { sub, u, l, qs: L.lessonQuestions(sub, u), i: 0, correct: 0, picked: null, checked: false, introDone: false };
+    lessonState = { sub, u, l, qs: L.lessonQuestions(sub, u, l), i: 0, correct: 0, picked: null, checked: false, introDone: false };
     go('lesson');
   });
 }
@@ -838,7 +839,8 @@ function pathMapHTML(units, next, { preview = false } = {}) {
       const isNext = !preview && next && next[0] === ui && next[1] === li;
       const locked = preview || (!done && !isNext);
       const off = ['0', '-70px', '-110px', '-70px', '0', '70px', '110px', '70px'][node++ % 8];
-      return `<button class="node ${done ? 'done' : isNext ? 'next' : 'locked'}" style="transform:translateX(${off})" ${locked ? 'disabled aria-disabled="true"' : ''} data-lesson="${ui}:${li}" aria-label="שיעור ${li + 1} ב${esc(u.title)}${done ? ' – הושלם' : preview ? '' : locked ? ' – נעול' : ''}">${done ? '✓' : preview ? li + 1 : locked ? '🔒' : '★'}${isNext ? '<span class="start">התחילו</span>' : ''}</button>`;
+      const name = u.names && u.names[li] ? `: ${esc(u.names[li])}` : '';
+      return `<button class="node ${done ? 'done' : isNext ? 'next' : 'locked'}" style="transform:translateX(${off})" ${locked ? 'disabled aria-disabled="true"' : ''} data-lesson="${ui}:${li}" title="שיעור ${li + 1}${name}" aria-label="שיעור ${li + 1}${name} ב${esc(u.title)}${done ? ' – הושלם' : preview ? '' : locked ? ' – נעול' : ''}">${done ? '✓' : preview ? li + 1 : locked ? '🔒' : '★'}${isNext ? '<span class="start">התחילו</span>' : ''}</button>`;
     }).join('')}</div></div>`).join('')}</div>`;
 }
 // a generated path (adaptive / from the teacher / my own) opened as a map
@@ -849,7 +851,7 @@ function renderPathMap() {
   if (!p || p.kind !== 'path' || !p.units.length) { openPathId = null; go(back); return; }
   const student = ctx.role === 'student';
   const next = student ? L.pathNext(ctx.userId, p) : null;
-  const units = p.units.map((u, ui) => ({ title: u.title, st: student ? L.pathUnitState(ctx.userId, p, ui) : Array(L.pathLessons(p)).fill(false) }));
+  const units = p.units.map((u, ui) => ({ title: u.title, names: (u.lessons || []).map(x => x.title), st: student ? L.pathUnitState(ctx.userId, p, ui) : Array(L.pathLessons(p)).fill(false) }));
   const per = L.pathLessons(p);
   v.innerHTML = `<section class="panel lpanel"><div class="pmap-top"><button class="btn link" id="pmback">→ ${student ? 'חזרה למסלולים' : 'חזרה למסלולים לכיתה'}</button></div>
     <h2 class="ph">${icon('sparkle', 20)} ${esc(p.title)}</h2>${student ? statsBar() : ''}
@@ -866,33 +868,37 @@ function renderPathMap() {
 // before every lesson's questions: a short, friendly explanation with examples, and "more" for those who want it
 function lessonLabel(s) {
   const p = s.custom && L.getPath(s.custom);
-  return p ? `${esc(p.title)} · ${esc((p.units[s.u] || {}).title || '')}${L.pathLessons(p) > 1 ? ` · שיעור ${s.l + 1}` : ''}` : `${L.BANK[s.sub].icon} ${esc(subjectName(s.sub))} · ${esc(L.BANK[s.sub].units[s.u].title)}`;
+  const unit = p ? p.units[s.u] || {} : L.BANK[s.sub].units[s.u], ls = (unit.lessons || [])[s.l];
+  const lessonPart = ls && ls.title ? ` · שיעור ${s.l + 1}: ${esc(ls.title)}` : p && L.pathLessons(p) > 1 ? ` · שיעור ${s.l + 1}` : '';
+  return p ? `${esc(p.title)} · ${esc(unit.title || '')}${lessonPart}` : `${L.BANK[s.sub].icon} ${esc(subjectName(s.sub))} · ${esc(unit.title)}${lessonPart}`;
 }
 // formulas and English inside Hebrew text: each run is shown left-to-right, so "3x + 5 = 20" is not reversed
 const ltr = t => String(t ?? '').split(/("?[\w(‎][\w\s·×÷−+\-=()%./,'"!?✓‎]*[\w)%✓"])/).map((m, k) => k % 2 && /[0-9=A-Za-z]/.test(m) ? `<span dir="ltr" class="ltr">${esc(m)}</span>` : esc(m)).join('');
 function renderIntro(v, s) {
   const p = s.custom ? L.getPath(s.custom) : null;
   const unit = p ? p.units[s.u] : L.BANK[s.sub].units[s.u];
+  const lesson = (unit.lessons || [])[s.l];
+  const heading = lesson && lesson.title ? lesson.title : unit.title;
   const it = s.intro || Intro.cached(p, s.sub, s.u, s.l);
   const top = `<div class="lesson-top"><button class="iconbtn" id="quit" aria-label="יציאה מהשיעור">✕</button><div class="bar" aria-hidden="true"><i style="width:0"></i></div><span class="hint">הסבר</span></div><div class="unit-label">${lessonLabel(s)}</div>`;
   const start = () => { s.introDone = true; renderLesson(); window.scrollTo({ top: 0 }); };
   const quit = () => { if (!s.custom) toolSubject = s.sub; lessonState = null; go(s.custom ? 'pmap' : 'path'); };
   if (!it) {
-    v.innerHTML = `<section class="panel lesson lintro">${top}<div class="intro-badge">${icon('sparkle', 16)} לפני שמתחילים</div><h2>${esc(unit.title)}</h2>
+    v.innerHTML = `<section class="panel lesson lintro">${top}<div class="intro-badge">${icon('sparkle', 16)} לפני שמתחילים</div><h2>${esc(heading)}</h2>
       <div class="intro-loading" role="status"><span class="dot"></span>אלומה מכינה לך הסבר קצר…</div>
       <div class="btns lesson-btns"><button class="btn wide" id="golesson">ישר לשאלות</button></div></section>`;
     v.querySelector('#quit').onclick = quit; v.querySelector('#golesson').onclick = start;
     if (!s.loadingIntro) {
       s.loadingIntro = true;
-      const qs = (unit.qs && unit.qs.length ? unit.qs : s.qs);
-      Intro.forLesson({ path: p, sub: s.sub, u: s.u, l: s.l, title: unit.title, qs }).then(x => { s.intro = x; if (lessonState === s && !s.introDone && view === 'lesson') renderLesson(); });
+      const qs = lesson && lesson.qs ? lesson.qs : (unit.qs && unit.qs.length ? unit.qs : s.qs);
+      Intro.forLesson({ path: p, sub: s.sub, u: s.u, l: s.l, title: lesson && lesson.title ? `${unit.title} – ${lesson.title}` : unit.title, qs }).then(x => { s.intro = x; if (lessonState === s && !s.introDone && view === 'lesson') renderLesson(); });
     }
     return;
   }
   s.intro = it;
   v.innerHTML = `<section class="panel lesson lintro">${top}
     <div class="intro-badge">${icon('sparkle', 16)} לפני שמתחילים</div>
-    <h2>${esc(unit.title)}</h2>
+    <h2>${esc(heading)}</h2>
     ${(() => {
       // the start of the text at once (about two short paragraphs), the rest with "המשך ההסבר"
       const ps = Intro.paragraphs(it); let n = 1, len = (ps[0] || '').length;
@@ -922,26 +928,82 @@ function renderLesson() {
     const tb = v.querySelector('#toboxes'); if (tb) tb.onclick = () => { lessonState = null; V.showBoxes(); go('game'); };
     v.querySelector('#back').onclick = () => { toolSubject = s.custom ? toolSubject : s.sub; lessonState = null; go(s.custom ? 'pmap' : 'path'); };
     const nl = v.querySelector('#nextl'); if (nl) nl.onclick = () => { const [u, l] = L.pathNext(ctx.userId, L.getPath(s.custom)); startPathLesson(s.custom, u, l); };
-    const ag = v.querySelector('#again'); if (ag) ag.onclick = () => { if (s.custom) return startPathLesson(s.custom, s.u, s.l); lessonState = { ...s, qs: L.lessonQuestions(s.sub, s.u), i: 0, correct: 0, picked: null, checked: false, result: null, newBoxes: 0, introDone: false }; render(); };
+    const ag = v.querySelector('#again'); if (ag) ag.onclick = () => { if (s.custom) return startPathLesson(s.custom, s.u, s.l); lessonState = { ...s, qs: L.lessonQuestions(s.sub, s.u, s.l), i: 0, correct: 0, picked: null, checked: false, result: null, newBoxes: 0, introDone: false, shufFor: null }; render(); };
     live.textContent = `סיום שיעור: ${s.correct} מתוך ${s.qs.length}`;
     return;
   }
   const q = s.qs[s.i];
-  const right = s.checked && s.picked === q.answer;
+  if (s.shufFor !== s.i) {        // a fresh shuffle for each question (word bank, the right column of a match, an order)
+    s.shufFor = s.i; s.sel = null;
+    s.shuf = q.kind === 'bank' ? shuffleArr(q.bank) : q.kind === 'match' ? shuffleArr(q.pairs.map(p => p[1])) : q.kind === 'order' ? shuffleArr(q.items, q.items) : null;
+    s.picked = q.kind === 'bank' ? q.answers.map(() => null) : q.kind === 'match' ? q.pairs.map(() => null) : q.kind === 'order' ? [] : null;
+  }
+  const right = s.checked && QT.check(q, s.picked);
+  const xp = s.custom && !(L.getPath(s.custom) || {}).xp ? 'נכון!' : 'נכון! +10 XP';
   v.innerHTML = `<section class="panel lesson">
     <div class="lesson-top"><button class="iconbtn" id="quit" aria-label="יציאה מהשיעור">✕</button>
       <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${s.qs.length}" aria-valuenow="${s.i}"><i style="width:${(s.i / s.qs.length) * 100}%"></i></div>
       <span class="hint">${s.i + 1}/${s.qs.length}</span></div>
     <div class="unit-label">${lessonLabel(s)}</div>
-    <h2 class="q" ${/[a-zA-Z]{3}/.test(q.q) && !/[א-ת]/.test(q.q) ? 'dir="ltr"' : ''}>${esc(q.q)}</h2>
-    <div class="opts">${q.options.map((o, i) => `<button class="opt ${s.picked === i ? 'picked' : ''} ${s.checked && i === q.answer ? 'right' : ''} ${s.checked && s.picked === i && i !== q.answer ? 'wrong' : ''}" data-opt="${i}" ${s.checked ? 'disabled' : ''} ${/^[\x00-\x7F]+$/.test(o) ? 'dir="ltr"' : ''}>${esc(o)}</button>`).join('')}</div>
-    ${s.checked ? `<div class="feedback ${right ? 'good' : 'bad'}" role="status"><b>${right ? (s.custom && !(L.getPath(s.custom) || {}).xp ? 'נכון!' : 'נכון! +10 XP') : 'לא בדיוק'}</b><div>${esc(q.explain)}</div></div>` : ''}
-    <div class="btns lesson-btns">${s.checked ? '<button class="btn primary wide" id="next">המשך</button>' : `<button class="btn primary wide" id="check" ${s.picked == null ? 'disabled' : ''}>בדיקה</button>`}</div>
+    <div class="qkind">${esc(QT.KIND_NAMES[q.kind] || '')}${q.review ? ' · <b>חזרה על שיעור קודם</b>' : ''}</div>
+    ${q.kind === 'bank' ? '' : `<h2 class="q" ${ltrText(q.q) ? 'dir="ltr"' : ''}>${ltr(q.q)}</h2>`}
+    ${questionBody(q, s)}
+    ${s.checked ? `<div class="feedback ${right ? 'good' : 'bad'}" role="status"><b>${right ? xp : 'לא בדיוק'}</b>${!right && !['mc', 'tf'].includes(q.kind) ? `<div>התשובה הנכונה: <b>${ltr(QT.answerText(q))}</b></div>` : ''}<div>${ltr(q.explain)}</div></div>` : ''}
+    <div class="btns lesson-btns">${s.checked ? '<button class="btn primary wide" id="next">המשך</button>' : `<button class="btn primary wide" id="check" ${QT.ready(q, s.picked) ? '' : 'disabled'}>בדיקה</button>`}</div>
   </section>`;
-  v.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { s.picked = +b.dataset.opt; renderLesson(); });
+  bindQuestion(v, q, s);
   v.querySelector('#quit').onclick = () => { if (confirm('לצאת מהשיעור? ההתקדמות בשיעור הזה לא תישמר.')) { if (!s.custom) toolSubject = s.sub; lessonState = null; go(s.custom ? 'pmap' : 'path'); } };
-  const ch = v.querySelector('#check'); if (ch) ch.onclick = () => { s.checked = true; if (s.picked === q.answer) s.correct++; renderLesson(); live.textContent = s.picked === q.answer ? 'נכון' : 'לא נכון. ' + q.explain; };
-  const nx = v.querySelector('#next'); if (nx) nx.onclick = () => { s.i++; s.picked = null; s.checked = false; renderLesson(); };
+  const doCheck = () => { if (!QT.ready(q, s.picked)) return; s.checked = true; const ok = QT.check(q, s.picked); if (ok) s.correct++; renderLesson(); live.textContent = ok ? 'נכון' : `לא נכון. התשובה: ${QT.answerText(q)}. ${q.explain}`; };
+  const ch = v.querySelector('#check'); if (ch) ch.onclick = doCheck;
+  const wi = v.querySelector('#wans'); if (wi) { wi.oninput = () => { s.picked = wi.value; v.querySelector('#check').disabled = !QT.ready(q, s.picked); }; wi.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); doCheck(); } }; if (!s.checked) wi.focus(); }
+  const nx = v.querySelector('#next'); if (nx) { nx.onclick = () => { s.i++; s.picked = null; s.checked = false; renderLesson(); }; nx.focus(); }
+}
+if (typeof navigator !== 'undefined' && navigator.webdriver) window.__lesson = () => lessonState;   // browser tests read the current question
+const ltrText = t => /[a-zA-Z]{3}/.test(t) && !/[א-ת]/.test(t);
+const shuffleArr = (a, notEqual) => { for (let k = 0; k < 8; k++) { const out = a.map(x => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map(p => p[1]); if (!notEqual || out.some((x, i) => x !== notEqual[i])) return out; } return a.slice().reverse(); };
+// the answer area of each kind of question
+function questionBody(q, s) {
+  const done = s.checked, dirOf = t => (ltrText(t) || /^[\x00-\x7F]+$/.test(t) ? 'dir="ltr"' : '');
+  if (q.kind === 'mc' || q.kind === 'tf') return `<div class="opts">${q.options.map((o, i) => `<button class="opt ${s.picked === i ? 'picked' : ''} ${done && i === q.answer ? 'right' : ''} ${done && s.picked === i && i !== q.answer ? 'wrong' : ''}" data-opt="${i}" ${done ? 'disabled' : ''} ${dirOf(o)}>${esc(o)}</button>`).join('')}</div>`;
+  if (q.kind === 'write') return `<div class="wrow"><input id="wans" class="winput ${done ? (QT.check(q, s.picked) ? 'right' : 'wrong') : ''}" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" ${done ? 'disabled' : ''} placeholder="כתבו כאן את התשובה" value="${esc(s.picked || '')}" ${dirOf(q.accept[0])} aria-label="התשובה שלך"></div>`;
+  if (q.kind === 'bank') {
+    let k = 0;
+    const parts = q.q.split('___').map(ltr);
+    const sentence = parts.map((p, i) => i < parts.length - 1 ? `${p}<button class="slot ${s.picked[k] ? 'full' : ''} ${done ? (QT.sameText(s.picked[k], q.answers[k]) ? 'right' : 'wrong') : ''}" data-slot="${k}" ${done ? 'disabled' : ''} aria-label="מקום ${k + 1}${s.picked[k] ? ': ' + esc(s.picked[k]) : ' – ריק'}">${esc(s.picked[k++] || ' ')}</button>` : p).join('');
+    const used = s.picked.filter(Boolean);
+    return `<h2 class="q bankq" ${ltrText(q.q) ? 'dir="ltr"' : ''}>${sentence}</h2>
+      <div class="chipsrow" aria-label="מחסן מילים">${s.shuf.map((w, i) => { const taken = used.filter(x => x === w).length > s.shuf.slice(0, i).filter(x => x === w).length; return `<button class="wchip" data-word="${i}" ${taken || done ? 'disabled' : ''} ${dirOf(w)}>${esc(w)}</button>`; }).join('')}</div>
+      <p class="hint">${done ? '' : 'לחצו על מילה כדי לשים אותה במקום הריק הבא. לחיצה על מילה במשפט מחזירה אותה.'}</p>`;
+  }
+  if (q.kind === 'match') {
+    const of = r => s.picked.indexOf(r);
+    return `<div class="matchq"><div class="mcol">${q.pairs.map((p, i) => `<button class="mitem ${s.sel === i ? 'sel' : ''} ${s.picked[i] != null ? `m${i % 5}` : ''} ${done ? (s.picked[i] === p[1] ? 'right' : 'wrong') : ''}" data-left="${i}" ${done ? 'disabled' : ''} ${dirOf(p[0])}>${esc(p[0])}</button>`).join('')}</div>
+      <div class="mcol">${s.shuf.map((r, j) => `<button class="mitem ${of(r) >= 0 ? `m${of(r) % 5}` : ''}" data-right="${j}" ${done ? 'disabled' : ''} ${dirOf(r)}>${esc(r)}</button>`).join('')}</div></div>
+      ${done && !QT.check(q, s.picked) ? '' : `<p class="hint">${done ? '' : 'בחרו פריט מימין, ואז את מה שמתאים לו משמאל. אותו צבע = זוג.'}</p>`}`;
+  }
+  if (q.kind === 'order') {
+    const left = s.shuf.filter(it => !s.picked.includes(it));
+    return `<ol class="orderq">${s.picked.map((it, i) => `<li><button class="oitem ${done ? (q.items[i] === it ? 'right' : 'wrong') : ''}" data-unpick="${i}" ${done ? 'disabled' : ''} ${dirOf(it)}>${esc(it)}</button></li>`).join('')}${done ? '' : Array.from({ length: q.items.length - s.picked.length }, () => '<li class="oempty"></li>').join('')}</ol>
+      ${done ? '' : `<div class="chipsrow">${left.map(it => `<button class="wchip" data-pick="${s.shuf.indexOf(it)}" ${dirOf(it)}>${esc(it)}</button>`).join('')}</div><p class="hint">לחצו על הפריטים לפי הסדר הנכון. לחיצה על פריט ברשימה מחזירה אותו.</p>`}`;
+  }
+  return '';
+}
+function bindQuestion(v, q, s) {
+  const redraw = () => renderLesson();
+  v.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { s.picked = +b.dataset.opt; redraw(); });
+  v.querySelectorAll('[data-word]').forEach(b => b.onclick = () => { const k = s.picked.indexOf(null); if (k >= 0) { s.picked[k] = s.shuf[+b.dataset.word]; redraw(); } });
+  v.querySelectorAll('[data-slot]').forEach(b => b.onclick = () => { s.picked[+b.dataset.slot] = null; redraw(); });
+  v.querySelectorAll('[data-left]').forEach(b => b.onclick = () => { s.sel = +b.dataset.left; redraw(); });
+  v.querySelectorAll('[data-right]').forEach(b => b.onclick = () => {
+    const r = s.shuf[+b.dataset.right], was = s.picked.indexOf(r);
+    if (s.sel == null) { if (was >= 0) { s.picked[was] = null; redraw(); } return; }   // no item chosen: tapping a paired one unpairs it
+    if (was >= 0) s.picked[was] = null;
+    s.picked[s.sel] = r;
+    const next = s.picked.indexOf(null); s.sel = next >= 0 ? next : null; redraw();
+  });
+  v.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { s.picked.push(s.shuf[+b.dataset.pick]); redraw(); });
+  v.querySelectorAll('[data-unpick]').forEach(b => b.onclick = () => { s.picked.splice(+b.dataset.unpick, 1); redraw(); });
+  if (q.kind === 'match' && s.sel == null && !s.checked && s.picked.every(x => x == null)) { s.sel = 0; v.querySelector('[data-left="0"]')?.classList.add('sel'); }
 }
 
 let cardIdx = 0, cardFlipped = false;
