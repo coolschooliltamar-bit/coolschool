@@ -47,7 +47,9 @@ export function subjectFrom(text) {
   if (LIVE.courses.length) { const c = LIVE.courses.find(c => t.includes(c.name)); if (c) return c.name; }
   for (const s of SUBJECTS) if (s.aliases.some(a => t.includes(a.replace(/[״"׳']/g, '')))) return s.id;
   // no subject name: look for a topic of the question bank ("המהפכה הצרפתית" → history)
-  const words = t.split(/\s+/).filter(w => w.length > 3);
+  for (const [sid, b] of Object.entries(L.BANK)) if (b.units.some(u => t.includes(u.title) || (u.lessons || []).some(l => l.title.length > 6 && t.includes(l.title)))) return sid;
+  const GENERIC = /^[הבלמו]?(מסלול|ראשונה|ראשון|שנייה|שני|שלישית|חלק|שיעור|שיעורים|יחידה|יחידות|תרגול|כרטיסיות|מבחן|חזרה|נושא|על|בבקשה|לכיתה)$/;
+  const words = t.split(/\s+/).filter(w => w.length > 3 && !GENERIC.test(w));
   let best = null, hits = 0;
   for (const [sid, b] of Object.entries(L.BANK)) for (const u of b.units) {
     const n = words.filter(w => u.title.includes(w) || u.title.includes(w.replace(/^[הבלמו]/, ''))).length;
@@ -77,10 +79,10 @@ export function teacherClassProfile(ctx, classId, subject) {
 // explanatory text and its own questions of several kinds (qtypes.js). Gemini first plans the lessons
 // (one small call), then writes each unit – texts and questions together – in parallel calls.
 // path.units[u] = { title, lessons: [{ title, qs }], qs (all of them) }; the texts go to path.intros['u:l'].
-const clean = (s, n = 300) => String(s ?? '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
+const clean = (s, n = 300) => String(s ?? '').replace(/[<>]/g, '').replace(/[\u0600-\u06FF\u0750-\u077F]+|[\u0370-\u03FF]{2,}/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
 export const Q_PER_GEN_LESSON = 6;
 const PLAN = { type: 'OBJECT', properties: {
-  title: { type: 'STRING' },
+  title: { type: 'STRING' }, subject: { type: 'STRING', enum: [...SUBJECTS.map(x => x.id), 'other'] },
   units: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' }, lessons: { type: 'ARRAY', items: { type: 'STRING' } } }, required: ['title', 'lessons'] } },
   cards: { type: 'ARRAY', items: { type: 'OBJECT', properties: { front: { type: 'STRING' }, back: { type: 'STRING' } }, required: ['front', 'back'] } },
 }, required: ['title', 'units', 'cards'] };
@@ -106,7 +108,7 @@ function planPrompt(o) {
   return `תכנני מסלול תרגול: ${o.shape.units} יחידות, ובכל יחידה ${o.shape.lessons} שיעורים.
 כל יחידה היא נושא כללי אחד. כל שיעור ביחידה עוסק בחלק מסוים וספציפי יותר של הנושא – מהבסיס למתקדם, בלי חזרות בין השיעורים.
 ${context(o)}${material(o.fileText)}
-החזירי: title – שם קצר למסלול; units – לכל יחידה title ו-lessons (רשימה של ${o.shape.lessons} כותרות שיעור קצרות); cards – 8 כרטיסיות זיכרון (front = מושג או שאלה, back = תשובה קצרה).
+החזירי: title – שם קצר למסלול; subject – המקצוע שהחומר שייך אליו (${SUBJECTS.map(x => `${x.id}=${x.name}`).join(', ')}, או other); units – לכל יחידה title ו-lessons (רשימה של ${o.shape.lessons} כותרות שיעור קצרות); cards – 8 כרטיסיות זיכרון (front = מושג או שאלה, back = תשובה קצרה).
 תוכן מדויק, מתאים לגיל ובטוח לילדים. רק תרגול – לא עבודה להגשה.`;
 }
 function unitPrompt(o, unit, ui) {
@@ -115,7 +117,8 @@ function unitPrompt(o, unit, ui) {
 ${context(o)}${material(o.fileText)}
 לכל שיעור, לפי הסדר:
 text – טקסט הסבר שמלמד את החלק של השיעור למי שלא למד אותו: 2–4 פסקאות קצרות מופרדות בשורה ריקה, רציף כמו עמוד בספר לימוד טוב, עם דוגמה פתורה בתוך הטקסט ובסוף הטעות הנפוצה. בלי רשימות וכותרות.
-questions – ${Q_PER_GEN_LESSON} שאלות על החומר של השיעור הזה בלבד (מה שמופיע בטקסט שלו), בלפחות 4 סוגים שונים. ${kindHint(o.subject)}
+questions – ${Q_PER_GEN_LESSON} שאלות על החומר של השיעור הזה בלבד (מה שמופיע בטקסט שלו), בלפחות 4 סוגים שונים ולא יותר משתי שאלות מאותו סוג. ${kindHint(o.subject)}
+בהתאמה (match) כל פריט בכל צד מופיע פעם אחת בלבד – בלי שתי תשובות זהות. בהשלמה (bank) המילים המסיחות לא מתאימות למשפט.
 ${QT.HOW_TO}
 לכל שאלה explain – משפט אחד שמסביר את התשובה. תוכן מדויק, מתאים לגיל ובטוח לילדים. רק תרגול – לא עבודה להגשה.
 החזירי {"lessons": [...]} עם ${unit.lessons.length} פריטים.`;
@@ -128,7 +131,7 @@ function validPlan(raw, shape) {
   });
   if (!units.length) throw new Error('empty');
   const cards = (raw.cards || []).slice(0, 30).map(c => [clean(c.front, 200), clean(c.back, 300)]).filter(c => c[0] && c[1]);
-  return { title: clean(raw.title, 70), units, cards };
+  return { title: clean(raw.title, 70), subject: raw.subject, units, cards };
 }
 function validUnit(raw, plan) {
   const lessons = plan.lessons.map((title, li) => {
@@ -212,6 +215,7 @@ function localGenerate({ kind, subject, profile, request, fileText, shape = { un
 export async function create(ctx, { kind = 'path', subject, request = '', fileText = '', fileName = '', classId = null, adaptive = false, studentId, units = 3, lessons = 3, video = null }) {
   if (video && video.summary) { fileText = [fileText, `סיכום הסרטון "${video.title || ''}":\n${video.summary}`].filter(Boolean).join('\n\n'); fileName = fileName || `סרטון: ${video.title || video.from || ''}`; }
   const shape = kind === 'cards' ? { units: 2, lessons: 1 } : { units: Math.min(L.MAX_PATH_UNITS, Math.max(1, Math.round(+units) || 3)), lessons: Math.min(L.MAX_PATH_LESSONS, Math.max(1, Math.round(+lessons) || 3)) };
+  const chosen = !!subject;     // chosen in the form; otherwise guessed here, and Gemini's plan may correct the guess
   subject = subject || subjectFrom(request) || (fileText ? subjectFrom(fileText.slice(0, 2000)) : null) || (ctx.role === 'teacher' && ctx.subjects ? ctx.subjects[0] : null);
   const forClass = ctx.role === 'teacher' && !!classId;
   if (!subject && !fileText) throw new Error('על איזה מקצוע? כתבו למשל "מסלול באנגלית על זמן עבר", או העלו קובץ עם החומר.');
@@ -222,20 +226,24 @@ export async function create(ctx, { kind = 'path', subject, request = '', fileTe
   if (AI.enabled()) {
     try {
       const plan = validPlan(await AI.generateJSON(planPrompt(o), PLAN, { deadlineMs: 25000, maxTokens: 2048 }), shape);
+      if (!chosen && plan.subject && plan.subject !== 'other' && SUBJECTS.some(x => x.id === plan.subject)) subject = o.subject = plan.subject;
       o.planTitle = plan.title;
-      const got = await Promise.all(plan.units.map((u, ui) => AI.generateJSON(unitPrompt(o, u, ui), UNIT, { deadlineMs: 50000, maxTokens: 8192, timeoutMs: 45000 }).then(r => validUnit(r, u)).catch(() => null)));
-      // a unit Gemini could not write (busy, or too few good questions): from the bank or the file when possible
+      const writeUnit = (u, ui) => AI.generateJSON(unitPrompt(o, u, ui), UNIT, { deadlineMs: 50000, maxTokens: 8192, timeoutMs: 45000 }).then(r => validUnit(r, u));
+      // a unit Gemini could not write (busy, or too few good questions) is tried once more
+      const got = await Promise.all(plan.units.map((u, ui) => writeUnit(u, ui).catch(() => writeUnit(u, ui)).catch(() => null)));
+      // still missing: from the uploaded file when there is one (same material); never a different topic from the bank
       let backup = null;
+      if (got.some(x => !x) && fileText) { try { backup = localGenerate(o); } catch { backup = null; } }
       const units = [], intros = {};
       got.forEach((u, ui) => {
-        if (!u) { try { backup = backup || localGenerate(o); } catch { backup = { units: [] }; } u = backup.units[ui] ? { ...backup.units[ui], fromBackup: ui } : null; }
+        if (!u && backup && backup.units[ui]) u = { ...backup.units[ui], fromBackup: ui };
         if (!u) return;
         const k = units.length;
         u.lessons.forEach((ls, li) => { const it = ls.intro || (u.fromBackup != null && backup.intros ? backup.intros[`${u.fromBackup}:${li}`] : null); if (it) intros[`${k}:${li}`] = it; delete ls.intro; });
         delete u.fromBackup; units.push(u);
       });
       if (!units.length) throw new Error('empty');
-      out = { title: plan.title, units, cards: plan.cards, intros }; source = got.some(Boolean) ? 'gemini' : 'local';
+      out = { title: plan.title, units, cards: plan.cards, intros }; source = 'gemini';
     } catch { out = null; }
   }
   if (!out) out = localGenerate(o);

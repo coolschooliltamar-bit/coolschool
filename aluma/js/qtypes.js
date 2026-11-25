@@ -61,7 +61,7 @@ export function answerText(q) {
 }
 
 // ---------- validation (Gemini / files) ----------
-const clean = (s, n = 300) => String(s ?? '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
+const clean = (s, n = 300) => String(s ?? '').replace(/[<>]/g, '').replace(/[\u0600-\u06FF\u0750-\u077F]+|[\u0370-\u03FF]{2,}/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
 const uniq = a => [...new Set(a)];
 // raw: { type|kind, q, options, answer, answers, pairs:[{a,b}|[a,b]], items, explain } → a question, or null
 export function normalize(raw) {
