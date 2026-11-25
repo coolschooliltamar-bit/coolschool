@@ -30,7 +30,7 @@ ok(QT.normalize({ type: 'order', q: '?', items: ['a', 'b', 'c'], explain: '<b>x<
 const valid = q => !!QT.normalize(q) && (q.kind !== 'bank' || q.answers.every(a => q.bank.includes(a)));
 let all = 0, bad = [];
 for (const [s, units] of Object.entries(LESSONS)) units.forEach((ls, u) => ls.forEach((les, l) => {
-  const qs = les.gen ? Array.from({ length: 60 }, () => genQuestion(les.gen)) : les.qs;
+  const qs = les.gen ? Array.from({ length: 400 }, () => genQuestion(les.gen)) : les.qs;
   qs.forEach(q => { all++; if (!valid(q)) bad.push(`${s}:${u}:${l} ${q.kind} ${q.q}`); });
 }));
 ok(!bad.length, `every bank question is valid (${all} checked)${bad.length ? ': ' + bad.slice(0, 3).join(' | ') : ''}`);

@@ -25,7 +25,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
       else if (q.kind === 'match') { for (let i = 0; i < q.pairs.length; i++) { await p.click(`[data-left="${i}"]`); await p.click(`[data-right="${(q.shuf.indexOf(q.pairs[i][1]) + 1) % q.pairs.length}"]`); } }
       else if (q.kind === 'order') for (const it of q.items.slice().reverse()) await p.click(`[data-pick="${q.shuf.indexOf(it)}"]`);
     }
-    if (SHOTS && !seen.has(q.kind)) { seen.add(q.kind); await p.screenshot({ path: `${SHOTS}/q-${q.kind}.png` }); }
+    if (!seen.has(q.kind)) { seen.add(q.kind); if (SHOTS) await p.screenshot({ path: `${SHOTS}/q-${q.kind}.png` }); }
     await p.click('#check');
     const good = await p.locator('.feedback.good').count() > 0;
     if (SHOTS && !right) await p.screenshot({ path: `${SHOTS}/q-${q.kind}-wrong.png` });

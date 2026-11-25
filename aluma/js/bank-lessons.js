@@ -383,6 +383,12 @@ const opts = (right, wrongs) => {
   for (let k = 1; o.length < 4; k++) if (!o.includes(String(Number(right) + k * 7))) o.push(String(Number(right) + k * 7));
   o.sort(() => Math.random() - 0.5); return { options: o, answer: o.indexOf(String(right)) };
 };
+// a word bank with numbers: the distractors never equal an answer, and there are always at least two
+const NB = (q, answers, wrongs, explain) => {
+  const a = answers.map(String), w = [...new Set(wrongs.map(String))].filter(x => !a.includes(x));
+  for (let k = 1; w.length < 2; k++) { const c = String(Number(a[a.length - 1]) + k * 3); if (!a.includes(c) && !w.includes(c)) w.push(c); }
+  return bank(q, [...a, ...w], a, explain);
+};
 const MC = (q, right, wrongs, explain) => ({ kind: 'mc', q, ...opts(right, wrongs), explain });
 const NUM = (q, right, explain) => write(q, [String(right)], explain);
 
@@ -404,7 +410,7 @@ const GEN = {
     return pick([
       () => NUM(`פתרו: ${a}x ${sgn(b)} = ${c}. כמה זה x?`, x, steps),
       () => MC(`פתרו: ${a}x ${sgn(b)} = ${c}`, x, [x + 1, x - 2, c - b], steps),
-      () => bank(`${a}x ${sgn(b)} = ${c}  ←  ${a}x = ___  ←  x = ___`, [String(c - b), String(x), String(c + b), String(x + 1)], [String(c - b), String(x)], steps),
+      () => NB(`${a}x ${sgn(b)} = ${c}  ←  ${a}x = ___  ←  x = ___`, [c - b, x], [c + b, x + 1], steps),
       () => order('סדרו את שלבי הפתרון:', [`${a}x ${sgn(b)} = ${c}`, `${a}x = ${c - b}`, `x = ${x}`], 'קודם מבטלים את החיבור או החיסור, אחר כך את הכפל.'),
       () => tf(`x = ${x} הוא הפתרון של ${a}x ${sgn(b)} = ${c}.`, true, `בדיקה: ${a}·${x} ${sgn(b)} = ${c}. נכון.`),
     ])();
@@ -417,7 +423,7 @@ const GEN = {
       () => MC(`פתרו: ${a}x + ${b} = ${c}`, x, [-x, x - 1, c - b], steps),
       () => { const w = x + ri(1, 3); return tf(`x = ${w} הוא הפתרון של ${a}x + ${b} = ${c}.`, false, `בדיקה: ${a}·${neg(w)} + ${b} = ${a * w + b}, ולא ${c}. הפתרון הוא x = ${x}.`); },
       () => tf(`x = ${x} הוא הפתרון של ${a}x + ${b} = ${c}.`, true, `בדיקה: ${a}·${neg(x)} + ${b} = ${a * x} + ${b} = ${c}. נכון.`),
-      () => bank(`${a}x + ${b} = ${c}  ←  ${a}x = ___  ←  x = ___`, [String(c - b), String(x), String(-x), String(c + b)], [String(c - b), String(x)], steps),
+      () => NB(`${a}x + ${b} = ${c}  ←  ${a}x = ___  ←  x = ___`, [c - b, x], [-x, c + b], steps),
     ])();
   },
   pct1() {
@@ -435,7 +441,7 @@ const GEN = {
     return pick([
       () => NUM(`כמה הם ${p}% מתוך ${n}?`, r, `${n} × ${p} ÷ 100 = ${r}.`),
       () => MC(`כמה הם ${p}% מתוך ${n}?`, r, [r + 10, r / 2, n - r], `${n} × ${p} ÷ 100 = ${r}.`),
-      () => bank(`${p}% מתוך ${n}: כופלים ${n} × ${p}, ומחלקים ב-___. התוצאה: ___.`, ['100', String(r), '10', String(r * 10)], ['100', String(r)], `${n} × ${p} ÷ 100 = ${r}.`),
+      () => NB(`${p}% מתוך ${n}: כופלים ${n} × ${p}, ומחלקים ב-___. התוצאה: ___.`, [100, r], [10, r * 10, r + 5], `${n} × ${p} ÷ 100 = ${r}.`),
       () => { const t = n / 10; return order(`סדרו את הצעדים לחישוב 30% מ-${n}:`, [`מחשבים 10%: ${n} ÷ 10 = ${t}`, `כופלים ב-3: ${t} × 3 = ${t * 3}`, `30% מ-${n} הם ${t * 3}`], 'מ-10% מגיעים ל-30% בכפל ב-3.'); },
     ])();
   },
@@ -444,7 +450,7 @@ const GEN = {
     return pick([
       () => NUM(`מוצר עולה ${price} ₪, ויש עליו הנחה של ${p}%. כמה משלמים? (₪)`, pay, `ההנחה: ${price} × ${p} ÷ 100 = ${off}. משלמים ${price} − ${off} = ${pay}.`),
       () => MC(`מוצר עולה ${price} ₪, עם הנחה של ${p}%. כמה שקלים ההנחה?`, off, [pay, off * 2, p], `${price} × ${p} ÷ 100 = ${off} ₪.`),
-      () => { const q = p === 50 ? 25 : p, o2 = price * q / 100, p2 = price - o2; return bank(`מחיר ${price} ₪, הנחה ${q}%: ההנחה היא ___ ₪, ומשלמים ___ ₪.`, [String(o2), String(p2), String(price + o2)], [String(o2), String(p2)], `${price} × ${q} ÷ 100 = ${o2} ₪ הנחה, ומשלמים ${price} − ${o2} = ${p2} ₪.`); },
+      () => { const q = p === 50 ? 25 : p, o2 = price * q / 100, p2 = price - o2; return NB(`מחיר ${price} ₪, הנחה ${q}%: ההנחה היא ___ ₪, ומשלמים ___ ₪.`, [o2, p2], [price + o2, o2 * 2], `${price} × ${q} ÷ 100 = ${o2} ₪ הנחה, ומשלמים ${price} − ${o2} = ${p2} ₪.`); },
       () => tf(`חולצה ב-${price} ₪ בהנחה של ${p}% עולה ${off} ₪.`, false, `${off} ₪ זו ההנחה. המחיר אחרי ההנחה: ${pay} ₪.`),
     ])();
   },
@@ -454,7 +460,7 @@ const GEN = {
     return pick([
       () => NUM(`בפונקציה y = ${m}x ${sgn(b)}, מה הערך של y כש-x = ${x}?`, y, ex),
       () => MC(`בפונקציה y = ${m}x ${sgn(b)}, כש-x = ${x}, y שווה:`, y, [y + m, m * x, m + x + b], ex),
-      () => bank(`y = ${m}x ${sgn(b)}, x = ${x}  ←  y = ${m}·${x} ${sgn(b)} = ___ ${sgn(b)} = ___`, [String(m * x), String(y), String(m + x), String(y + 1)], [String(m * x), String(y)], ex),
+      () => NB(`y = ${m}x ${sgn(b)}, x = ${x}  ←  y = ${m}·${x} ${sgn(b)} = ___ ${sgn(b)} = ___`, [m * x, y], [m + x, y + 1, y + m], ex),
       () => { const xs = [1, 2, 3]; return match(`בפונקציה y = ${m}x ${sgn(b)}, התאימו כל x לערך של y:`, xs.map(k => [`x = ${k}`, `y = ${m * k + b}`]), 'מציבים כל x בכלל.'); },
     ])();
   },
