@@ -23,7 +23,8 @@ const ROUTER_BLOCK = new Set(('לא אל למה איך כדי אם צריך עצ
   'חולה מחלה בריאות דיכאון חרדה תרופה טיפול פסיכולוג אבא אמא הורים גירושים כסף משכורת חוב כתובת טלפון רחוב דת מוות אלימות מכות סמים אלכוהול סקס הריון משטרה עונש').split(' '));
 const routerBlocked = k => { const w = k.replace(/^~/, ''); return ROUTER_BLOCK.has(w) || [...ROUTER_BLOCK].some(b => b.length >= 3 && w === b.replace(/[םןץףך]/g, c => ({ 'ם': 'מ', 'ן': 'נ', 'ץ': 'צ', 'ף': 'פ', 'ך': 'כ' }[c])).replace(/(?!^)[וי]/g, '')); };
 let vocabCache = null;
-const MAX_CARD = 1000;                                        // cards 1–1000
+const MAX_CARD = 1000;
+const METRIC_EVENTS = new Set(['visit', 'question_fast', 'question_ai', 'lesson_done', 'path_created', 'tool_used', 'reminders_opened']);                                        // cards 1–1000
 const handleOf = async (env, course, sub) => (await hmac(env, `member|${course}|${sub}`)).slice(0, 16);
 async function hmac(env, text) {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.GEMINI_API_KEY || 'aluma'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -73,6 +74,32 @@ export default {
         const up = await fetch(`https://generativelanguage.googleapis.com${url.pathname}${isList ? '?pageSize=200' : ''}`, {
           method: req.method, body, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY } });
         return new Response(up.body, { status: up.status, headers: { ...cors, 'Content-Type': 'application/json' } });
+      }
+
+      // ---------- pilot metrics: daily counters only (no names, e-mails, IPs or question text) ----------
+      // An active user is counted with a hash that changes every day, so days cannot be linked to one person.
+      if (url.pathname === '/metrics/event' && req.method === 'POST') {
+        const b = JSON.parse((await req.text()).slice(0, 500) || '{}');
+        if (!METRIC_EVENTS.has(b.e)) return json({ error: { message: 'bad request' } }, 400);
+        const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
+        if (!(await take(env, `m:${ip}`, 600))) return json({ ok: true, counted: false });
+        const day = new Date().toISOString().slice(0, 10), mode = who ? 'live' : 'demo';
+        await env.DB.prepare(`INSERT INTO metrics (day, event, mode, count) VALUES (?, ?, ?, 1)
+          ON CONFLICT(day, event, mode) DO UPDATE SET count = count + 1`).bind(day, b.e, mode).run();
+        const uh = (await hmac(env, `metric|${day}|${who ? who.sub : ip}`)).slice(0, 20);
+        await env.DB.prepare('INSERT OR IGNORE INTO metrics_users (day, mode, uh) VALUES (?, ?, ?)').bind(day, mode, uh).run();
+        if (Math.random() < 0.01) {   // keep 120 days
+          const old = new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10);
+          await env.DB.batch([env.DB.prepare('DELETE FROM metrics WHERE day < ?').bind(old), env.DB.prepare('DELETE FROM metrics_users WHERE day < ?').bind(old)]);
+        }
+        return json({ ok: true, counted: true });
+      }
+      if (url.pathname === '/metrics' && req.method === 'GET') {
+        const days = Math.max(1, Math.min(120, +url.searchParams.get('days') || 30));
+        const from = new Date(Date.now() - (days - 1) * 864e5).toISOString().slice(0, 10);
+        const ev = (await env.DB.prepare('SELECT day, event, mode, count FROM metrics WHERE day >= ? ORDER BY day').bind(from).all()).results || [];
+        const us = (await env.DB.prepare('SELECT day, mode, COUNT(*) AS n FROM metrics_users WHERE day >= ? GROUP BY day, mode ORDER BY day').bind(from).all()).results || [];
+        return new Response(JSON.stringify({ from, days, events: ev, users: us }), { headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'max-age=60' } });
       }
 
       // ---------- shared learning of the fast-answer router ----------

@@ -89,3 +89,14 @@ export function routerVote(payload) {
   if (!GEMINI_PROXY_URL) return;
   fetch(`${GEMINI_PROXY_URL}/router/learn`, { method: 'POST', headers: { ...authHeader(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(() => {});
 }
+
+// ---------- pilot metrics: one anonymous counter per event (no text, no names) ----------
+const METRIC_OK = new Set(['visit', 'question_fast', 'question_ai', 'lesson_done', 'path_created', 'tool_used', 'reminders_opened']);
+export function metric(e) {
+  if (!GEMINI_PROXY_URL || !METRIC_OK.has(e) || (typeof navigator !== 'undefined' && navigator.webdriver)) return;
+  try { fetch(`${GEMINI_PROXY_URL}/metrics/event`, { method: 'POST', headers: { ...authHeader(), 'Content-Type': 'application/json' }, body: JSON.stringify({ e }), keepalive: true }).catch(() => {}); } catch { /* ignore */ }
+}
+export async function metrics(days = 30) {
+  if (!GEMINI_PROXY_URL) return null;
+  try { const r = await fetch(`${GEMINI_PROXY_URL}/metrics?days=${days}`); return r.ok ? await r.json() : null; } catch { return null; }
+}

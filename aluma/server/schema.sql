@@ -53,3 +53,18 @@ CREATE TABLE IF NOT EXISTS card_trades (      -- card trading offers between mem
 );
 CREATE INDEX IF NOT EXISTS trades_from ON card_trades (from_sub, status);
 CREATE INDEX IF NOT EXISTS trades_to ON card_trades (to_sub, status);
+
+-- pilot metrics (aggregates only): how much Aluma is used, per day – no person, question text or IP is stored
+CREATE TABLE IF NOT EXISTS metrics (
+  day   TEXT NOT NULL,                  -- YYYY-MM-DD (UTC)
+  event TEXT NOT NULL,                  -- visit | question_fast | question_ai | lesson_done | path_created | tool_used | reminders_opened
+  mode  TEXT NOT NULL,                  -- live (Google account) | demo
+  count INTEGER NOT NULL,
+  PRIMARY KEY (day, event, mode)
+);
+CREATE TABLE IF NOT EXISTS metrics_users (   -- one row per active user per day; uh is an HMAC that includes the day
+  day  TEXT NOT NULL,
+  mode TEXT NOT NULL,
+  uh   TEXT NOT NULL,
+  PRIMARY KEY (day, mode, uh)
+);

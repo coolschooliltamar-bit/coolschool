@@ -13,6 +13,7 @@ import { LIVE } from './google.js';
 import { audit } from './store.js';
 import * as Intro from './intro.js';
 import * as QT from './qtypes.js';
+import { metric } from './cloud.js';
 
 const VENDOR = '../vendor/';
 const loaded = {};
@@ -266,6 +267,7 @@ export async function create(ctx, { kind = 'path', subject, request = '', fileTe
     L.savePath(path);
   }
   audit(ctx.userId, forClass ? (path.draft ? 'class_path_drafted' : 'class_path_published') : 'path_created', { kind: path.subject });
+  metric('path_created');
   return path;
 }
 

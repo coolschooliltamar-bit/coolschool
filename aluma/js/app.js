@@ -54,7 +54,7 @@ function boot() {
   else if (ctx.role === 'student') activeStudentId = ctx.userId;
   view = s.view === 'lesson' ? 'path' : (s.view || (ctx.role === 'school_admin' ? 'dash' : 'chat'));
   activeConvId = s.convId || null;
-  render(); startReminders();
+  render(); startReminders(); Cloud.metric('visit');
 }
 
 // ---------------- login (demo accounts) ----------------
@@ -108,7 +108,7 @@ function renderLogin() {
       const prof = await G.signIn();
       ctx = liveContext(prof); activeStudentId = ctx.userId; activeConvId = null; view = 'chat';
       await Cloud.pull(ctx.userId);
-      audit(ctx.userId, 'login', {}); render(); startReminders();
+      audit(ctx.userId, 'login', {}); render(); startReminders(); Cloud.metric('visit');
     } catch (err) { b.disabled = false; msg.innerHTML = `<p class="err">${esc(err.message)}</p>`; }
   };
   document.getElementById('reset').onclick = () => { if (confirm('לאפס את כל נתוני הדמה בדפדפן הזה?')) { resetAll(); renderLogin(); } };
@@ -259,7 +259,7 @@ function bindRemind() {
     const off = box.querySelector('#notifyoff'); if (off) off.onclick = () => { Rem.disableNotify(ctx); fill(); };
     box.querySelector('#remall').onclick = () => { Rem.restoreAll(ctx); refreshBell(); fill(); };
   };
-  bell.onclick = e => { e.stopPropagation(); const open = box.hidden; box.hidden = !open; bell.setAttribute('aria-expanded', String(open)); if (open) fill(); };
+  bell.onclick = e => { e.stopPropagation(); const open = box.hidden; box.hidden = !open; bell.setAttribute('aria-expanded', String(open)); if (open) { fill(); Cloud.metric('reminders_opened'); } };
   box.onclick = e => e.stopPropagation();
   document.addEventListener('click', () => { if (!box.hidden) { box.hidden = true; bell.setAttribute('aria-expanded', 'false'); } }, { once: true });
 }
@@ -315,7 +315,7 @@ function renderTools() {
       <div class="btns">${t.ai ? `<button class="btn primary" data-toolai="${esc(t.id)}">${icon('sparkle', 15)} להכין עם AI</button>` : ''}${t.open ? `<button class="btn" data-toolopen="${esc(t.open)}">פתיחה</button>` : ''}${t.ask ? `<button class="btn primary" data-toolask="${esc(t.ask)}">${icon('chat', 15)} לשאול</button>` : ''}</div>
     </article>`).join('')}</div></section>`;
   v.querySelectorAll('[data-toolopen]').forEach(x => x.onclick = () => go(x.dataset.toolopen));
-  v.querySelectorAll('[data-toolai]').forEach(x => x.onclick = () => { activeTool = x.dataset.toolai; activeConvId = null; go('chat'); document.getElementById('q')?.focus(); });
+  v.querySelectorAll('[data-toolai]').forEach(x => x.onclick = () => { Cloud.metric('tool_used'); activeTool = x.dataset.toolai; activeConvId = null; go('chat'); document.getElementById('q')?.focus(); });
   v.querySelectorAll('[data-toolask]').forEach(x => x.onclick = () => { activeConvId = null; go('chat'); const q = x.dataset.toolask; if (q.endsWith('ש')) { const i = document.getElementById('q'); i.value = q; i.focus(); } else ask(q); });
 }
 function renderChat() {
@@ -530,6 +530,7 @@ async function ask(text, { full = false } = {}) {
     }
   }
   st.remove();
+  if (!create && tool !== 'planner') Cloud.metric(fastIntent || res.fallback ? 'question_fast' : 'question_ai');
   const el = aiMsg({ ...res, text: '', cards: [] }, false); chat.appendChild(el);
   const out = el.querySelector('.ai-text'); out.classList.add('typing');
   for (let i = 0; i <= res.text.length; i += 3) { out.innerHTML = md(res.text.slice(0, i)); await sleep(7); }
@@ -787,6 +788,7 @@ function renderDash() {
   const reported = db().inbox.filter(m => m.reported);
   v.innerHTML = `<section class="panel"><h2>${esc(SCHOOL.name)}</h2><p class="hint">מספרים מצרפיים בלבד – הנהלה לא רואה תוכן של שיחות.</p>
     <div class="kpis">${kpis.map(([n, l]) => `<div class="kpi"><div class="v">${n}</div><div class="l">${l}</div></div>`).join('')}</div></section>
+    <section class="panel" id="pilot"><h2>${icon('chart', 20)} שימוש בפיילוט – 30 יום</h2><p class="hint">מונים יומיים בלבד, מכל המשתמשים באתר: בלי שמות, בלי טקסט של שאלות ובלי כתובות IP. משתמש פעיל נספר בקוד שמשתנה כל יום.</p><div id="pilotbody" class="hint">טוענת…</div></section>
     <section class="panel"><h2>חיבורים</h2><table class="t"><thead><tr><th>מערכת</th><th>סטטוס</th><th>הערה</th></tr></thead><tbody>
       <tr><td>נתוני דמה</td><td><span class="tag ok">פעיל</span></td><td>אב-טיפוס</td></tr>
       <tr><td>Google Classroom</td><td><span class="tag warn">בפיתוח</span></td><td>API רשמי קיים – המחבר האמיתי הראשון (מסמך 05)</td></tr>
@@ -803,6 +805,26 @@ function renderDash() {
     }
     db().emergencyStop = !db().emergencyStop; save(); audit(ctx.userId, db().emergencyStop ? 'emergency_stop' : 'service_resumed', {}); renderDash();
   };
+  loadPilot();
+}
+// pilot metrics from the server: totals for 30 days and the last 7 days (aggregates only)
+async function loadPilot() {
+  const box = document.getElementById('pilotbody'); if (!box) return;
+  const m = await Cloud.metrics(30);
+  if (!document.getElementById('pilotbody')) return;
+  if (!m) { box.textContent = 'אין חיבור לשרת של אלומה, אז אין כרגע נתוני שימוש.'; return; }
+  const sum = (e, mode) => m.events.filter(x => x.event === e && (!mode || x.mode === mode)).reduce((a, x) => a + x.count, 0);
+  const fast = sum('question_fast'), ai = sum('question_ai'), q = fast + ai;
+  const perDay = {}; for (const u of m.users) perDay[u.day] = (perDay[u.day] || 0) + u.n;
+  const dayVals = Object.values(perDay), avg = dayVals.length ? Math.round(dayVals.reduce((a, n) => a + n, 0) / dayVals.length) : 0;
+  const liveUsers = m.users.filter(u => u.mode === 'live').reduce((a, u) => a + u.n, 0);
+  const kpis = [[q, 'שאלות'], [q ? `${Math.round(fast / q * 100)}%` : '—', 'נענו מיד במנוע המהיר'], [avg, 'משתמשים פעילים ביום (ממוצע)'],
+    [sum('lesson_done'), 'שיעורי תרגול'], [sum('path_created'), 'מסלולים שנבנו'], [sum('reminders_opened'), 'פתיחות של תזכורות']];
+  const last = [...Array(7)].map((_, i) => new Date(Date.now() - (6 - i) * 864e5).toISOString().slice(0, 10));
+  box.outerHTML = `<div class="kpis">${kpis.map(([n, l]) => `<div class="kpi"><div class="v">${n}</div><div class="l">${l}</div></div>`).join('')}</div>
+    <table class="t"><thead><tr><th>יום</th><th>משתמשים פעילים</th><th>שאלות</th><th>שיעורים</th></tr></thead><tbody>
+    ${last.map(d => `<tr><td>${fmtDate(d + 'T12:00:00')}</td><td>${perDay[d] || 0}</td><td>${m.events.filter(x => x.day === d && x.event.startsWith('question')).reduce((a, x) => a + x.count, 0)}</td><td>${m.events.filter(x => x.day === d && x.event === 'lesson_done').reduce((a, x) => a + x.count, 0)}</td></tr>`).join('')}</tbody></table>
+    <p class="hint">מתוכם עם חשבון Google אמיתי: ${liveUsers} כניסות-יום. השאר – חשבונות הדגמה.</p>`;
 }
 
 function renderLinks() {
@@ -1007,7 +1029,7 @@ function renderLesson() {
   if (!s.introDone && s.i === 0) { renderIntro(v, s); return; }
   if (s.i >= s.qs.length) {
     const before = Game.score(ctx, ctx.userId);
-    if (!s.result) { s.result = s.custom ? L.finishPathLesson(ctx.userId, L.getPath(s.custom), s.u, s.l, s.correct, s.qs.length) : L.finishLesson(ctx.userId, s.sub, s.u, s.l, s.correct, s.qs.length); const b0 = Game.boxInfo(ctx.userId, before).earned; s.newBoxes = Game.boxInfo(ctx.userId, Game.score(ctx, ctx.userId)).earned - b0; }
+    if (!s.result) { Cloud.metric('lesson_done'); s.result = s.custom ? L.finishPathLesson(ctx.userId, L.getPath(s.custom), s.u, s.l, s.correct, s.qs.length) : L.finishLesson(ctx.userId, s.sub, s.u, s.l, s.correct, s.qs.length); const b0 = Game.boxInfo(ctx.userId, before).earned; s.newBoxes = Game.boxInfo(ctx.userId, Game.score(ctx, ctx.userId)).earned - b0; }
     const p = L.progress(ctx.userId);
     v.innerHTML = `<section class="panel lesson-end"><div class="big">${s.result.passed ? '🎉' : '💪'}</div>
       <h2>${s.result.passed ? 'כל הכבוד!' : 'כמעט! נסו שוב'}</h2><p>${s.correct} מתוך ${s.qs.length} תשובות נכונות</p>
