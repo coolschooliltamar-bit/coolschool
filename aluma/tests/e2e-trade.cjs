@@ -10,7 +10,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
   await p.goto('http://localhost:8765/aluma/'); await p.click('[data-login="u-noa"]'); await p.waitForSelector('#view');
   await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('aluma-proto-v1')); s.game = s.game || {}; s.game['u-noa'] = Object.assign(s.game['u-noa'] || {}, { owned: [41, 42, 45, 45, 46, 81, 300, 77], demoCollection: true }); localStorage.setItem('aluma-proto-v1', JSON.stringify(s)); });
   await p.goto('http://localhost:8765/aluma/'); await p.waitForSelector('#view');
-  await p.click('[data-go=game]'); await p.click('[data-gtab=trade]');
+  await p.click('[data-go=tools]'); await p.click('[data-toolopen=game]'); await p.click('[data-gtab=trade]');
   ok((await p.locator('#gbody').innerText()).includes('לשתף את האוסף'), 'must share before trading');
   await p.click('#gbody [data-goto=class]'); await p.check('#gshare'); await p.click('[data-gtab=trade]'); await p.waitForTimeout(300);
   ok(await p.locator('.toffer').count() >= 1 && (await p.locator('.trade').innerText()).includes('מציע/ה לך'), 'a demo classmate sent an offer');

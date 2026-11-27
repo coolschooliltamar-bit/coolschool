@@ -170,6 +170,14 @@ export const SCHEDULE_CHANGES = [
   { classId: 'c-7-1', date: iso(dayOffset(nextSchoolDay)), subject: 'math', kind: 'substitute', note: 'מילוי מקום: יוסי חדד' },
 ];
 
+// upcoming tests and quizzes (משוב / the class calendar) – for reminders: "מחר מבחן באנגלית"
+const schoolDayAfter = n => { let d = n; while ([5, 6].includes(dayOffset(d).getDay())) d++; return d; };
+export const EXAMS = [];
+CLASSES.forEach((c, ci) => {
+  EXAMS.push({ id: `x-${c.id}-1`, classId: c.id, subject: ['english', 'math', 'science', 'history'][ci % 4], kind: 'quiz', title: 'בוחן', date: iso(dayOffset(nextSchoolDay)), source: 'משוב' });
+  EXAMS.push({ id: `x-${c.id}-2`, classId: c.id, subject: ['math', 'history', 'english', 'science'][ci % 4], kind: 'exam', title: 'מבחן', date: iso(dayOffset(schoolDayAfter(nextSchoolDay + 4))), source: 'משוב' });
+});
+
 // ---------- attendance (משוב) ----------
 export const ATTENDANCE = [];
 for (const s of STUDENTS) {

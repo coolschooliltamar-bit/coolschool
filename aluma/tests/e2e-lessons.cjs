@@ -21,7 +21,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     } else {
       if (q.kind === 'mc' || q.kind === 'tf') await p.click(`[data-opt="${(q.answer + 1) % q.options.length}"]`);
       else if (q.kind === 'write') await p.fill('#wans', 'xyz');
-      else if (q.kind === 'bank') for (let k = 0; k < q.answers.length; k++) await p.locator('[data-word]:not([disabled])').last().click();
+      else if (q.kind === 'bank') { const wrong = q.shuf.map((w, i) => [w, i]).filter(([w]) => !q.answers.includes(w)); for (let k = 0; k < q.answers.length; k++) await p.click(`[data-word="${wrong[k % wrong.length][1]}"]`); }
       else if (q.kind === 'match') { for (let i = 0; i < q.pairs.length; i++) { await p.click(`[data-left="${i}"]`); await p.click(`[data-right="${(q.shuf.indexOf(q.pairs[i][1]) + 1) % q.pairs.length}"]`); } }
       else if (q.kind === 'order') for (const it of q.items.slice().reverse()) await p.click(`[data-pick="${q.shuf.indexOf(it)}"]`);
     }
@@ -33,7 +33,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     return { kind: q.kind, good, review: !!q.review };
   }
   async function lesson(sub, rightAll) {
-    await p.evaluate(() => document.querySelector('[data-view="path"], [data-go="path"]')?.click()); await p.waitForTimeout(300);
+    await p.evaluate(() => document.querySelector('[data-go="tools"]').click()); await p.click('[data-toolopen="path"]'); await p.waitForTimeout(300);
     await p.click(`[data-sub="${sub}"]`); await p.waitForTimeout(200); await p.click('.node.next');
     await p.waitForSelector('.lintro .intro-text'); const title = await p.locator('.lintro h2').innerText();
     await p.click('#golesson');

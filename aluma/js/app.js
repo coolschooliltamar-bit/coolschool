@@ -16,6 +16,7 @@ import * as P from './projects.js';
 import * as Warm from './warm.js';
 import * as Intro from './intro.js';
 import * as QT from './qtypes.js';
+import * as Rem from './reminders.js';
 
 const $app = document.getElementById('app');
 const live = document.getElementById('live');
@@ -29,12 +30,23 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 let showAllConvs = false;
 let ctx = null, view = 'chat', activeStudentId = null, busy = false, activeConvId = null, toolSubject = null, lessonState = null;
-let pathTab = 'basic', toolDeck = null, attachment = null, openPathId = null;   // attachment: { name, text } for the next question
+let pathTab = 'basic', toolDeck = null, attachment = null, openPathId = null, activeTool = null;   // activeTool: the tool chosen in Tools – the next question is for it   // attachment: { name, text } for the next question
 V.init({ ctx: () => ctx, sid: () => activeStudentId, go: v => go(v), render: () => render(), ask: q => ask(q), live: t => { live.textContent = t; },
   refreshSide: () => { const sd = document.getElementById('side'); if (sd) { sd.innerHTML = sidebar(); bindSide(); } },
   startPath: (id, u, l) => startPathLesson(id, u, l), openPath: id => { openPathId = id; go('pmap'); }, openDeck: id => { toolDeck = id; go('cards'); } });
 
+// one-click demo (the QR in the deck): ?demo=student | parent | teacher | admin opens that demo account at once
+const DEMO_LINKS = { student: 'u-noa', parent: 'u-avi', teacher: 'u-rina', admin: 'u-admin' };
+function demoFromLink() {
+  try {
+    const url = new URL(location.href), k = url.searchParams.get('demo'); if (!k) return;
+    const id = DEMO_LINKS[k] || (Object.values(DEMO_LINKS).includes(k) ? k : null);
+    url.searchParams.delete('demo'); history.replaceState(null, '', url.pathname + url.search + url.hash);
+    if (id) { setSession({ userId: id }); audit(id, 'login', {}); }
+  } catch { /* ignore */ }
+}
 function boot() {
+  demoFromLink();
   const s = getSession();
   if (!s) return renderLogin();
   try { ctx = buildContext(s.userId); } catch { setSession(null); return renderLogin(); }
@@ -42,7 +54,7 @@ function boot() {
   else if (ctx.role === 'student') activeStudentId = ctx.userId;
   view = s.view === 'lesson' ? 'path' : (s.view || (ctx.role === 'school_admin' ? 'dash' : 'chat'));
   activeConvId = s.convId || null;
-  render();
+  render(); startReminders();
 }
 
 // ---------------- login (demo accounts) ----------------
@@ -96,7 +108,7 @@ function renderLogin() {
       const prof = await G.signIn();
       ctx = liveContext(prof); activeStudentId = ctx.userId; activeConvId = null; view = 'chat';
       await Cloud.pull(ctx.userId);
-      audit(ctx.userId, 'login', {}); render();
+      audit(ctx.userId, 'login', {}); render(); startReminders();
     } catch (err) { b.disabled = false; msg.innerHTML = `<p class="err">${esc(err.message)}</p>`; }
   };
   document.getElementById('reset').onclick = () => { if (confirm('לאפס את כל נתוני הדמה בדפדפן הזה?')) { resetAll(); renderLogin(); } };
@@ -108,6 +120,38 @@ const PROMPT_TOOLS = {
   teacher: [['task', 'מי לא הגיש', 'מי לא הגיש בט׳2?'], ['chart', 'ממוצע כיתה', 'מה הממוצע במבחן האחרון בט׳2?'], ['calendar', 'היעדרויות בכיתה', 'מי בט׳2 עם יותר מ-3 היעדרויות?']],
 };
 const STUDENT_TOOLS = [['path', 'sparkle', 'מסלול תרגול'], ['cards', 'layers', 'כרטיסיות זיכרון'], ['planner', 'calendar', 'תוכנית למידה'], ['game', 'trophy', 'פרסים והישגים'], ['project', 'bulb', 'פרויקט אישי']];
+// Tools (spec: one button, like plugins). Each tool: open its screen, and/or "build with AI" – the chat then knows
+// that the next message is for this tool (ai: the composer's placeholder). ask: a ready question.
+const TOOLS = {
+  student: [
+    { id: 'path', icon: 'sparkle', name: 'מסלול תרגול', desc: 'שיעורים קצרים לפי הרמה שלך', open: 'path', ai: 'על מה המסלול? למשל: משוואות לקראת המבחן' },
+    { id: 'cards', icon: 'layers', name: 'כרטיסיות זיכרון', desc: 'חזרה מהירה על מושגים', open: 'cards', ai: 'על מה הכרטיסיות? למשל: מילים באנגלית על בית הספר' },
+    { id: 'planner', icon: 'calendar', name: 'תוכנית למידה', desc: 'יום אחרי יום, עד המבחן', open: 'planner', ai: 'לאיזה מבחן? למשל: המבחן במתמטיקה' },
+    { id: 'project', icon: 'bulb', name: 'פרויקט אישי', desc: 'פרויקט על מה שמעניין אותך, עם בונוס', open: 'project' },
+    { id: 'game', icon: 'trophy', name: 'פרסים והישגים', desc: 'נקודות, תיבות קלפים והחלפות', open: 'game' },
+  ],
+  teacher: [
+    { id: 'tpaths', icon: 'sparkle', name: 'מסלולים לכיתה', desc: 'תרגול לכיתה, עם הסבר לכל שיעור', open: 'tpaths', ai: 'איזה מסלול ולאיזו כיתה? למשל: חזרה על אחוזים לט׳2' },
+    { id: 'tcards', icon: 'layers', name: 'כרטיסיות לכיתה', desc: 'כרטיסיות זיכרון לפרסום', open: 'tpaths', ai: 'על מה ולאיזו כיתה? למשל: מושגים במהפכה הצרפתית לט׳2' },
+    { id: 'projects', icon: 'bulb', name: 'פרויקטים אישיים', desc: 'אישור הצעות וניקוד', open: 'projects' },
+  ],
+  parent: [
+    { id: 'game', icon: 'trophy', name: 'התקדמות והישגים', desc: 'רמה, נקודות ומה הושג השבוע', open: 'game' },
+  ],
+};
+const toolsFor = role => [...(TOOLS[role] || []), ...(PROMPT_TOOLS[role] || []).map(([i, n, q]) => ({ id: 'q:' + n, icon: i, name: n, desc: 'שאלה מוכנה', ask: q }))];
+const toolById = id => toolsFor(ctx.role).find(t => t.id === id);
+// small numbers on the tools (boxes to open, projects that wait)
+function toolBadges() {
+  const b = {};
+  if (ctx.role === 'student') {
+    const sc = Game.score(ctx, ctx.userId), fresh = Game.boxInfo(ctx.userId, sc).ready; if (fresh) b.game = fresh;
+    const n = P.forStudent(ctx.userId).filter(x => ['approved', 'returned'].includes(x.status)).length; if (n) b.project = n;
+  }
+  if (ctx.role === 'teacher') { const w = P.forTeacher(ctx.userId).filter(x => ['pending', 'submitted'].includes(x.status)).length; if (w) b.projects = w; }
+  return b;
+}
+const TOOL_VIEWS = ['tools', 'path', 'pmap', 'lesson', 'cards', 'planner', 'game', 'project', 'projects', 'tpaths'];
 const ADMIN_NAV = [['dash', 'chart', 'לוח בקרה'], ['links', 'users', 'משתמשים וקישורים'], ['policy', 'shield', 'מדיניות'], ['audit', 'log', 'יומן ביקורת']];
 
 // shared learning: load what all users taught the fast engine; send this user's lessons (unless they opted out)
@@ -124,12 +168,12 @@ function render() {
     $app.innerHTML = `${topBar()}<div class="stopped"><h1>אלומה מושבתת זמנית</h1><p>בית הספר הפסיק את השירות באופן זמני. המידע שלך זמין כרגיל במערכות בית הספר.</p></div>`;
     bindTop(); return;
   }
-  const views = ctx.role === 'school_admin' ? ADMIN_NAV.map(n => n[0]) : ['chat', 'settings', ...({ student: ['path', 'pmap', 'lesson', 'cards', 'planner', 'game', 'project'], parent: ['game'], teacher: ['inbox', 'projects', 'tpaths', 'pmap'] }[ctx.role] || [])];
+  const views = ctx.role === 'school_admin' ? ADMIN_NAV.map(n => n[0]) : ['chat', 'settings', 'tools', ...({ student: ['path', 'pmap', 'lesson', 'cards', 'planner', 'game', 'project'], parent: ['game'], teacher: ['inbox', 'projects', 'tpaths', 'pmap'] }[ctx.role] || [])];
   if (!views.includes(view)) view = views[0];
   $app.innerHTML = `${topBar()}<div class="layout"><aside class="side" id="side" aria-label="תפריט אלומה">${sidebar()}</aside>
     <div class="scrim" id="scrim"></div><main class="main"><div id="view"></div></main></div>`;
   bindTop(); bindSide();
-  ({ chat: renderChat, settings: renderSettings, inbox: renderInbox, dash: renderDash, links: renderLinks, policy: renderPolicy, audit: renderAudit,
+  ({ chat: renderChat, tools: renderTools, settings: renderSettings, inbox: renderInbox, dash: renderDash, links: renderLinks, policy: renderPolicy, audit: renderAudit,
      path: renderPath, pmap: renderPathMap, lesson: renderLesson, cards: renderCards, planner: renderPlanner, game: V.renderGame, project: V.renderProject, projects: V.renderTeacherProjects, tpaths: V.renderTeacherPaths })[view]();
   if (ctx.live && ['path', 'cards', 'game', 'project', 'lesson'].includes(view)) Cloud.push(ctx.userId);
 }
@@ -147,22 +191,9 @@ function sidebar() {
   if (ctx.role === 'school_admin') return `${head}<div class="side-sec">ניהול בית הספר</div>${ADMIN_NAV.map(([k, i, l]) => item(view === k, i, l, '', `data-go="${k}"`)).join('')}${sideUser()}`;
   const convs = convList();
   let h = `${head}<button class="newchat" id="newchat">${icon('plus')}<span>שיחה חדשה</span></button>`;
-  h += `<div class="side-sec">כלים</div>`;
-  if (ctx.role === 'student') {
-    const sc = Game.score(ctx, ctx.userId), fresh = Game.boxInfo(ctx.userId, sc).ready;
-    const extra = { game: `<span class="xp">רמה ${sc.level}</span>${fresh ? `<span class="badge" title="תיבות קלפים לפתיחה">🎁 ${fresh}</span>` : ''}`,
-      project: (() => { const n = P.forStudent(ctx.userId).filter(x => ['approved', 'returned'].includes(x.status)).length; return n ? `<span class="badge">${n}</span>` : ''; })() };
-    h += STUDENT_TOOLS.map(([k, i, l]) => item(['path', 'lesson'].includes(view) ? k === 'path' : view === k, i, l, extra[k] || '', `data-go="${k}"`)).join('');
-  } else {
-    if (ctx.role === 'teacher') {
-      const unread = db().inbox.filter(m => m.teacherId === ctx.userId && !m.read).length; h += item(view === 'inbox', 'inbox', 'תיבת הודעות', unread ? `<span class="badge">${unread}</span>` : '', 'data-go="inbox"');
-      const wait = P.forTeacher(ctx.userId).filter(x => ['pending', 'submitted'].includes(x.status)).length;
-      h += item(view === 'projects', 'bulb', 'פרויקטים אישיים', wait ? `<span class="badge">${wait}</span>` : '', 'data-go="projects"');
-      h += item(view === 'tpaths', 'sparkle', 'מסלולים לכיתה', '', 'data-go="tpaths"');
-    }
-    if (ctx.role === 'parent' && activeStudentId) h += item(view === 'game', 'trophy', 'התקדמות והישגים', `<span class="xp">רמה ${Game.score(ctx, activeStudentId).level}</span>`, 'data-go="game"');
-    h += PROMPT_TOOLS[ctx.role].map(([i, l, q]) => item(false, i, l, '', `data-prompt="${esc(q)}"`)).join('');
-  }
+  if (ctx.role === 'teacher') { const unread = db().inbox.filter(m => m.teacherId === ctx.userId && !m.read).length; h += item(view === 'inbox', 'inbox', 'תיבת הודעות', unread ? `<span class="badge">${unread}</span>` : '', 'data-go="inbox"'); }
+  const badges = Object.values(toolBadges()).reduce((a, n) => a + n, 0);
+  h += item(TOOL_VIEWS.includes(view), 'grid', 'כלים', badges ? `<span class="badge">${badges}</span>` : '', 'data-go="tools"');
   const SHOWN = 6;
   const shown = showAllConvs ? convs : convs.slice(0, SHOWN);
   if (!showAllConvs && activeConvId && !shown.some(c => c.id === activeConvId)) { const cur = convs.find(c => c.id === activeConvId); if (cur) shown.push(cur); }
@@ -197,19 +228,56 @@ function bindSide() {
 
 function topBar() {
   const kids = ctx.role === 'parent' ? ctx.allowedStudentIds : [];
-  const titles = { chat: (currentConv(false) || {}).title || 'שיחה חדשה', path: 'מסלול תרגול', lesson: 'מסלול תרגול', cards: 'כרטיסיות זיכרון', planner: 'תוכנית למידה', settings: 'הגדרות', inbox: 'תיבת הודעות', game: 'פרסים והישגים', project: 'פרויקט אישי', projects: 'פרויקטים אישיים', tpaths: 'מסלולים לכיתה',
+  const titles = { tools: 'כלים', chat: (currentConv(false) || {}).title || 'שיחה חדשה', path: 'מסלול תרגול', lesson: 'מסלול תרגול', cards: 'כרטיסיות זיכרון', planner: 'תוכנית למידה', settings: 'הגדרות', inbox: 'תיבת הודעות', game: 'פרסים והישגים', project: 'פרויקט אישי', projects: 'פרויקטים אישיים', tpaths: 'מסלולים לכיתה',
     dash: 'לוח בקרה', links: 'משתמשים וקישורים', policy: 'מדיניות', audit: 'יומן ביקורת' };
   return `<header class="top">
     <button class="iconbtn ghost burger" id="burger" aria-label="תפריט">${icon('menu')}</button>
     <div class="top-title">${esc(titles[view] || '')}</div>
     ${kids.length ? `<label class="sr-only" for="kid">על מי מדברים?</label><div class="kid-pick">${icon('users', 16)}<select id="kid">${kids.map(id => `<option value="${id}" ${id === activeStudentId ? 'selected' : ''}>${esc(nameOf(id))}</option>`).join('')}</select></div>` : ''}
     <span class="spacer"></span>
+    ${['student', 'parent'].includes(ctx.role) ? (() => { const n = Rem.active(ctx).length, urgent = Rem.active(ctx).some(r => r.level === 'urgent');
+      return `<div class="bellwrap"><button class="iconbtn ghost bell" id="bell" aria-haspopup="true" aria-expanded="false" aria-label="תזכורות${n ? `: ${n}` : ''}" title="תזכורות">${icon('bell')}${n ? `<span class="bell-n ${urgent ? 'urgent' : ''}">${n}</span>` : ''}</button><div class="remind" id="remind" hidden></div></div>`; })() : ''}
     <span class="model-pill" title="${AI.enabled() ? 'התשובות נוצרות ב-Gemini' : 'מנוע מקומי – אפשר לחבר Gemini בהגדרות'}">${icon('sparkle', 14)} ${AI.enabled() ? `Gemini${AI.currentModel() ? ' · ' + esc(AI.currentModel()) : ''}` : 'מנוע מקומי'}</span>
     <button class="iconbtn ghost" id="theme" title="מצב כהה/בהיר" aria-label="מצב כהה או בהיר">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon')}</button>
     <button class="iconbtn ghost" id="logout" title="התנתקות" aria-label="התנתקות">${icon('logout')}</button>
   </header>`;
 }
+// the reminders panel under the bell
+function remindHTML() {
+  const list = Rem.active(ctx);
+  const nOn = Rem.notifyOn(ctx);
+  return `<div class="remind-h"><b>תזכורות</b><span class="hint">אלומה בודקת בשבילך מבחנים, הגשות ושינויים</span></div>
+    ${list.length ? `<ul class="remind-l">${list.map(r => `<li class="rem ${r.level}">${icon(r.icon, 16)}<span>${esc(r.text)}</span><button class="iconbtn ghost" data-dismiss="${esc(r.key)}" aria-label="הסתרת התזכורת">✕</button></li>`).join('')}</ul>` : '<p class="hint remind-empty">אין כרגע תזכורות. כשיתקרב מבחן או הגשה – זה יופיע כאן.</p>'}
+    <div class="remind-f">${typeof Notification === 'undefined' ? '' : nOn ? '<button class="btn link" id="notifyoff">כיבוי התראות בדפדפן</button>' : '<button class="btn" id="notifyon">' + icon('bell', 14) + ' התראות בדפדפן</button>'}<button class="btn link" id="remall">הצגת תזכורות שהוסתרו</button></div>`;
+}
+function bindRemind() {
+  const bell = document.getElementById('bell'), box = document.getElementById('remind'); if (!bell) return;
+  const fill = () => {
+    box.innerHTML = remindHTML();
+    box.querySelectorAll('[data-dismiss]').forEach(b => b.onclick = () => { Rem.dismiss(ctx, b.dataset.dismiss); refreshBell(); fill(); });
+    const on = box.querySelector('#notifyon'); if (on) on.onclick = async () => { try { await Rem.enableNotify(ctx); Rem.notifyNew(ctx); } catch (e) { live.textContent = e.message; alert(e.message); } fill(); };
+    const off = box.querySelector('#notifyoff'); if (off) off.onclick = () => { Rem.disableNotify(ctx); fill(); };
+    box.querySelector('#remall').onclick = () => { Rem.restoreAll(ctx); refreshBell(); fill(); };
+  };
+  bell.onclick = e => { e.stopPropagation(); const open = box.hidden; box.hidden = !open; bell.setAttribute('aria-expanded', String(open)); if (open) fill(); };
+  box.onclick = e => e.stopPropagation();
+  document.addEventListener('click', () => { if (!box.hidden) { box.hidden = true; bell.setAttribute('aria-expanded', 'false'); } }, { once: true });
+}
+function refreshBell() {
+  const bell = document.getElementById('bell'); if (!bell) return;
+  const list = Rem.active(ctx), n = list.length;
+  bell.querySelector('.bell-n')?.remove();
+  if (n) bell.insertAdjacentHTML('beforeend', `<span class="bell-n ${list.some(r => r.level === 'urgent') ? 'urgent' : ''}">${n}</span>`);
+  bell.setAttribute('aria-label', `תזכורות${n ? `: ${n}` : ''}`);
+}
+let remindTimer = null;
+function startReminders() {
+  if (!ctx || !['student', 'parent'].includes(ctx.role)) return;
+  Rem.notifyNew(ctx);
+  clearInterval(remindTimer); remindTimer = setInterval(() => { if (ctx) { Rem.notifyNew(ctx); refreshBell(); } }, 30 * 60e3);
+}
 function bindTop() {
+  bindRemind();
   const kid = document.getElementById('kid');
   if (kid) kid.onchange = () => { activeStudentId = kid.value; activeConvId = null; persistSession(); render(); };
   const burger = document.getElementById('burger'); if (burger) burger.onclick = () => document.body.classList.toggle('side-open');
@@ -236,6 +304,20 @@ const SUGGEST = {
   parent: [['מה המצב השבוע?', 'סיכום ציונים, מטלות והיעדרויות', 'list'], ['ציונים אחרונים', 'לפי מקצוע', 'chart'], ['יש הגשות פתוחות?', 'מה עוד לא הוגש', 'task'], ['היעדרויות החודש', 'נוכחות מ-30 יום', 'calendar']],
   teacher: [['מי לא הגיש בט׳2?', 'לפי המטלה האחרונה', 'task'], ['מה הממוצע במבחן האחרון בט׳2?', 'ממוצע, טווח ונבחנים', 'chart'], ['מי בט׳2 עם יותר מ-3 היעדרויות?', 'למחנכים', 'calendar'], ['הודעות חדשות', 'סיכום תיבת ההודעות', 'inbox']],
 };
+function renderTools() {
+  const v = document.getElementById('view'), b = toolBadges();
+  const list = toolsFor(ctx.role);
+  v.innerHTML = `<section class="panel"><h2 class="ph">${icon('grid', 20)} כלים</h2>
+    <p class="hint">בוחרים כלי – ואלומה יודעת מה רוצים לעשות. "להכין עם AI" פותח שיחה שבה אלומה בונה בדיוק את זה, ו"פתיחה" פותח את הכלי עצמו.</p>
+    <div class="tools-grid">${list.map(t => `<article class="tool-card">
+      <div class="tool-h">${icon(t.icon, 22)}<b>${esc(t.name)}</b>${b[t.id] ? `<span class="badge">${b[t.id]}</span>` : ''}</div>
+      <p class="hint">${esc(t.desc)}</p>
+      <div class="btns">${t.ai ? `<button class="btn primary" data-toolai="${esc(t.id)}">${icon('sparkle', 15)} להכין עם AI</button>` : ''}${t.open ? `<button class="btn" data-toolopen="${esc(t.open)}">פתיחה</button>` : ''}${t.ask ? `<button class="btn primary" data-toolask="${esc(t.ask)}">${icon('chat', 15)} לשאול</button>` : ''}</div>
+    </article>`).join('')}</div></section>`;
+  v.querySelectorAll('[data-toolopen]').forEach(x => x.onclick = () => go(x.dataset.toolopen));
+  v.querySelectorAll('[data-toolai]').forEach(x => x.onclick = () => { activeTool = x.dataset.toolai; activeConvId = null; go('chat'); document.getElementById('q')?.focus(); });
+  v.querySelectorAll('[data-toolask]').forEach(x => x.onclick = () => { activeConvId = null; go('chat'); const q = x.dataset.toolask; if (q.endsWith('ש')) { const i = document.getElementById('q'); i.value = q; i.focus(); } else ask(q); });
+}
 function renderChat() {
   const v = document.getElementById('view');
   const conv = currentConv(false);
@@ -248,13 +330,15 @@ function renderChat() {
     ${tr.length ? '' : `<section class="empty">
       ${mark(52)}<h1>${esc(hello)}</h1>
       <p>${noKids ? 'כדי להתחיל, קשרו את הילד/ה בעזרת קוד מבית הספר בהגדרות.' : ctx.role === 'parent' ? `מה תרצו לדעת על ${esc(firstNameOf(nameOf(activeStudentId)))}?` : 'במה אפשר לעזור היום?'}</p>
+      ${(() => { const r = ['student', 'parent'].includes(ctx.role) ? Rem.active(ctx).slice(0, 3) : []; return r.length ? `<div class="rem-strip" role="status"><b>${icon('bell', 15)} לפני שתשאלו:</b>${r.map(x => `<span class="rem ${x.level}">${esc(x.text)}</span>`).join('')}</div>` : ''; })()}
       ${(ctx.role === 'student' || (ctx.role === 'parent' && activeStudentId)) ? todayCard() : ''}
       ${noKids ? '' : `<div class="suggest">${sugs.map(([q, d, i]) => `<button class="sug" data-q="${esc(q)}">${icon(i)}<span><b>${esc(q)}</b><small>${esc(d)}</small></span></button>`).join('')}</div>`}
     </section>`}
     <section class="chat" id="chat" aria-label="שיחה עם אלומה"></section>
     <div class="composer"><form id="ask"><label for="q" class="sr-only">שאלה לאלומה</label>
       <div id="attach" class="attach"></div>
-      <textarea id="q" rows="1" placeholder="שאלו את אלומה…" ${noKids ? 'disabled' : ''}></textarea>
+      <div id="toolchip" class="toolchip-row">${activeTool && toolById(activeTool) ? `<span class="toolchip">${icon(toolById(activeTool).icon, 15)} ${esc(toolById(activeTool).name)}<button type="button" class="att-x" id="toolx" aria-label="ביטול הכלי">✕</button></span>` : ''}</div>
+      <textarea id="q" rows="1" placeholder="${esc(activeTool && toolById(activeTool) ? toolById(activeTool).ai : 'שאלו את אלומה…')}" ${noKids ? 'disabled' : ''}></textarea>
       <div class="comp-row">${['student', 'teacher'].includes(ctx.role) ? `<label class="clip" title="צירוף קובץ (TXT, PDF, Word)" aria-label="צירוף קובץ">${icon('clip', 17)}<input type="file" id="qfile" hidden accept=".txt,.md,.pdf,.docx"></label>` : ''}<span class="comp-hint">${icon('database', 14)} ${ctx.live ? `מחוברת: Google Classroom (${G.LIVE.courses.length} כיתות)${G.hasService('calendar') ? ' · Calendar' : ''}${G.hasService('drive') ? ' · Drive' : ''}${G.hasService('gmail') ? ' · Gmail' : ''}` : 'מחוברת: משוב · Classroom (נתוני דמה)'}</span><button class="send" aria-label="שליחה">${icon('send', 18)}</button></div></form>
       <div class="disclaimer">אלומה עלולה לטעות. כל נתון מוצג עם המקור שלו, ושום הודעה לא נשלחת בלי אישור.</div></div>
   </div>`;
@@ -273,6 +357,7 @@ function renderChat() {
     catch (err) { attachment = null; box.innerHTML = `<span class="att err">${esc(err.message)}</span>`; }
   };
   showAttachment();
+  const tx = document.getElementById('toolx'); if (tx) tx.onclick = () => { activeTool = null; document.getElementById('toolchip').innerHTML = ''; document.getElementById('q').placeholder = 'שאלו את אלומה…'; };
   document.getElementById('ask').onsubmit = e => { e.preventDefault(); if (q.value.trim()) ask(q.value.trim()); q.value = ''; grow(); };
   if (tr.length) scrollDown();
 }
@@ -392,7 +477,10 @@ async function ask(text, { full = false } = {}) {
   // locally in a fraction of a second; everything else goes to Gemini. This also halves the load on Gemini.
   const quick = answer.safety && answer.safety(ctx, text);
   const file = attachment; attachment = null; showAttachment();
-  const create = !quick && ['student', 'teacher'].includes(ctx.role) ? S.parseCreate(ctx, text) : null;
+  // a tool chosen in Tools: the message is for it (and only once)
+  const tool = !quick && activeTool ? activeTool : null; if (activeTool) { activeTool = null; const tc = document.getElementById('toolchip'); if (tc) tc.innerHTML = ''; const qq = document.getElementById('q'); if (qq) qq.placeholder = 'שאלו את אלומה…'; }
+  const toolKind = { path: 'מסלול', tpaths: 'מסלול', cards: 'כרטיסיות', tcards: 'כרטיסיות' }[tool];
+  const create = toolKind ? S.parseCreate(ctx, `תבני ${toolKind} ${text}`) : !quick && !tool && ['student', 'teacher'].includes(ctx.role) ? S.parseCreate(ctx, text) : null;
   const routed = quick || file || full ? null : routeQuestion(ctx, text);
   const fastIntent = quick ? 'safety' : routed ? routed.intent : null;
   if (create) {
@@ -400,6 +488,8 @@ async function ask(text, { full = false } = {}) {
     st.querySelector('.steps').innerHTML = ['מבינה את הבקשה', ctx.role === 'teacher' ? 'בודקת את הרמה של הכיתה' : 'בודקת את הרמה שלך ושל הכיתה', file ? `קוראת את ${esc(file.name)}` : 'בוחרת נושאים לחיזוק', AI.enabled() ? 'בונה את התוכן עם Gemini' : 'בונה את התוכן מהמאגר']
       .map(x => `<div class="step run"><span class="dot"></span>${x}</div>`).join('');
     res = await createInChat(create, text, file);
+  } else if (tool === 'planner') {
+    res = planInChat(text);
   } else if (file && !AI.enabled()) {
     res = { text: `קיבלתי את הקובץ "${file.name}". אני יכולה לבנות ממנו תרגול – למשל:`, cards: [], chips: ['תיצרי ממנו כרטיסיות', 'תיצרי ממנו מסלול תרגול'] };
     attachment = file; showAttachment();
@@ -1039,6 +1129,36 @@ function deckPicker(gen, custom) {
 }
 function bindDeckPicker(v) { const d = v.querySelector('#deck'); if (d) d.onchange = () => { toolDeck = d.value || null; cardIdx = 0; cardFlipped = false; renderCards(); }; }
 
+// a study plan: one short task a day until the test
+function makePlan(sub, date) {
+  const p = L.progress(ctx.userId);
+  const days = Math.max(1, Math.min(10, Math.ceil((date - Date.now()) / 864e5)));
+  const units = L.BANK[sub].units;
+  const plan = { sub, date: date.toISOString(), days: [] };
+  for (let d = 0; d < days; d++) {
+    const day = new Date(Date.now() + d * 864e5); const last = d === days - 1;
+    const u = units[Math.min(units.length - 1, Math.floor(d * units.length / Math.max(1, days - 1)))];
+    plan.days.push({ date: day.toISOString(), tasks: last
+      ? [{ text: 'חזרה קלה על הכרטיסיות שלא ידעת' }, { text: 'שינה טובה – זה חלק מהלמידה 😴' }]
+      : [{ text: `שיעור במסלול התרגול: ${u.title}` }, { text: '10 כרטיסיות זיכרון' }, ...(d === Math.floor(days / 2) ? [{ text: 'לשאול את המורה על מה שלא ברור' }] : [])] });
+  }
+  p.plans.unshift(plan); save(); audit(ctx.userId, 'study_plan_created', { kind: sub });
+  return plan;
+}
+// the planner tool in the chat: which test? – the subject from the message, the date from the test calendar
+function planInChat(text) {
+  if (ctx.role !== 'student') return { text: 'תוכנית למידה זמינה לתלמידים.', cards: [], chips: [] };
+  const tests = (() => { try { return T.getUpcomingTests(ctx, { studentId: ctx.userId, days: 30 }).data; } catch { return []; } })();
+  let sub = S.subjectFrom(text);
+  const test = tests.find(x => !sub || x.subject === sub) || null;
+  if (!sub && test) sub = test.subject;
+  if (!sub || !L.BANK[sub]) return { text: `לאיזה מקצוע? יש לי תוכניות ל${L.LEARN_SUBJECTS.map(subjectName).join(', ')}.`, cards: [], chips: L.LEARN_SUBJECTS.map(x => `תוכנית למבחן ב${subjectName(x)}`) };
+  const m = text.match(/בעוד (\d+) ימים/);
+  const date = test && test.subject === sub ? new Date(test.date) : new Date(Date.now() + (m ? +m[1] : 7) * 864e5);
+  const plan = makePlan(sub, date);
+  return { text: `בניתי לך תוכנית ל${test && test.subject === sub ? `${test.title} ` : 'מבחן '}ב${subjectName(sub)} (${fmtDate(plan.date)}): ${plan.days.length} ימים, משימה קצרה בכל יום.`, chips: [],
+    cards: [{ type: 'tool', tool: 'planner', icon: '🗓️', title: 'תוכנית למידה', desc: `${subjectName(sub)} · ${plan.days.length} ימים`, cta: 'פתיחה' }] };
+}
 function renderPlanner() {
   const v = document.getElementById('view');
   if (ctx.role !== 'student') { go('chat'); return; }
@@ -1058,18 +1178,7 @@ function renderPlanner() {
   </section>`;
   v.querySelector('#planform').onsubmit = e => {
     e.preventDefault();
-    const sub = v.querySelector('#psub').value, date = new Date(v.querySelector('#pdate').value + 'T08:00:00');
-    const days = Math.max(1, Math.min(10, Math.ceil((date - Date.now()) / 864e5)));
-    const units = L.BANK[sub].units;
-    const plan = { sub, date: date.toISOString(), days: [] };
-    for (let d = 0; d < days; d++) {
-      const day = new Date(Date.now() + d * 864e5); const last = d === days - 1;
-      const u = units[Math.min(units.length - 1, Math.floor(d * units.length / Math.max(1, days - 1)))];
-      plan.days.push({ date: day.toISOString(), tasks: last
-        ? [{ text: 'חזרה קלה על הכרטיסיות שלא ידעת' }, { text: 'שינה טובה – זה חלק מהלמידה 😴' }]
-        : [{ text: `שיעור במסלול התרגול: ${u.title}` }, { text: '10 כרטיסיות זיכרון' }, ...(d === Math.floor(days / 2) ? [{ text: 'לשאול את המורה על מה שלא ברור' }] : [])] });
-    }
-    p.plans.unshift(plan); save(); audit(ctx.userId, 'study_plan_created', { kind: sub }); renderPlanner();
+    makePlan(v.querySelector('#psub').value, new Date(v.querySelector('#pdate').value + 'T08:00:00')); renderPlanner();
   };
   v.querySelectorAll('[data-task]').forEach(c => c.onchange = () => { const [a, b, t] = c.dataset.task.split(':').map(Number); p.plans[a].days[b].tasks[t].done = c.checked; save(); });
   v.querySelectorAll('[data-delplan]').forEach(b => b.onclick = () => { p.plans.splice(+b.dataset.delplan, 1); save(); renderPlanner(); });

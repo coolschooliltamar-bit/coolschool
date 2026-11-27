@@ -1,6 +1,6 @@
 // The "tools" (spec 04). Each one takes the AuthContext from the session and enforces
 // permissions itself. The answering engine can ask for anything – these decide what it gets.
-import { GRADES, ASSIGNMENTS, SUBMISSIONS, SCHEDULE, SCHEDULE_CHANGES, ATTENDANCE, ANNOUNCEMENTS, STUDENTS, TEACHERS, CLASSES, NOW, dayOffset, subjectName } from './data.js';
+import { GRADES, ASSIGNMENTS, SUBMISSIONS, SCHEDULE, SCHEDULE_CHANGES, ATTENDANCE, ANNOUNCEMENTS, EXAMS, STUDENTS, TEACHERS, CLASSES, NOW, dayOffset, subjectName } from './data.js';
 import { Forbidden } from './auth.js';
 import { db, save, audit } from './store.js';
 import { LIVE, gmailSend } from './google.js';
@@ -35,6 +35,26 @@ export function getAssignments(ctx, { studentId, status, subject, dueWithinDays,
   if (dueWithinDays != null) r = r.filter(a => new Date(a.due) - NOW < dueWithinDays * 864e5 && new Date(a.due) > NOW);
   r.sort((a, b) => new Date(a.due) - new Date(b.due));
   return { data: r, source: 'Google Classroom', fetchedAt: ASSIGNMENTS[0].fetchedAt };
+}
+
+// tests and quizzes in the next few days. Live: Classroom work and calendar events that are named like a test
+const TEST_RE = /מבחן|בוחן|בחינה|מבדק|\b(test|exam|quiz)\b/i;
+export function getUpcomingTests(ctx, { studentId, days = 7 } = {}) {
+  const soon = d => d && new Date(d) > NOW && new Date(d) - NOW < days * 864e5;
+  if (ctx.live) {
+    const a = (LIVE.assignments || []).filter(x => TEST_RE.test(x.title || '') && soon(x.due)).map(x => ({ subject: x.subject, title: x.title, date: x.due, source: 'Google Classroom' }));
+    const e = (LIVE.events || []).filter(x => TEST_RE.test(x.title || x.summary || '') && soon(x.start)).map(x => ({ subject: '', title: x.title || x.summary, date: x.start, source: 'Google Calendar' }));
+    return { data: [...a, ...e].sort((p, q) => new Date(p.date) - new Date(q.date)), source: 'Google Classroom' };
+  }
+  requireScope(ctx, 'schedule'); requireStudent(ctx, studentId);
+  const s = student(studentId);
+  return { data: EXAMS.filter(x => x.classId === s.classId && soon(x.date)).sort((p, q) => new Date(p.date) - new Date(q.date)), source: 'משוב' };
+}
+export function scheduleChanges(ctx, { studentId, dayOffsetN = 1 } = {}) {
+  if (ctx.live) return [];
+  requireScope(ctx, 'schedule'); requireStudent(ctx, studentId);
+  const s = student(studentId), date = dayOffset(dayOffsetN);
+  return SCHEDULE_CHANGES.filter(c => c.classId === s.classId && new Date(c.date).toDateString() === date.toDateString());
 }
 
 export function getSchedule(ctx, { studentId, dayOffsetN = 0 } = {}) {

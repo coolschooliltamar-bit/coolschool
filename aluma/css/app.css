@@ -633,3 +633,31 @@ body.in-app .proto-banner { display: none; }
 :root[data-theme="dark"] .mitem.m0, :root[data-theme="dark"] .mitem.m1, :root[data-theme="dark"] .mitem.m2, :root[data-theme="dark"] .mitem.m3, :root[data-theme="dark"] .mitem.m4 { background: var(--hover); }
 :root[data-theme="dark"] .right.slot, :root[data-theme="dark"] .mitem.right, :root[data-theme="dark"] .oitem.right, :root[data-theme="dark"] .winput.right { background: #12291F; color: #6FE0A6; }
 :root[data-theme="dark"] .wrong.slot, :root[data-theme="dark"] .mitem.wrong, :root[data-theme="dark"] .oitem.wrong, :root[data-theme="dark"] .winput.wrong { background: #351718; color: #FF9C96; }
+
+/* reminders (js/reminders.js) */
+.bellwrap { position: relative; }
+.bell { position: relative; }
+.bell-n { position: absolute; top: 2px; inset-inline-end: 2px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; line-height: 17px; text-align: center; }
+.bell-n.urgent { background: var(--coral); }
+.remind { position: absolute; top: calc(100% + 6px); inset-inline-end: -40px; width: min(360px, calc(100vw - 24px)); background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 12px; z-index: 60; text-align: right; }
+.remind-h { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.remind-l { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; }
+.rem { display: flex; gap: 8px; align-items: center; border-radius: 10px; padding: 8px 10px; background: var(--hover); font-size: 14px; line-height: 1.45; }
+.rem > span { flex: 1; }
+.rem.urgent { background: var(--coral-soft); }
+.rem.soon { background: var(--warn-soft); }
+.remind-f { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.remind-empty { margin: 6px 2px; }
+.rem-strip { display: flex; flex-direction: column; gap: 6px; width: min(560px, 100%); margin: 8px auto 0; text-align: right; }
+.rem-strip > b { font-size: 14px; display: flex; gap: 6px; align-items: center; }
+@media (max-width: 640px) { .remind { inset-inline-end: -90px; } }
+
+/* tools – one button, like plugins */
+.tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 12px; }
+.tool-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--card); display: flex; flex-direction: column; gap: 6px; }
+.tool-h { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.tool-h svg { color: var(--accent); }
+.tool-card .btns { margin-top: auto; flex-wrap: wrap; }
+.toolchip-row:empty { display: none; }
+.toolchip-row { padding: 6px 10px 0; }
+.toolchip { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 4px 6px 4px 12px; font-size: 13px; font-weight: 600; }
