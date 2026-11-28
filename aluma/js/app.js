@@ -151,6 +151,9 @@ function toolBadges() {
   if (ctx.role === 'teacher') { const w = P.forTeacher(ctx.userId).filter(x => ['pending', 'submitted'].includes(x.status)).length; if (w) b.projects = w; }
   return b;
 }
+// the Tools button is switched off for now ("coming soon"); the code stays. Developers turn it on in this browser:
+// localStorage.setItem('aluma-tools', 'on')
+const TOOLS_ON = (() => { try { return localStorage.getItem('aluma-tools') === 'on'; } catch { return false; } })();
 const TOOL_VIEWS = ['tools', 'path', 'pmap', 'lesson', 'cards', 'planner', 'game', 'project', 'projects', 'tpaths'];
 const ADMIN_NAV = [['dash', 'chart', 'לוח בקרה'], ['links', 'users', 'משתמשים וקישורים'], ['policy', 'shield', 'מדיניות'], ['audit', 'log', 'יומן ביקורת']];
 
@@ -169,6 +172,7 @@ function render() {
     bindTop(); return;
   }
   const views = ctx.role === 'school_admin' ? [...ADMIN_NAV.map(n => n[0]), 'profile'] : ['chat', 'settings', 'tools', 'profile', ...({ student: ['path', 'pmap', 'lesson', 'cards', 'planner', 'game', 'project'], parent: ['game'], teacher: ['inbox', 'projects', 'tpaths', 'pmap'] }[ctx.role] || [])];
+  if (!TOOLS_ON) views.splice(views.indexOf('tools'), 1);
   if (!views.includes(view)) view = views[0];
   $app.innerHTML = `${topBar()}<div class="layout"><aside class="side" id="side" aria-label="תפריט אלומה">${sidebar()}</aside>
     <div class="scrim" id="scrim"></div><main class="main"><div id="view"></div></main></div>`;
@@ -193,7 +197,8 @@ function sidebar() {
   let h = `${head}<button class="newchat" id="newchat">${icon('plus')}<span>שיחה חדשה</span></button>`;
   if (ctx.role === 'teacher') { const unread = db().inbox.filter(m => m.teacherId === ctx.userId && !m.read).length; h += item(view === 'inbox', 'inbox', 'תיבת הודעות', unread ? `<span class="badge">${unread}</span>` : '', 'data-go="inbox"'); }
   const badges = Object.values(toolBadges()).reduce((a, n) => a + n, 0);
-  h += item(TOOL_VIEWS.includes(view), 'grid', 'כלים', badges ? `<span class="badge">${badges}</span>` : '', 'data-go="tools"');
+  h += TOOLS_ON ? item(TOOL_VIEWS.includes(view), 'grid', 'כלים', badges ? `<span class="badge">${badges}</span>` : '', 'data-go="tools"')
+    : `<button class="nav soon" disabled aria-disabled="true" title="Coming soon">${icon('grid')}<span class="lb">כלים</span><span class="soon-tag" dir="ltr">${icon('flame', 14)} Coming soon</span></button>`;
   const SHOWN = 6;
   const shown = showAllConvs ? convs : convs.slice(0, SHOWN);
   if (!showAllConvs && activeConvId && !shown.some(c => c.id === activeConvId)) { const cur = convs.find(c => c.id === activeConvId); if (cur) shown.push(cur); }

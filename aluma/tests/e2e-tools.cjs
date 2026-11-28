@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
 const BASE = 'http://localhost:8765/aluma/';
 (async () => {
-  const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1200, height: 900 } });
+  const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1200, height: 900 } }); await p.addInitScript(() => localStorage.setItem('aluma-tools', 'on'));
   await p.route('https://aluma.aluma-school.workers.dev/**', r => r.abort());   // no network: the local engine answers
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE); await p.evaluate(() => localStorage.clear());
@@ -54,5 +54,9 @@ const BASE = 'http://localhost:8765/aluma/';
   ok(tp.length === 1 && tp[0].cls === 'c-9-2' && tp[0].draft && tp[0].subject === 'history', `the teacher's tool made a history draft for ט׳2: ${JSON.stringify(tp)}`);
 
   ok(!errs.length, 'no page errors ' + errs.join(' | '));
+  // by default the Tools button is "coming soon": disabled, and the tools page cannot be opened
+  const q = await b.newPage({ viewport: { width: 1200, height: 900 } }); await q.route('https://aluma.aluma-school.workers.dev/**', r => r.abort());
+  await q.goto(BASE + '?demo=student'); await q.waitForSelector('.nav.soon');
+  ok(await q.locator('.nav.soon').isDisabled() && /Coming soon/.test(await q.locator('.nav.soon').innerText()) && await q.locator('[data-go="tools"]').count() === 0, 'the Tools button says Coming soon and is disabled');
   await b.close(); console.log(fails ? `${fails} FAILED` : 'ALL PASSED'); process.exit(fails ? 1 : 0);
 })();

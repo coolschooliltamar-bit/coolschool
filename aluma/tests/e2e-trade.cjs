@@ -3,7 +3,7 @@
 const { chromium } = require('playwright');
 let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
 (async () => {
-  const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1280, height: 1000 } });
+  const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1280, height: 1000 } }); await p.addInitScript(() => localStorage.setItem('aluma-tools', 'on'));
   const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept());
   const S = () => p.evaluate(() => JSON.parse(localStorage.getItem('aluma-proto-v1')));
   await p.goto('http://localhost:8765/aluma/'); await p.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
