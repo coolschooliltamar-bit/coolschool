@@ -168,12 +168,12 @@ function render() {
     $app.innerHTML = `${topBar()}<div class="stopped"><h1>אלומה מושבתת זמנית</h1><p>בית הספר הפסיק את השירות באופן זמני. המידע שלך זמין כרגיל במערכות בית הספר.</p></div>`;
     bindTop(); return;
   }
-  const views = ctx.role === 'school_admin' ? ADMIN_NAV.map(n => n[0]) : ['chat', 'settings', 'tools', ...({ student: ['path', 'pmap', 'lesson', 'cards', 'planner', 'game', 'project'], parent: ['game'], teacher: ['inbox', 'projects', 'tpaths', 'pmap'] }[ctx.role] || [])];
+  const views = ctx.role === 'school_admin' ? [...ADMIN_NAV.map(n => n[0]), 'profile'] : ['chat', 'settings', 'tools', 'profile', ...({ student: ['path', 'pmap', 'lesson', 'cards', 'planner', 'game', 'project'], parent: ['game'], teacher: ['inbox', 'projects', 'tpaths', 'pmap'] }[ctx.role] || [])];
   if (!views.includes(view)) view = views[0];
   $app.innerHTML = `${topBar()}<div class="layout"><aside class="side" id="side" aria-label="תפריט אלומה">${sidebar()}</aside>
     <div class="scrim" id="scrim"></div><main class="main"><div id="view"></div></main></div>`;
   bindTop(); bindSide();
-  ({ chat: renderChat, tools: renderTools, settings: renderSettings, inbox: renderInbox, dash: renderDash, links: renderLinks, policy: renderPolicy, audit: renderAudit,
+  ({ chat: renderChat, tools: renderTools, profile: renderProfile, settings: renderSettings, inbox: renderInbox, dash: renderDash, links: renderLinks, policy: renderPolicy, audit: renderAudit,
      path: renderPath, pmap: renderPathMap, lesson: renderLesson, cards: renderCards, planner: renderPlanner, game: V.renderGame, project: V.renderProject, projects: V.renderTeacherProjects, tpaths: V.renderTeacherPaths })[view]();
   if (ctx.live && ['path', 'cards', 'game', 'project', 'lesson'].includes(view)) Cloud.push(ctx.userId);
 }
@@ -203,12 +203,57 @@ function sidebar() {
     ${convs.length > SHOWN ? `<button class="more-convs" id="moreconvs">${showAllConvs ? 'הצג פחות' : `הצג עוד ${convs.length - SHOWN}`}</button>` : ''}</div>`;
   return h + sideUser();
 }
+// the account menu (bottom of the sidebar): profile, settings, language, log out
 function sideUser() {
-  return `<div class="side-bottom"><button class="me-row ${view === 'settings' ? 'on' : ''}" ${ctx.role === 'school_admin' ? '' : 'data-go="settings"'}>
-    <span class="avatar">${esc(ctx.user.name[0])}</span><span class="who-t"><b>${esc(ctx.user.name)}</b><small>${esc(ROLE_NAMES[ctx.role])}</small></span>${ctx.role === 'school_admin' ? '' : icon('settings', 16)}</button></div>`;
+  const admin = ctx.role === 'school_admin';
+  return `<div class="side-bottom"><div class="acct" id="acct">
+    <div class="acct-menu" id="acctmenu" role="menu" hidden>
+      <div class="acct-who">${esc(ctx.user.email || (ctx.live ? '' : 'חשבון הדגמה'))}</div>
+      <button class="acct-it" role="menuitem" data-acct="profile">${icon('users', 17)}<span>פרופיל</span></button>
+      ${admin ? '' : `<button class="acct-it" role="menuitem" data-acct="settings">${icon('settings', 17)}<span>הגדרות</span></button>`}
+      <button class="acct-it" role="menuitem" id="acctlang" aria-haspopup="true" aria-expanded="false">${icon('globe', 17)}<span>שפה</span><small class="acct-val">עברית</small><span class="acct-chev" aria-hidden="true">‹</span></button>
+      <div class="acct-sub" id="acctsub" hidden role="menu" aria-label="שפה">
+        <button class="acct-it on" role="menuitemradio" aria-checked="true">${icon('check', 16)}<span>עברית</span></button>
+        <button class="acct-it" role="menuitemradio" aria-checked="false" disabled><span style="width:16px"></span><span>English</span><small class="acct-val">בקרוב</small></button>
+      </div>
+      <div class="acct-sep"></div>
+      <button class="acct-it" role="menuitem" id="acctout">${icon('logout', 17)}<span>התנתקות</span></button>
+    </div>
+    <button class="me-row ${['settings', 'profile'].includes(view) ? 'on' : ''}" id="mebtn" aria-haspopup="menu" aria-expanded="false" aria-controls="acctmenu">
+      <span class="avatar">${esc(ctx.user.name[0])}</span><span class="who-t"><b>${esc(ctx.user.name)}</b><small>${esc(ROLE_NAMES[ctx.role])}</small></span><span class="acct-chev up" aria-hidden="true">⌃</span></button>
+  </div></div>`;
+}
+function logout() { audit(ctx.userId, 'logout', {}); if (ctx.live) G.signOut(); setSession(null); ctx = null; document.body.classList.remove('side-open'); renderLogin(); }
+function bindAccount() {
+  const btn = document.getElementById('mebtn'), menu = document.getElementById('acctmenu'); if (!btn) return;
+  const close = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); document.getElementById('acctsub').hidden = true; };
+  btn.onclick = e => { e.stopPropagation(); const open = menu.hidden; menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); if (open) menu.querySelector('.acct-it')?.focus(); };
+  menu.onclick = e => e.stopPropagation();
+  menu.onkeydown = e => { if (e.key === 'Escape') { close(); btn.focus(); } };
+  document.addEventListener('click', close, { once: true });
+  menu.querySelectorAll('[data-acct]').forEach(b => b.onclick = () => { close(); go(b.dataset.acct); });
+  const lang = document.getElementById('acctlang'), sub = document.getElementById('acctsub');
+  lang.onclick = () => { sub.hidden = !sub.hidden; lang.setAttribute('aria-expanded', String(!sub.hidden)); };
+  document.getElementById('acctout').onclick = () => { close(); logout(); };
+}
+// profile: who I am in Aluma and what I am connected to
+function renderProfile() {
+  const v = document.getElementById('view'), u = ctx.user;
+  const cls = id => (CLASSES.find(c => c.id === id) || {}).name || '';
+  const rows = [['שם', u.name], ['תפקיד', ROLE_NAMES[ctx.role]], ['חשבון', ctx.live ? (u.email || 'חשבון Google') : 'חשבון הדגמה – נתוני דמה']];
+  if (ctx.role === 'student' && u.classId) rows.push(['כיתה', cls(u.classId)]);
+  if (ctx.role === 'parent') rows.push(['ילדים מקושרים', ctx.allowedStudentIds.map(nameOf).join(', ') || 'עוד אין – מקשרים בקוד מבית הספר בהגדרות']);
+  if (ctx.role === 'teacher') { rows.push(['מקצועות', (ctx.subjects || []).map(subjectName).join(', ')]); if (ctx.homeroom) rows.push(['מחנך/ת של', cls(ctx.homeroom)]); }
+  rows.push(['מחוברת ל', ctx.live ? `Google Classroom (${G.LIVE.courses.length} כיתות)` : 'משוב · Classroom (נתוני דמה)']);
+  v.innerHTML = `<section class="panel profile"><div class="prof-h"><span class="avatar big">${esc(u.name[0])}</span><div><h2>${esc(u.name)}</h2><p class="hint">${esc(ROLE_NAMES[ctx.role])}</p></div></div>
+    <table class="t"><tbody>${rows.map(([k, val]) => `<tr><th>${esc(k)}</th><td>${esc(val)}</td></tr>`).join('')}</tbody></table>
+    <div class="btns">${ctx.role === 'school_admin' ? '' : '<button class="btn" id="pset">הגדרות</button>'}<button class="btn" id="pout">${icon('logout', 15)} התנתקות</button></div></section>`;
+  const ps = v.querySelector('#pset'); if (ps) ps.onclick = () => go('settings');
+  v.querySelector('#pout').onclick = logout;
 }
 function bindSide() {
   const side = document.getElementById('side');
+  bindAccount();
   side.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
   side.querySelectorAll('[data-conv]').forEach(b => b.onclick = () => { activeConvId = b.dataset.conv; go('chat'); });
   side.querySelectorAll('[data-delconv]').forEach(b => b.onclick = () => {
@@ -228,18 +273,16 @@ function bindSide() {
 
 function topBar() {
   const kids = ctx.role === 'parent' ? ctx.allowedStudentIds : [];
-  const titles = { tools: 'כלים', chat: (currentConv(false) || {}).title || 'שיחה חדשה', path: 'מסלול תרגול', lesson: 'מסלול תרגול', cards: 'כרטיסיות זיכרון', planner: 'תוכנית למידה', settings: 'הגדרות', inbox: 'תיבת הודעות', game: 'פרסים והישגים', project: 'פרויקט אישי', projects: 'פרויקטים אישיים', tpaths: 'מסלולים לכיתה',
+  const titles = { profile: 'פרופיל', tools: 'כלים', chat: (currentConv(false) || {}).title || 'שיחה חדשה', path: 'מסלול תרגול', lesson: 'מסלול תרגול', cards: 'כרטיסיות זיכרון', planner: 'תוכנית למידה', settings: 'הגדרות', inbox: 'תיבת הודעות', game: 'פרסים והישגים', project: 'פרויקט אישי', projects: 'פרויקטים אישיים', tpaths: 'מסלולים לכיתה',
     dash: 'לוח בקרה', links: 'משתמשים וקישורים', policy: 'מדיניות', audit: 'יומן ביקורת' };
   return `<header class="top">
     <button class="iconbtn ghost burger" id="burger" aria-label="תפריט">${icon('menu')}</button>
-    <div class="top-title">${esc(titles[view] || '')}</div>
+    ${view === 'chat' ? `<div class="top-brand" aria-label="אלומה">${mark(26)}<span>אלומה</span></div>` : `<div class="top-title">${esc(titles[view] || '')}</div>`}
     ${kids.length ? `<label class="sr-only" for="kid">על מי מדברים?</label><div class="kid-pick">${icon('users', 16)}<select id="kid">${kids.map(id => `<option value="${id}" ${id === activeStudentId ? 'selected' : ''}>${esc(nameOf(id))}</option>`).join('')}</select></div>` : ''}
     <span class="spacer"></span>
     ${['student', 'parent'].includes(ctx.role) ? (() => { const n = Rem.active(ctx).length, urgent = Rem.active(ctx).some(r => r.level === 'urgent');
       return `<div class="bellwrap"><button class="iconbtn ghost bell" id="bell" aria-haspopup="true" aria-expanded="false" aria-label="תזכורות${n ? `: ${n}` : ''}" title="תזכורות">${icon('bell')}${n ? `<span class="bell-n ${urgent ? 'urgent' : ''}">${n}</span>` : ''}</button><div class="remind" id="remind" hidden></div></div>`; })() : ''}
-    <span class="model-pill" title="${AI.enabled() ? 'התשובות נוצרות ב-Gemini' : 'מנוע מקומי – אפשר לחבר Gemini בהגדרות'}">${icon('sparkle', 14)} ${AI.enabled() ? `Gemini${AI.currentModel() ? ' · ' + esc(AI.currentModel()) : ''}` : 'מנוע מקומי'}</span>
     <button class="iconbtn ghost" id="theme" title="מצב כהה/בהיר" aria-label="מצב כהה או בהיר">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon')}</button>
-    <button class="iconbtn ghost" id="logout" title="התנתקות" aria-label="התנתקות">${icon('logout')}</button>
   </header>`;
 }
 // the reminders panel under the bell
@@ -286,7 +329,7 @@ function bindTop() {
     document.documentElement.dataset.theme = th; try { localStorage.setItem('aluma-theme', JSON.stringify(th)); } catch { /* ignore */ }
     render();
   };
-  document.getElementById('logout').onclick = () => { audit(ctx.userId, 'logout', {}); if (ctx.live) G.signOut(); setSession(null); ctx = null; document.body.classList.remove('side-open'); renderLogin(); };
+
 }
 
 // ---------------- chat (several conversations per user, spec 13) ----------------
