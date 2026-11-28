@@ -41,8 +41,12 @@ export default {
     const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     const url = new URL(req.url);
-    if (url.pathname === '/health') return json({ ok: true, gemini: !!env.GEMINI_API_KEY, db: !!env.DB });
+    if (url.pathname === '/health') return json({ ok: true, gemini: !!env.GEMINI_API_KEY, db: !!env.DB, stay: !!env.GOOGLE_CLIENT_SECRET });
     if (!ALLOWED_ORIGINS.includes(origin)) return json({ error: { message: 'Forbidden origin' } }, 403);
+    if (url.pathname.startsWith('/auth/')) {
+      try { return await authRoute(url, req, env, json); }
+      catch (e) { return json({ error: { message: e.status ? e.message : 'שגיאת שרת.' } }, e.status || 500); }
+    }
 
     try {
       const who = await identify(req, env);                    // { sub } for Google users, null for demo
@@ -282,4 +286,91 @@ async function take(env, key, limit) {
 
 async function audit(env, sub, action) {
   await env.DB.prepare('INSERT INTO audit_log (user_sub, action, at) VALUES (?, ?, ?)').bind(sub, action, new Date().toISOString()).run();
+}
+
+// ---------- staying signed in (Google sign-in with a refresh token kept on the server) ----------
+// The site gets a one-time code from Google; here it is exchanged (with the client SECRET, which only this server
+// has) for an access token and a refresh token. The refresh token is stored ENCRYPTED (AES-GCM, key derived from
+// the secret) in D1, once per user; each device gets a random session id, stored only as a SHA-256 hash. The site keeps the
+// session id and asks for a fresh 1-hour access token when needed. A session ends after SESSION_DAYS without use,
+// on "התנתקות", or when the user removes Aluma's access in their Google account.
+const SESSION_DAYS = 30;
+const b64 = u8 => btoa(String.fromCharCode(...u8));
+const unb64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
+const hexOf = u8 => [...u8].map(b => b.toString(16).padStart(2, '0')).join('');
+const sha256 = async t => hexOf(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t))));
+async function sealKey(env) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.GOOGLE_CLIENT_SECRET), 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: new TextEncoder().encode('aluma-session-v1'), info: new Uint8Array() }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+export async function seal(env, text) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await sealKey(env), new TextEncoder().encode(text)));
+  return b64(iv) + '.' + b64(ct);
+}
+export async function unseal(env, sealed) {
+  const [iv, ct] = sealed.split('.').map(unb64);
+  return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, await sealKey(env), ct));
+}
+async function googleToken(params) {
+  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(params) });
+  return { ok: r.ok, data: await r.json().catch(() => ({})) };
+}
+const authErr = (message, status) => Object.assign(new Error(message), { status });
+async function authRoute(url, req, env, json) {
+  if (req.method !== 'POST') throw authErr('Not found', 404);
+  if (!env.GOOGLE_CLIENT_SECRET) throw authErr('not_configured', 503);
+  const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
+  if (!(await take(env, `auth:${ip}`, 2000))) throw authErr('יותר מדי ניסיונות התחברות היום.', 429);
+  const body = await req.json().catch(() => ({}));
+  const now = new Date(), later = new Date(now.getTime() + SESSION_DAYS * 864e5).toISOString();
+  const rowOf = async sid => (typeof sid === 'string' && sid.length >= 40 && sid.length <= 100)
+    ? env.DB.prepare('SELECT * FROM sessions WHERE id = ? AND expires > ?').bind(await sha256(sid), now.toISOString()).first() : null;
+
+  if (url.pathname === '/auth/exchange') {
+    if (typeof body.code !== 'string' || body.code.length > 2000) throw authErr('bad code', 400);
+    const t = await googleToken({ code: body.code, client_id: GOOGLE_CLIENT_ID, client_secret: env.GOOGLE_CLIENT_SECRET, redirect_uri: 'postmessage', grant_type: 'authorization_code' });
+    if (!t.ok || !t.data.access_token) throw authErr('ההתחברות ל-Google נכשלה. נסו שוב.', 401);
+    const info = await (await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(t.data.access_token)}`)).json().catch(() => null);
+    if (!info || (info.azp !== GOOGLE_CLIENT_ID && info.aud !== GOOGLE_CLIENT_ID) || !info.sub) throw authErr('bad token', 401);
+    // Google sends a refresh token on the first offline consent; later sign-ins (other devices) use the stored one
+    if (t.data.refresh_token) await env.DB.prepare(`INSERT INTO google_grants (sub, rt, scope, updated) VALUES (?, ?, ?, ?)
+      ON CONFLICT(sub) DO UPDATE SET rt = excluded.rt, scope = excluded.scope, updated = excluded.updated`).bind(info.sub, await seal(env, t.data.refresh_token), t.data.scope || '', now.toISOString()).run();
+    const out = { access_token: t.data.access_token, expires_in: t.data.expires_in, scope: t.data.scope };
+    if (!(await env.DB.prepare('SELECT 1 FROM google_grants WHERE sub = ?').bind(info.sub).first())) return json({ ...out, session: null, need_consent: true });
+    const old = await rowOf(body.session);
+    if (old && old.sub === info.sub) await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(old.id).run();
+    const sid = hexOf(crypto.getRandomValues(new Uint8Array(32)));
+    await env.DB.prepare('INSERT INTO sessions (id, sub, created, last_used, expires) VALUES (?, ?, ?, ?, ?)')
+      .bind(await sha256(sid), info.sub, now.toISOString(), now.toISOString(), later).run();
+    await env.DB.prepare('DELETE FROM sessions WHERE expires < ?').bind(now.toISOString()).run();
+    await audit(env, info.sub, 'session_start');
+    return json({ ...out, session: sid });
+  }
+  const endAll = sub => env.DB.batch([env.DB.prepare('DELETE FROM sessions WHERE sub = ?').bind(sub), env.DB.prepare('DELETE FROM google_grants WHERE sub = ?').bind(sub)]);
+  if (url.pathname === '/auth/refresh') {
+    const row = await rowOf(body.session);
+    const grant = row && await env.DB.prepare('SELECT * FROM google_grants WHERE sub = ?').bind(row.sub).first();
+    if (!grant) throw authErr('session_ended', 401);
+    const t = await googleToken({ refresh_token: await unseal(env, grant.rt), client_id: GOOGLE_CLIENT_ID, client_secret: env.GOOGLE_CLIENT_SECRET, grant_type: 'refresh_token' });
+    if (!t.ok || !t.data.access_token) {
+      if (t.data.error === 'invalid_grant') { await endAll(row.sub); throw authErr('session_ended', 401); }   // access removed at Google
+      throw authErr('Google לא זמין כרגע.', 502);
+    }
+    await env.DB.prepare('UPDATE sessions SET last_used = ?, expires = ? WHERE id = ?').bind(now.toISOString(), later, row.id).run();
+    return json({ access_token: t.data.access_token, expires_in: t.data.expires_in, scope: t.data.scope || grant.scope });
+  }
+  if (url.pathname === '/auth/logout') {
+    const row = await rowOf(body.session);
+    if (row) {
+      if (body.revoke) {   // "disconnect from all Google services": Google forgets Aluma's access, and every device is signed out
+        const grant = await env.DB.prepare('SELECT rt FROM google_grants WHERE sub = ?').bind(row.sub).first();
+        if (grant) await fetch('https://oauth2.googleapis.com/revoke', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ token: await unseal(env, grant.rt) }) }).catch(() => {});
+        await endAll(row.sub);
+      } else await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(row.id).run();
+      await audit(env, row.sub, body.revoke ? 'session_revoked' : 'session_end');
+    }
+    return json({ ok: true });
+  }
+  throw authErr('Not found', 404);
 }

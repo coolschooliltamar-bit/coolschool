@@ -10,3 +10,4 @@ database_name = "aluma-db"
 database_id = "9957cd20-fe79-417d-a08a-d737d8bc342a"
 
 # The Gemini key is a SECRET, not set here:  Worker → Settings → Variables and Secrets → GEMINI_API_KEY
+# For staying signed in, also a SECRET: GOOGLE_CLIENT_SECRET (the OAuth client's secret, from Google Cloud Console)

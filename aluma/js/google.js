@@ -1,8 +1,11 @@
 // Real Google Classroom connection (spec 05) – read only, straight from the browser.
 // Uses Google Identity Services (token model): only the public OAuth Client ID is needed.
 // The client SECRET is never used here – a static site must not contain it.
-// The access token lives in memory only (not in storage) and is gone when the tab closes.
-import { GOOGLE_CLIENT_ID } from './config.js';
+// The access token lives in memory only (never in storage).
+// Staying signed in: when Aluma's server is set up for it, sign-in uses Google's code flow – the server keeps the
+// refresh token (encrypted) and this browser keeps only a random session id, which it trades for a fresh 1-hour
+// access token when the page opens again or the token is about to expire. Without it: the old token flow (this tab only).
+import { GOOGLE_CLIENT_ID, GEMINI_PROXY_URL } from './config.js';
 
 const SCOPES = [
   'openid', 'profile', 'email',
@@ -14,6 +17,69 @@ const API = 'https://classroom.googleapis.com/v1';
 
 let token = null;
 let granted = new Set();
+// ---------- staying signed in ----------
+const STAY = 'aluma-stay';                     // the session id only – never a Google token
+const savedSid = () => { try { return localStorage.getItem(STAY) || null; } catch { return null; } };
+const setSid = v => { try { v ? localStorage.setItem(STAY, v) : localStorage.removeItem(STAY); } catch { /* ignore */ } };
+export const hasSavedSession = () => !!savedSid();
+let stayOn = null, renewTimer = null, tokenExp = 0, renewing = null;
+async function checkStay() {
+  if (stayOn !== null || !GEMINI_PROXY_URL) return !!stayOn;
+  try { stayOn = !!(await (await fetch(GEMINI_PROXY_URL + '/health')).json()).stay; } catch { stayOn = false; }
+  return stayOn;
+}
+async function authPost(path, body) {
+  const r = await fetch(GEMINI_PROXY_URL + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error((j.error && j.error.message) || 'ההתחברות נכשלה.'), { status: r.status });
+  return j;
+}
+function useToken(t) {
+  token = t.access_token; tokenExp = Date.now() + (Number(t.expires_in) || 3600) * 1000;
+  (t.scope || '').split(' ').filter(Boolean).forEach(x => granted.add(x));
+  clearTimeout(renewTimer);
+  if (savedSid()) renewTimer = setTimeout(() => renew().catch(() => {}), Math.max(60, (Number(t.expires_in) || 3600) - 300) * 1000);
+}
+// a fresh access token from the server (the timer may sleep in a background tab, so this is also called on return)
+export function renew() {
+  if (!savedSid()) return Promise.resolve(false);
+  return renewing || (renewing = authPost('/auth/refresh', { session: savedSid() })
+    .then(t => { useToken(t); return true; })
+    .catch(e => { if (e.status === 401) { setSid(null); token = null; } throw e; })
+    .finally(() => { renewing = null; }));
+}
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && token && savedSid() && tokenExp - Date.now() < 10 * 60e3) renew().catch(() => {});
+});
+// opening the site again: the saved session gives a new token – no Google window
+export async function resume() {
+  if (!savedSid()) return null;
+  try { await renew(); } catch { return null; }
+  await refresh();
+  return LIVE.profile;
+}
+function requestCode(scope) {
+  return new Promise((resolve, reject) => {
+    google.accounts.oauth2.initCodeClient({
+      client_id: GOOGLE_CLIENT_ID, scope, ux_mode: 'popup', include_granted_scopes: true,
+      callback: r => (r && r.code ? resolve(r.code) : reject(new Error(r && r.error_description || 'ההתחברות בוטלה.'))),
+      error_callback: e => reject(new Error(e && e.type === 'popup_closed' ? 'חלון ההתחברות נסגר.' : 'ההתחברות נכשלה.')),
+    }).requestCode();
+  });
+}
+// one Google window; with the server's help the result is a lasting session, otherwise a token for this tab
+async function authorize(scope, prompt = '') {
+  if (!stayOn) { token = await requestToken(scope, prompt); tokenExp = Date.now() + 3600e3; return; }
+  const code = await requestCode(scope);
+  const t = await authPost('/auth/exchange', { code, session: savedSid() || undefined });
+  if (t.need_consent) {
+    // Google already trusts Aluma but gave no lasting permission: drop the old permission, so the next sign-in asks once
+    try { google.accounts.oauth2.revoke(t.access_token, () => {}); } catch { /* ignore */ }
+    throw new Error('כדי שאלומה תישאר מחוברת צריך לאשר אותה פעם אחת מחדש. לחצו שוב על "התחברות עם Google".');
+  }
+  if (t.session) setSid(t.session);
+  useToken(t);
+}
 export const LIVE = { profile: null, courses: [], assignments: [], grades: [], announcements: [], teachers: [], events: null, errors: [], fetchedAt: null };
 
 // Extra Google services, connected one by one (incremental consent) with the same Client ID.
@@ -49,7 +115,7 @@ export async function connectServices(keys) {
   if (!gisReady()) await loadGis();
   keys.forEach(k => paused.delete(k));
   const need = keys.flatMap(k => SERVICES[k].scopes).filter(x => !granted.has(x));
-  if (need.length) token = await requestToken([...new Set([...SCOPES.split(' '), ...granted, ...need])].join(' '), 'consent');
+  if (need.length) await authorize([...new Set([...SCOPES.split(' '), ...granted, ...need])].join(' '), 'consent');
   const missing = keys.filter(k => !hasService(k));
   if (keys.includes('gmail') && hasService('gmail')) await loadTeachers();
   if (keys.includes('calendar') && hasService('calendar')) LIVE.events = await calendarEvents(new Date(), 14);
@@ -86,13 +152,13 @@ function loadGis() {
   return gisPromise;
 }
 export const gisReady = () => !!(window.google && google.accounts && google.accounts.oauth2);
-export function preload() { loadGis().catch(() => {}); }
+export function preload() { loadGis().catch(() => {}); checkStay(); }
 
 export async function signIn() {
   if (!GOOGLE_CLIENT_ID) throw new Error('לא הוגדר Client ID של Google.');
   if (!gisReady()) await loadGis();          // normally already loaded by preload(), so no wait before the pop-up
   const restore = savedTools().flatMap(k => SERVICES[k].scopes);    // tools connected last time come back automatically
-  token = await requestToken([...new Set([...SCOPES.split(' '), ...restore])].join(' '));
+  await authorize([...new Set([...SCOPES.split(' '), ...restore])].join(' '));
   await refresh();
   return LIVE.profile;
 }
@@ -101,14 +167,18 @@ export async function signIn() {
 // still connected next time. revoke: true (from "disconnect from all Google services") removes them at Google.
 export function signOut({ revoke = false } = {}) {
   if (revoke && token && window.google && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(token, () => {});
+  const sid = savedSid();
+  if (sid) { authPost('/auth/logout', { session: sid, revoke }).catch(() => {}); setSid(null); }
+  clearTimeout(renewTimer); tokenExp = 0;
   token = null; granted = new Set(); paused = new Set();
   Object.assign(LIVE, { profile: null, courses: [], assignments: [], grades: [], announcements: [], teachers: [], events: null, fetchedAt: null });
 }
 export const isLive = () => !!token;
 export const accessToken = () => token;   // sent to Aluma's own server only, which checks it with Google
 
-async function get(url) {
+async function get(url, again = true) {
   const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (r.status === 401 && again && savedSid() && await renew().catch(() => false)) return get(url, false);
   if (r.status === 401) { token = null; throw new Error('ההתחברות ל-Google פגה. התחברו מחדש.'); }
   if (r.status === 403) throw new Error('אין הרשאה ל-Classroom בחשבון הזה (ייתכן שבית הספר צריך לאשר את האפליקציה).');
   if (!r.ok) throw new Error(`Classroom החזיר שגיאה (${r.status}).`);

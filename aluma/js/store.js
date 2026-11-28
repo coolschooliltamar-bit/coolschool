@@ -33,9 +33,9 @@ export function audit(actor, action, details = {}) {
   save();
 }
 
-// session lives in sessionStorage (closes with the tab), like a short session cookie
+// the demo session stays until "התנתקות" (demo accounts only – a Google session is kept by google.js as a server session id)
 const SKEY = 'aluma-proto-session';
-export const getSession = () => { try { return JSON.parse(sessionStorage.getItem(SKEY)); } catch { return null; } };
-export const setSession = s => { try { s ? sessionStorage.setItem(SKEY, JSON.stringify(s)) : sessionStorage.removeItem(SKEY); } catch { /* ignore */ } };
+export const getSession = () => { try { return JSON.parse(localStorage.getItem(SKEY) || sessionStorage.getItem(SKEY)); } catch { return null; } };
+export const setSession = s => { try { sessionStorage.removeItem(SKEY); s ? localStorage.setItem(SKEY, JSON.stringify(s)) : localStorage.removeItem(SKEY); } catch { /* ignore */ } };
 
 export const userSettings = id => (state.settings[id] = state.settings[id] || { theme: 'light', quietFrom: '20:00', quietTo: '07:30' });

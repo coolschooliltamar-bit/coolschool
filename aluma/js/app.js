@@ -48,6 +48,7 @@ function demoFromLink() {
 function boot() {
   demoFromLink();
   const s = getSession();
+  if (!s && G.hasSavedSession()) return resumeLive();
   if (!s) return renderLogin();
   try { ctx = buildContext(s.userId); } catch { setSession(null); return renderLogin(); }
   if (ctx.role === 'parent') activeStudentId = ctx.allowedStudentIds.includes(s.activeStudentId) ? s.activeStudentId : ctx.allowedStudentIds[0] || null;
@@ -55,6 +56,20 @@ function boot() {
   view = s.view === 'lesson' ? 'path' : (s.view || (ctx.role === 'school_admin' ? 'dash' : 'chat'));
   activeConvId = s.convId || null;
   render(); startReminders(); Cloud.metric('visit');
+}
+
+// staying signed in with Google: the saved session gives a new token, then the data is loaded again
+async function resumeLive() {
+  $app.innerHTML = `<div class="resume" role="status">${mark(48)}<p>מתחברת שוב ל-Google Classroom…</p></div>`;
+  let prof = null;
+  try { prof = await G.resume(); } catch { prof = null; }
+  if (!prof) return renderLogin();
+  await startLive(prof);
+}
+async function startLive(prof) {
+  ctx = liveContext(prof); activeStudentId = ctx.userId; activeConvId = null; view = 'chat';
+  await Cloud.pull(ctx.userId);
+  audit(ctx.userId, 'login', {}); render(); startReminders(); Cloud.metric('visit');
 }
 
 // ---------------- login (demo accounts) ----------------
@@ -105,10 +120,7 @@ function renderLogin() {
     const b = e.currentTarget, msg = document.getElementById('gmsg');
     b.disabled = true; msg.innerHTML = '<p class="hint">מתחברת ל-Google ומושכת את הנתונים מ-Classroom…</p>';
     try {
-      const prof = await G.signIn();
-      ctx = liveContext(prof); activeStudentId = ctx.userId; activeConvId = null; view = 'chat';
-      await Cloud.pull(ctx.userId);
-      audit(ctx.userId, 'login', {}); render(); startReminders(); Cloud.metric('visit');
+      await startLive(await G.signIn());
     } catch (err) { b.disabled = false; msg.innerHTML = `<p class="err">${esc(err.message)}</p>`; }
   };
   document.getElementById('reset').onclick = () => { if (confirm('לאפס את כל נתוני הדמה בדפדפן הזה?')) { resetAll(); renderLogin(); } };

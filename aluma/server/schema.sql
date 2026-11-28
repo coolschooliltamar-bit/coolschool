@@ -68,3 +68,20 @@ CREATE TABLE IF NOT EXISTS metrics_users (   -- one row per active user per day;
   uh   TEXT NOT NULL,
   PRIMARY KEY (day, mode, uh)
 );
+
+-- staying signed in. google_grants: one row per user – the Google refresh token, encrypted (AES-GCM, key derived from
+-- the GOOGLE_CLIENT_SECRET secret). sessions: one row per signed-in device; id = SHA-256 of the session id the device holds.
+CREATE TABLE IF NOT EXISTS google_grants (
+  sub     TEXT PRIMARY KEY,
+  rt      TEXT NOT NULL,
+  scope   TEXT NOT NULL,
+  updated TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+  id        TEXT PRIMARY KEY,
+  sub       TEXT NOT NULL,
+  created   TEXT NOT NULL,
+  last_used TEXT NOT NULL,
+  expires   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS sessions_sub ON sessions (sub);

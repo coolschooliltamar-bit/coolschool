@@ -687,3 +687,6 @@ body.in-app .proto-banner { display: none; }
 .soon-tag svg { color: #E8590C; }
 :root[data-theme="dark"] .soon-tag { background: #3A2216; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .soon-tag { background: #3A2216; } }
+
+/* reconnecting to Google on open */
+.resume { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 14px; color: var(--ink2); }
