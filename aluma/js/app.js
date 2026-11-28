@@ -186,8 +186,8 @@ function render() {
   const views = ctx.role === 'school_admin' ? [...ADMIN_NAV.map(n => n[0]), 'profile'] : ['chat', 'settings', 'tools', 'profile', ...({ student: ['path', 'pmap', 'lesson', 'cards', 'planner', 'game', 'project'], parent: ['game'], teacher: ['inbox', 'projects', 'tpaths', 'pmap'] }[ctx.role] || [])];
   if (!TOOLS_ON) views.splice(views.indexOf('tools'), 1);
   if (!views.includes(view)) view = views[0];
-  $app.innerHTML = `${topBar()}<div class="layout"><aside class="side" id="side" aria-label="תפריט אלומה">${sidebar()}</aside>
-    <div class="scrim" id="scrim"></div><main class="main"><div id="view"></div></main></div>`;
+  $app.innerHTML = `<div class="layout"><aside class="side" id="side" aria-label="תפריט אלומה">${sidebar()}</aside>
+    <div class="scrim" id="scrim"></div><main class="main">${topBar()}<div id="view"></div></main></div>`;
   bindTop(); bindSide();
   ({ chat: renderChat, tools: renderTools, profile: renderProfile, settings: renderSettings, inbox: renderInbox, dash: renderDash, links: renderLinks, policy: renderPolicy, audit: renderAudit,
      path: renderPath, pmap: renderPathMap, lesson: renderLesson, cards: renderCards, planner: renderPlanner, game: V.renderGame, project: V.renderProject, projects: V.renderTeacherProjects, tpaths: V.renderTeacherPaths })[view]();
@@ -386,21 +386,26 @@ function renderChat() {
   const sugs = ctx.live ? [['מה להגיש השבוע?', 'מטלות מ-Classroom', 'task'], ['יש לי מטלות באיחור?', 'לפי תאריכי ההגשה', 'clock'], ['ציונים אחרונים', 'ציונים שהמורים החזירו', 'chart'],
     G.hasService('calendar') ? ['מה יש לי ביומן מחר?', 'מתוך Google Calendar', 'calendar'] : ['מה ההודעות בכיתות?', 'הודעות מ-Classroom', 'mail']] : SUGGEST[ctx.role];
   const hello = `${new Date().getHours() < 12 ? 'בוקר טוב' : new Date().getHours() < 18 ? 'צהריים טובים' : 'ערב טוב'}, ${firstNameOf(ctx.user.name)}`;
-  v.innerHTML = `<div class="chat-wrap">
-    ${tr.length ? '' : `<section class="empty">
-      ${mark(52)}<h1>${esc(hello)}</h1>
-      <p>${noKids ? 'כדי להתחיל, קשרו את הילד/ה בעזרת קוד מבית הספר בהגדרות.' : ctx.role === 'parent' ? `מה תרצו לדעת על ${esc(firstNameOf(nameOf(activeStudentId)))}?` : 'במה אפשר לעזור היום?'}</p>
-      ${(() => { const r = ['student', 'parent'].includes(ctx.role) ? Rem.active(ctx).slice(0, 3) : []; return r.length ? `<div class="rem-strip" role="status"><b>${icon('bell', 15)} לפני שתשאלו:</b>${r.map(x => `<span class="rem ${x.level}">${esc(x.text)}</span>`).join('')}</div>` : ''; })()}
-      ${(ctx.role === 'student' || (ctx.role === 'parent' && activeStudentId)) ? todayCard() : ''}
-      ${noKids ? '' : `<div class="suggest">${sugs.map(([q, d, i]) => `<button class="sug" data-q="${esc(q)}">${icon(i)}<span><b>${esc(q)}</b><small>${esc(d)}</small></span></button>`).join('')}</div>`}
-    </section>`}
-    <section class="chat" id="chat" aria-label="שיחה עם אלומה"></section>
-    <div class="composer"><form id="ask"><label for="q" class="sr-only">שאלה לאלומה</label>
+  const composer = `<div class="composer"><form id="ask"><label for="q" class="sr-only">שאלה לאלומה</label>
       <div id="attach" class="attach"></div>
       <div id="toolchip" class="toolchip-row">${activeTool && toolById(activeTool) ? `<span class="toolchip">${icon(toolById(activeTool).icon, 15)} ${esc(toolById(activeTool).name)}<button type="button" class="att-x" id="toolx" aria-label="ביטול הכלי">✕</button></span>` : ''}</div>
       <textarea id="q" rows="1" placeholder="${esc(activeTool && toolById(activeTool) ? toolById(activeTool).ai : 'שאלו את אלומה…')}" ${noKids ? 'disabled' : ''}></textarea>
       <div class="comp-row">${['student', 'teacher'].includes(ctx.role) ? `<label class="clip" title="צירוף קובץ (TXT, PDF, Word)" aria-label="צירוף קובץ">${icon('clip', 17)}<input type="file" id="qfile" hidden accept=".txt,.md,.pdf,.docx"></label>` : ''}<span class="comp-hint">${icon('database', 14)} ${ctx.live ? `מחוברת: Google Classroom (${G.LIVE.courses.length} כיתות)${G.hasService('calendar') ? ' · Calendar' : ''}${G.hasService('drive') ? ' · Drive' : ''}${G.hasService('gmail') ? ' · Gmail' : ''}` : 'מחוברת: משוב · Classroom (נתוני דמה)'}</span><button class="send" aria-label="שליחה">${icon('send', 18)}</button></div></form>
-      <div class="disclaimer">אלומה עלולה לטעות. כל נתון מוצג עם המקור שלו, ושום הודעה לא נשלחת בלי אישור.</div></div>
+      <div class="disclaimer">אלומה עלולה לטעות. כל נתון מוצג עם המקור שלו, ושום הודעה לא נשלחת בלי אישור.</div></div>`;
+  const sub = noKids ? 'כדי להתחיל, קשרו את הילד/ה בעזרת קוד מבית הספר בהגדרות.' : ctx.role === 'parent' ? `מה תרצו לדעת על ${esc(firstNameOf(nameOf(activeStudentId)))}?` : '';
+  const rems = ['student', 'parent'].includes(ctx.role) ? Rem.active(ctx).slice(0, 3) : [];
+  const REM_KIND = { test: 'מבחן', due: 'הגשה', late: 'באיחור', change: 'שינוי במערכת' };
+  v.innerHTML = `<div class="chat-wrap">
+    ${tr.length ? '' : `<section class="empty">
+      <h1 class="hello">${mark(40)}<span>${esc(hello)}</span></h1>
+      ${sub ? `<p>${sub}</p>` : ''}
+      ${(ctx.role === 'student' || (ctx.role === 'parent' && activeStudentId)) ? todayCard() : ''}
+      ${composer}
+      ${noKids ? '' : `<div class="suggest">${sugs.map(([q, d, i]) => `<button class="sug" data-q="${esc(q)}" title="${esc(d)}">${icon(i)}<span><b>${esc(q)}</b><small>${esc(d)}</small></span></button>`).join('')}</div>`}
+      ${rems.length ? `<div class="rem-strip" role="status"><b>${icon('bell', 15)} לפני שתשאלו</b>${rems.map(x => `<div class="rem ${x.level}"><small>${REM_KIND[x.kind] || 'תזכורת'}</small><span>${esc(x.text)}</span></div>`).join('')}</div>` : ''}
+    </section>`}
+    <section class="chat" id="chat" aria-label="שיחה עם אלומה"></section>
+    ${tr.length ? composer : ''}
   </div>`;
   const chat = document.getElementById('chat');
   tr.forEach((m, i) => chat.appendChild(m.who === 'me' ? userMsg(m.text) : aiMsg(m.res, i === tr.length - 1)));
@@ -515,7 +520,8 @@ function showAttachment() {
 
 async function ask(text, { full = false } = {}) {
   if (busy) return; busy = true;
-  document.querySelector('.empty')?.remove();
+  const empty = document.querySelector('.empty');
+  if (empty) { const c = empty.querySelector('.composer'); if (c) document.querySelector('.chat-wrap').append(c); empty.remove(); }
   const chat = document.getElementById('chat');
   chat.querySelectorAll('.chips').forEach(c => c.remove());
   const conv = currentConv(true);

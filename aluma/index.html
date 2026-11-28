@@ -32,7 +32,7 @@
       Promise.all(s.files.map(function (f) { return fetch(f, { cache: 'reload' }).catch(function () {}); })).then(function () { if (!navigator.webdriver) location.reload(); });
     }).catch(function () {});
   })();
-  try { var th = JSON.parse(localStorage.getItem('aluma-theme') || '"light"'); document.documentElement.dataset.theme = th; } catch (e) {}
+  try { var st = localStorage.getItem('aluma-theme'); var th = st ? JSON.parse(st) : (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); document.documentElement.dataset.theme = th; } catch (e) {}
 </script>
 </head>
 <body>
